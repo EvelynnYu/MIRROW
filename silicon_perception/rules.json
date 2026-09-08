@@ -1,0 +1,10 @@
+{
+  "rules": [
+    {"id":"C1","name":"静息心率过高","priority":"critical","cooldown_seconds":7200,"condition":"heart_rate is not None and heart_rate > 120 and not screen_active and hr_sustained_high_count >= 3 and last_message_seconds > 120","message_template":"你的心率有点不对劲——{heart_rate}，而且持续好几分钟了，屏幕也没怎么动。你还好吗？","display_group":"🛡️ 救命规则","display_cond":"HR>120 静息 持续3次","trigger_type":"instant","dialogue_gate":120},
+    {"id":"C2","name":"心率骤升","priority":"critical","cooldown_seconds":7200,"condition":"heart_rate is not None and hr_avg_prev_5min is not None and hr_avg_prev_5min > 0 and heart_rate - hr_avg_prev_5min > 40 and not screen_active and last_message_seconds > 120 and user_status != 'out'","message_template":"你的心率突然从 {prev_avg} 跳到 {heart_rate} 了，而且你好像没在做什么剧烈的事。没事吧？","display_group":"🛡️ 救命规则","display_cond":"ΔHR>40 静息 外出豁免","trigger_type":"instant","dialogue_gate":120},
+    {"id":"L1","name":"心率轻度偏高","priority":"low","cooldown_seconds":600,"condition":"heart_rate is not None and heart_rate > 105","message_template":"","display_group":"⚪ 仅记录","display_cond":"HR>105","trigger_type":"log"},
+    {"id":"B1","name":"心率基线偏高","priority":"low","cooldown_seconds":3600,"condition":"heart_rate is not None and hr_baseline_mean > 0 and heart_rate > hr_baseline_mean + (3 if is_period else 2) * hr_baseline_stddev and not is_cold_start","message_template":"","display_group":"⚪ 仅记录(原high)","display_cond":"HR > 基线+2σ(生理期3σ)","trigger_type":"log"},
+    {"id":"B2","name":"步数严重偏低","priority":"low","cooldown_seconds":7200,"condition":"steps_today is not None and steps_baseline_mean > 0 and steps_today < steps_baseline_mean * 0.3 and not is_cold_start","message_template":"","display_group":"⚪ 仅记录(原medium)","display_cond":"步数 < 基线30%","trigger_type":"log"},
+    {"id":"L2","name":"上班时间还在家","priority":"medium","cooldown_seconds":7200,"condition":"location_category == 'home' and __work_hours__ and user_status != 'out' and not wfh_today","message_template":"这个点还在家？今天不用去公司吗？还是今天居家办公呀？","display_group":"📍 位置","display_cond":"工作时段在家 GPS新鲜 非居家办公","trigger_type":"instant"}
+  ]
+}

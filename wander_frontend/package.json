@@ -1,0 +1,25 @@
+{
+  "name": "mirrow-wander-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "playwright test"
+  },
+  "dependencies": {
+    "react": "19.2.5",
+    "react-dom": "19.2.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "24.12.2",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.1",
+    "typescript": "6.0.2",
+    "vite": "8.0.8"
+  }
+}

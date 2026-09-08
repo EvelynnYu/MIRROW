@@ -1,0 +1,34 @@
+# Existing dependencies
+psutil>=5.9.0
+anthropic>=0.45.0
+pytest>=8.3.4
+requests>=2.32.3
+python-dotenv>=1.0.1
+beautifulsoup4>=4.12.3
+pyautogui>=0.9.54
+
+# Web 搜索深读：抓取结果页正文（trafilatura 主，readability 回退，bs4 兜底）
+trafilatura>=2.1.0
+readability-lxml>=0.8.1
+
+# Additional core dependencies
+openai>=1.0.0  # For Deepseek API compatibility
+
+# Additional testing
+pytest-asyncio>=0.21.0  # For async test support
+
+# Additional computer tool dependencies
+pywin32>=306; platform_system=="Windows"  # For Windows-specific functionality
+
+# Additional utilities
+typing-extensions>=4.5.0  # For type hints
+
+# Development tools
+black>=23.0.0  # Code formatting
+isort>=5.12.0  # Import sorting
+mypy>=1.5.0  # Type checking 
+
+# CLI/UI
+rich>=13.7.0
+prompt_toolkit>=3.0.47
+Pillow>=10.4.0

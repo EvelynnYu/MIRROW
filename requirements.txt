@@ -1,0 +1,42 @@
+# MIRROW 开源模块依赖（批次1：mirrow_core + silicon_perception + wander_manager + behavior_scheduler）
+# Python >= 3.11
+
+# ── 核心 ──
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+httpx>=0.25.0
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+tzdata>=2024.1           # Windows 无系统时区库,zoneinfo 需要
+openai>=1.0.0            # behavior_scheduler LLM 适配器（任意 OpenAI 兼容接口）
+
+# ── 可选：记忆检索（SQLiteMemoryProvider 需要）──
+aiosqlite>=0.20.0
+
+# ── 可选：向量嵌入（ContextBuilder 语义搜索需要，需额外安装 sentence-transformers）──
+sentence-transformers>=2.2.0
+
+# ── 常用（缺失时对应能力降级，不影响启动）──
+numpy>=1.24.0            # 哨兵趋势计算/图像处理
+jieba>=0.42.1            # 关键词切词
+rapidfuzz>=3.0.0         # 漫想心愿去重
+psutil>=5.9.0            # 进程/系统信息采集
+
+# ── 可选：视觉与屏幕（不装则截屏/摄像头路径降级）──
+mss>=9.0.0
+Pillow>=10.0.0
+opencv-python>=4.8.0
+
+# ── 可选：蓝牙心率（不装则心率采集降级）──
+bleak>=0.21.0
+
+# ── 可选：浏览器工具（web_browser 需要，装后执行 playwright install chromium）──
+playwright>=1.40.0
+
+# ── 可选：网页解析（web_search/http 工具）──
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+
+# ── 可选：测试（本仓库 pytest 约定）──
+pytest>=7.0.0
+pytest-asyncio>=0.23.0    # 漫想 async 测试需要
