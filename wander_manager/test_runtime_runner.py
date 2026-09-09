@@ -172,7 +172,7 @@ class RuntimeRunnerTests(unittest.TestCase):
         self.assertEqual(activity["activity_id"], logs[0]["event_id"])
         self.assertEqual("deferred", logs[0]["details"]["delivery_status"])
         self.assertFalse(logs[0]["pushed"])
-        self.assertEqual("natural_success", logs[0]["details"]["wake_reason"])
+        self.assertEqual("fallback_wait", logs[0]["details"]["wake_reason"])
 
     def test_review_time_switch_carries_prior_thought_and_pushes_once(self):
         review_calls = 0
@@ -233,7 +233,7 @@ class RuntimeRunnerTests(unittest.TestCase):
         self.assertEqual(1, len(pushed))
         self.assertEqual(2, len(pushed[0]["tool_calls"]))
         wake = self.store.get_scheduler_wake("main")
-        self.assertEqual("natural_success", wake["wake_reason"])
+        self.assertEqual("fallback_wait", wake["wake_reason"])
         self.assertEqual(900.0, (datetime.fromisoformat(wake["next_plan_at"]) - self.now).total_seconds())
 
 
@@ -513,7 +513,7 @@ class RuntimeRunnerTests(unittest.TestCase):
         pending = self.store.get_pending_inclination(first_activity["activity_id"])
         self.assertEqual("pending", pending["status"])
 
-        self.now += timedelta(seconds=180)
+        self.now += timedelta(seconds=900)
         second = asyncio.run(runner.tick())
         self.assertEqual("scheduled_wait", second.action)
         pending = self.store.get_pending_inclination(first_activity["activity_id"])
@@ -732,7 +732,7 @@ class RuntimeRunnerTests(unittest.TestCase):
         self.store.save_run(run)
         activity = self.controller.apply_plan(
             run,
-            PlanDecision((ActivitySpec(EventType.LISTEN_MUSIC, GoalMode.COUNT, 1),), 20, {}),
+            PlanDecision((ActivitySpec(EventType.LISTEN_MUSIC, GoalMode.COUNT, 1),), 1, {}, horizon_mode="estimate"),
         )[0]
         runner = self._runner()
         music_factory = MusicFactory()
@@ -747,6 +747,10 @@ class RuntimeRunnerTests(unittest.TestCase):
         self.assertEqual(1, music_factory.handler.starts)
         node = self.store.list_nodes(activity.activity_id)[0]
         self.assertEqual("waiting_external", node["execution_status"])
+        self.now = self.now.replace(minute=2)
+        self.assertEqual("waiting_external", asyncio.run(runner.tick()).action)
+        self.assertEqual(1, music_factory.handler.starts)
+        self.assertEqual([], self.store.list_decisions(run.run_id, DecisionPhase.TIMING_REVIEW))
         self.now = self.now.replace(minute=3)
         asyncio.run(runner.tick())
         node = self.store.get_node(node["node_id"])

@@ -8,7 +8,7 @@ transition.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Awaitable, Callable, Optional
 
 from .event_catalog import EVENT_CATALOG, normalize_goal
@@ -52,6 +52,7 @@ class PlanDecision:
     activities: tuple[ActivitySpec, ...]
     horizon_min: int
     raw_plan: dict[str, Any]
+    horizon_mode: str = "deadline"
 
 
 def _event_from_value(value: Any) -> Optional[EventType]:
@@ -159,7 +160,8 @@ def build_runtime_block(
 
 
 _OUTPUT_INSTRUCTION = """根据上述真实状态，仅输出 JSON 对象：
-{"horizon_min":10-120整数,"activities":[{"event_type":"事件类型","goal":{"mode":"count|duration|open_ended|single|external_signal","value":整数或null},"reason":"简短原因"}]}
+{"horizon_min":预计分钟数,"horizon_mode":"estimate|deadline","activities":[{"event_type":"事件类型","goal":{"mode":"count|duration|open_ended|single|external_signal","value":整数或null},"reason":"简短原因"}]}
+estimate 表示到这个时间只做一次是否继续的复核，不会直接截断活动；deadline 只用于你明确希望到点结束的计划。
 初始只选择此刻真正想先做的 1 项；不要预先把候选活动排满。若做的过程中自然想转去另一件事，节点复核阶段仍可现场续作。event_type 必须来自可做事件列表。你的选择来自你的内心状态，用户状态仅作背景参考，不要只围绕用户。不要声称已执行任何事情。"""
 
 
@@ -276,7 +278,7 @@ class PlanDecisionAdapter:
     def _decision_dict(decision: Optional[PlanDecision]) -> dict[str, Any]:
         if decision is None:
             return {}
-        return {"horizon_min": decision.horizon_min, "activities": [
+        return {"horizon_min": decision.horizon_min, "horizon_mode": decision.horizon_mode, "activities": [
             {"event_type": item.event_type.value,
              "goal": {"mode": item.goal_mode.value, "value": item.goal_value}, "reason": item.reason}
             for item in decision.activities
@@ -289,10 +291,21 @@ class PlanDecisionAdapter:
         max_activities: int = 2,
     ) -> Optional[PlanDecision]:
         try:
-            horizon = int(payload.get("horizon_min", 30))
-        except (TypeError, ValueError):
+            candidate = payload.get("horizon_min", 30)
+            horizon = int(candidate)
+            if isinstance(candidate, bool) or horizon <= 0:
+                raise ValueError
+        except (TypeError, ValueError, OverflowError):
             horizon = 30
-        horizon = max(10, min(horizon, 120))
+        # ``timedelta`` must remain representable by the trusted local clock;
+        # rejecting absurd model numbers is not an artificial autonomy cap.
+        try:
+            datetime.now() + timedelta(minutes=horizon)
+        except (OverflowError, ValueError):
+            horizon = 30
+        horizon_mode = str(payload.get("horizon_mode") or "estimate").strip().lower()
+        if horizon_mode not in {"estimate", "deadline"}:
+            horizon_mode = "estimate"
         raw_activities = payload.get("activities")
         if not isinstance(raw_activities, list):
             return None
@@ -306,10 +319,10 @@ class PlanDecisionAdapter:
             if event_type is None or event_type not in allowed or event_type in seen_events:
                 continue
             goal = raw.get("goal") if isinstance(raw.get("goal"), dict) else {}
-            mode, value = normalize_goal(event_type, goal.get("mode"), goal.get("value"))
-            activities.append(ActivitySpec(event_type, mode, value, str(raw.get("reason") or "")))
+            goal_mode, value = normalize_goal(event_type, goal.get("mode"), goal.get("value"))
+            activities.append(ActivitySpec(event_type, goal_mode, value, str(raw.get("reason") or "")))
             seen_events.add(event_type)
-        return PlanDecision(tuple(activities), horizon, payload) if activities else None
+        return PlanDecision(tuple(activities), horizon, payload, horizon_mode) if activities else None
 
 
 def _usage_value(usage: dict[str, Any], *keys: str) -> Optional[int]:

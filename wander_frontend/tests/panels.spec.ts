@@ -8,7 +8,7 @@ for (const viewport of [{width: 1280, height: 900}, {width: 390, height: 844}]) 
     const wish: any = {id: 1, feature: '测试愿望：记住一次散步', reason: '合成测试材料，不是真实记忆。', status: 'open', times_wished: 2, updated_at: now, all_comments: []};
     await page.route('**/api/wander/logs?*', route => route.fulfill({json: {logs: [
       {event_id:'synthetic-activity', event_type:'browse_xiaohongshu', description:'测试活动：读到一篇植物笔记', state:'completed', created_at:now, ended_at:now, duration_seconds:30,
-       details:{run_id:'synthetic-run', delivery_status:'suppressed'}, judgment_result:{share:true},
+       details:{run_id:'synthetic-run', delivery_status:'suppressed', next_plan_at:'2040-01-02T12:30:00', wake_reason:'model_wait'}, judgment_result:{share:true},
        nodes:[{round_index:1, status:'succeeded', source_summary:'这是一条合成的来源摘要。', reflection:'这是一段用于界面验证的节点感想。', duration_seconds:30}]},
     ], stats:{total_entries:1}}}));
     await page.route('**/api/wander/wishes**', async route => {
@@ -24,6 +24,7 @@ for (const viewport of [{width: 1280, height: 900}, {width: 390, height: 844}]) 
     await page.goto('/');
     await expect(page.getByText('想分享 · 勿扰中未发送')).toBeVisible();
     await page.getByText('查看活动与节点').click();
+    await expect(page.getByText('自主决定的休息', {exact:false})).toContainText('01/02');
     await expect(page.getByText('这是一段用于界面验证的节点感想。', {exact:false})).toBeVisible();
     await page.screenshot({path:testInfo.outputPath(`logs-${viewport.width}.png`)});
     await page.getByRole('button', {name:'打开许愿板'}).click();

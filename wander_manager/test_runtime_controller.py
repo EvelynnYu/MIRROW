@@ -55,7 +55,7 @@ class RuntimeControllerTests(unittest.TestCase):
                 raw_content="{good}", reasoning="because", usage={"prompt_tokens": 7, "completion_tokens": 3}, model="fake", status="ok")
         run = self._run()
         decision = asyncio.run(PlanDecisionAdapter(self.store, good_llm, fake_builder).decide(run, runtime))
-        self.assertEqual(120, decision.horizon_min)
+        self.assertEqual(999, decision.horizon_min)
         self.assertEqual(EventType.LISTEN_MUSIC, decision.activities[0].event_type)
         self.assertEqual({"persona": "AI 的人格", "session_id": "s"}, received)
         audited = self.store.get_decision(self._latest_decision_id())

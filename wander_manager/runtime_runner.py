@@ -16,9 +16,6 @@ from typing import Any, Awaitable, Callable, Optional
 
 logger = logging.getLogger(__name__)
 
-_CONTINUATION_WAKE_SECONDS = 180.0
-_NATURAL_WAKE_SECONDS = 900.0
-_SKIPPED_WAKE_SECONDS = 1800.0
 _PLAN_FAILURE_WAKE_SECONDS = 300.0
 _EXECUTION_FAILURE_WAKES = (900.0, 1800.0, 3600.0)
 _PLANNER_TIMEOUT_SECONDS = 180.0
@@ -30,13 +27,14 @@ from .plan_decision_adapter import PlanDecisionAdapter, RuntimeContext
 from .runtime_controller import RuntimeAction, RuntimeActionType, WanderRuntimeController
 from .runtime_decision_adapters import (
     DecisionContext, EmotionEffect, NodeReviewAdapter, NodeReviewDecision,
-    SettlementAdapter, SettlementDecision,
+    SettlementAdapter, SettlementDecision, HorizonReviewAdapter,
 )
 from .runtime_models import (
     ActivityState, DecisionPhase, GoalMode, NodeState, RunState,
     SettlementReason, WanderActivity, WanderRun, now_iso,
 )
 from .runtime_store import WanderRuntimeStore
+from .timing_policy import DEFAULT_DELAY_SECONDS, normalize_delay_seconds
 from .self_reflection_adapter import SelfReflectionAdapter, SelfReflectionContext
 from .wish_commit_adapter import WishCommitAdapter
 
@@ -191,6 +189,12 @@ class WanderRuntimeRunner:
         self.planner = planner
         self.executor = executor
         self.reviewer = reviewer
+        # Foreground chat-tool reconciliation can run without autonomous
+        # decision adapters; it must not instantiate a background model path.
+        self.horizon_reviewer = (
+            HorizonReviewAdapter(store, reviewer.llm_caller, reviewer.context_builder)
+            if reviewer is not None else None
+        )
         self.settlement = settlement
         self.self_reflection = self_reflection
         self.wish_commit = wish_commit
@@ -200,12 +204,16 @@ class WanderRuntimeRunner:
         self.on_notification = on_notification
         self.affect_service = affect_service
         self.clock = clock
+        for adapter in (self.reviewer, self.settlement, self.horizon_reviewer):
+            if adapter is not None:
+                adapter.clock = clock
         self.default_interval_seconds = max(5.0, float(default_interval_seconds))
         self.planner_timeout_seconds = max(0.05, float(planner_timeout_seconds))
         self._tick_lock = asyncio.Lock()
         self._wake_event = asyncio.Event()
         self._claimed_scheduler_wake: Optional[dict[str, Any]] = None
         self._suppress_next_schedule = False
+        self._interrupt_epoch = 0
         # Recovery is a process-start boundary, not a generic "ensure tables"
         # operation.  Foreground chat tools may call initialize() while the
         # background planner is legitimately awaiting its model response; a
@@ -490,6 +498,11 @@ class WanderRuntimeRunner:
 
     async def tick(self) -> RunnerTickResult:
         async with self._tick_lock:
+            # The runner's clock remains authoritative even if an adapter was
+            # replaced by the host (or by an isolated test fixture).
+            for adapter in (self.reviewer, self.settlement, self.horizon_reviewer):
+                if adapter is not None:
+                    adapter.clock = self.clock
             bundle = await self.context_provider()
             session_id = bundle.plan.session_id
             active = self.store.get_active_run(session_id=session_id)
@@ -530,6 +543,9 @@ class WanderRuntimeRunner:
                     continue
                 if action.action == RuntimeActionType.SETTLE:
                     await self._settle(action, bundle)
+                    continue
+                if action.action == RuntimeActionType.REVIEW_TIMING:
+                    await self._review_horizon(action, bundle)
                     continue
             return RunnerTickResult(1.0, current_run_id, "transition_limit")
 
@@ -894,7 +910,8 @@ class WanderRuntimeRunner:
             review.abort_reason = "switch_event_unavailable"
         next_node_at = None
         if review.continue_activity and not review.abort_reason:
-            next_node_at = self.clock() + timedelta(seconds=self._node_spacing_seconds(activity))
+            delay, _ = normalize_delay_seconds(review.next_node_delay_seconds)
+            next_node_at = datetime.fromisoformat(review.next_node_at) if review.next_node_at else self.clock() + timedelta(seconds=delay)
         self.controller.complete_node_review(
             node_id,
             reflection=review.reflection,
@@ -912,6 +929,7 @@ class WanderRuntimeRunner:
         )
 
     async def _settle(self, action: RuntimeAction, bundle: RuntimeContextBundle) -> None:
+        interrupt_epoch = self._interrupt_epoch
         activity_id = action.activity_id or ""
         reason = action.reason or SettlementReason.NATURAL_STOP
         run_row = self.store.get_run(action.run_id or "") or {}
@@ -921,6 +939,9 @@ class WanderRuntimeRunner:
         decision = self._existing_settlement(activity_id)
         if decision is None and not chat_tool_run:
             decision = await self.settlement.settle(activity_id, reason, bundle.decision)
+        latest = self.store.get_activity(activity_id) or {}
+        if latest.get("interrupt_requested") or self._interrupt_epoch != interrupt_epoch:
+            reason = SettlementReason.USER_INTERRUPT
         if chat_tool_run:
             # A chat-tool result already returned through the foreground model
             # path.  Reconciliation after a crash must close the chain but can
@@ -932,6 +953,10 @@ class WanderRuntimeRunner:
                 next_inclination_note="",
                 emotion_effect=EmotionEffect(),
             )
+        if reason in (SettlementReason.USER_INTERRUPT, SettlementReason.EXECUTION_ERROR):
+            decision.share = False
+            decision.continue_next = False
+            decision.next_inclination_note = ""
         run_activities = self.store.list_activities(action.run_id or "")
         current_order = int((self.store.get_activity(activity_id) or {}).get("order_index") or 0)
         has_later_activity = any(
@@ -953,6 +978,30 @@ class WanderRuntimeRunner:
                 for item in run_activities
                 if int(item.get("order_index") or 0) < current_order
             ))
+        # Prepare the durable wake BEFORE committing a terminal run, with no
+        # await between them. Recovery reuses the audit's absolute timestamp.
+        # Optional sidecars and delivery must never recreate this wake later.
+        session_id = str(run_row.get("session_id") or "")
+        if reason == SettlementReason.USER_INTERRUPT or chat_tool_run:
+            self.store.clear_scheduler_wake(session_id or None)
+            self._suppress_next_schedule = False
+        elif session_id and (not has_later_activity or reason == SettlementReason.EXECUTION_ERROR):
+            existing_wake = self.store.get_scheduler_wake(session_id)
+            if not existing_wake or existing_wake.get("source_activity_id") != activity_id:
+                delay, wake_reason, streak = self._settlement_schedule(
+                    activity_id=activity_id, session_id=session_id, reason=reason,
+                    continue_next=decision.continue_next, next_inclination_note=decision.next_inclination_note,
+                )
+                if reason != SettlementReason.EXECUTION_ERROR:
+                    delay, _ = normalize_delay_seconds(decision.next_run_delay_seconds)
+                    wake_reason = "model_wait" if decision.timing_source == "model" else "fallback_wait"
+                due = decision.next_plan_at if reason != SettlementReason.EXECUTION_ERROR else ""
+                self.store.save_scheduler_wake(
+                    session_id=session_id,
+                    next_plan_at=due or (self.clock() + timedelta(seconds=delay)).isoformat(),
+                    wake_reason=wake_reason, source_activity_id=activity_id,
+                    source_run_id=action.run_id or "", failure_streak=streak,
+                )
         result = self.controller.settle_activity(
             activity_id,
             reason,
@@ -973,6 +1022,9 @@ class WanderRuntimeRunner:
         # or otherwise change the settled activity.
         activity = self.store.get_activity(activity_id)
         await self._persist_settlement_emotion(activity, run, decision, reason)
+        if self._interrupt_epoch != interrupt_epoch:
+            decision.share = False
+            decision.continue_next = False
         if (
             decision.continue_next
             and decision.next_inclination_note
@@ -1003,27 +1055,6 @@ class WanderRuntimeRunner:
             self.on_activity_settled(EventType(activity["activity_type"]))
         if result.action == RuntimeActionType.WAIT:
             self.wake()
-        else:
-            session_id = str((run or {}).get("session_id") or "")
-            if reason == SettlementReason.USER_INTERRUPT:
-                self.store.clear_scheduler_wake(session_id or None)
-                self._suppress_next_schedule = False
-            elif session_id:
-                delay, wake_reason, streak = self._settlement_schedule(
-                    activity_id=activity_id,
-                    session_id=session_id,
-                    reason=reason,
-                    continue_next=bool(decision.continue_next),
-                    next_inclination_note=decision.next_inclination_note,
-                )
-                self._schedule_next(
-                    session_id=session_id,
-                    delay_seconds=delay,
-                    wake_reason=wake_reason,
-                    source_activity_id=activity_id,
-                    source_run_id=action.run_id or "",
-                    failure_streak=streak,
-                )
 
     async def _persist_settlement_emotion(
         self,
@@ -1109,6 +1140,7 @@ class WanderRuntimeRunner:
                 type(exc).__name__,
             )
     def request_interrupt(self) -> Optional[dict]:
+        self._interrupt_epoch += 1
         run = self.store.get_active_run()
         if run is None:
             # A user reply/stop also cancels a future plan wake when there is
@@ -1179,12 +1211,6 @@ class WanderRuntimeRunner:
         continue_next: bool,
         next_inclination_note: str,
     ) -> tuple[float, str, int]:
-        if (
-            continue_next
-            and str(next_inclination_note or "").strip()
-            and reason not in (SettlementReason.USER_INTERRUPT, SettlementReason.EXECUTION_ERROR)
-        ):
-            return _CONTINUATION_WAKE_SECONDS, "continue_next", 0
         if reason == SettlementReason.EXECUTION_ERROR:
             previous = self._claimed_scheduler_wake or self.store.get_scheduler_wake(session_id)
             streak = 1
@@ -1195,13 +1221,7 @@ class WanderRuntimeRunner:
                     streak = int(previous.get("failure_streak") or 0) + 1
             index = min(max(streak, 1), len(_EXECUTION_FAILURE_WAKES)) - 1
             return _EXECUTION_FAILURE_WAKES[index], "execution_error_backoff", streak
-        nodes = self.store.list_nodes(activity_id)
-        if reason == SettlementReason.NATURAL_STOP and any(
-            node.get("execution_status") == NodeExecutionStatus.SKIPPED.value
-            for node in nodes
-        ):
-            return _SKIPPED_WAKE_SECONDS, "natural_skipped", 0
-        return _NATURAL_WAKE_SECONDS, "natural_success", 0
+        return DEFAULT_DELAY_SECONDS, "fallback_wait", 0
 
     def _seconds_until_due(self, action: RuntimeAction) -> float:
         activity = self.store.get_activity(action.activity_id or "")
@@ -1223,17 +1243,6 @@ class WanderRuntimeRunner:
         except (TypeError, ValueError):
             return 0.05
 
-    def _node_spacing_seconds(self, activity: dict) -> float:
-        run = self.store.get_run(activity["run_id"])
-        horizon = datetime.fromisoformat(run["next_wake_at"]) if run and run.get("next_wake_at") else None
-        remaining = max(30.0, (horizon - self.clock()).total_seconds()) if horizon else 300.0
-        target = activity.get("goal_value")
-        completed = len([
-            node for node in self.store.list_nodes(activity["activity_id"])
-            if node["state"] == NodeState.COMPLETED.value
-        ])
-        remaining_nodes = max(1, int(target) - completed) if target else 1
-        return max(30.0, min(300.0, remaining / remaining_nodes))
 
     def _existing_node_review(self, node_id: str) -> Optional[NodeReviewDecision]:
         node = self.store.get_node(node_id)
@@ -1256,6 +1265,11 @@ class WanderRuntimeRunner:
                 ),
                 continue_activity=bool(raw.get("continue_activity", True)),
                 abort_reason=str(raw.get("abort_reason") or ""),
+                next_node_delay_seconds=raw.get("next_node_delay_seconds"),
+                timing_reason=str(raw.get("timing_reason") or ""),
+                timing_source=str(raw.get("timing_source") or "fallback"),
+                next_node_at=str(raw.get("next_node_at") or ""),
+                switch_to=self._restore_switch_to(raw, item),
             )
         return None
 
@@ -1280,8 +1294,58 @@ class WanderRuntimeRunner:
                     delta=str(effect.get("delta") or ""),
                     confidence=float(effect.get("confidence") or 0.0),
                 ),
+                next_run_delay_seconds=raw.get("next_run_delay_seconds"),
+                timing_reason=str(raw.get("timing_reason") or ""),
+                timing_source=str(raw.get("timing_source") or "fallback"),
+                next_plan_at=str(raw.get("next_plan_at") or ""),
             )
         return None
 
     def _delivery_exists(self, activity_id: str) -> bool:
         return self.store.has_delivery_for_activity(activity_id)
+
+    @staticmethod
+    def _restore_switch_to(raw: dict, item: dict) -> Optional[tuple[EventType, str]]:
+        value = raw.get("switch_to")
+        if not isinstance(value, (list, tuple)) or not value:
+            value = (item.get("parsed_output") or {}).get("raw", {}).get("switch_to")
+            if isinstance(value, dict):
+                value = (value.get("event_type"), value.get("reason", ""))
+        if not isinstance(value, (list, tuple)) or not value:
+            return None
+        text = str(value[0]).removeprefix("EventType.").lower()
+        try:
+            return EventType(text), str(value[1] if len(value) > 1 else "")
+        except ValueError:
+            return None
+
+    async def _review_horizon(self, action: RuntimeAction, bundle: RuntimeContextBundle) -> None:
+        activity = self.store.get_activity(action.activity_id or "")
+        run = self.store.get_run(action.run_id or "")
+        if not activity or not run or activity.get("interrupt_requested"):
+            await self._settle(RuntimeAction(RuntimeActionType.SETTLE, action.run_id, action.activity_id,
+                reason=SettlementReason.USER_INTERRUPT), bundle)
+            return
+        expected = str(run.get("next_wake_at") or "")
+        decision = await self.horizon_reviewer.review(action.activity_id or "", bundle.decision)
+        # Never let an awaited LLM revive a run that was interrupted while it
+        # was thinking.  Invalid/failing timing review is an honest horizon end.
+        activity = self.store.get_activity(action.activity_id or "")
+        if decision is None or not decision.continue_activity or not activity or activity.get("interrupt_requested"):
+            await self._settle(RuntimeAction(RuntimeActionType.SETTLE, action.run_id, action.activity_id,
+                reason=SettlementReason.USER_INTERRUPT if activity and activity.get("interrupt_requested") else SettlementReason.PLAN_HORIZON), bundle)
+            return
+        # A pure sleep timer and an external-signal activity do not acquire a
+        # synthetic node merely because the model chose to keep the plan open.
+        goal_mode = activity.get("goal_mode")
+        event_type = activity.get("activity_type")
+        due = None if event_type == EventType.SLEEP.value or goal_mode == GoalMode.EXTERNAL_SIGNAL.value else (
+            datetime.fromisoformat(decision.next_node_at)
+        )
+        if not self.controller.apply_horizon_review(action.activity_id or "", expected,
+                                                    extend_minutes=decision.extend_minutes,
+                                                    next_node_at=due,
+                                                    new_horizon=datetime.fromisoformat(decision.new_horizon)):
+            # State changed while awaiting: poll again rather than inventing a
+            # second extension or launching a node.
+            return

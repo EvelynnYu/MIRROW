@@ -24,6 +24,7 @@ class RuntimeActionType(str, Enum):
     START_NODE = "start_node"
     SETTLE = "settle"
     RECOVER_NODE = "recover_node"
+    REVIEW_TIMING = "review_timing"
     IDLE = "idle"
 
 
@@ -63,6 +64,10 @@ class WanderRuntimeController:
             activities.append(activity)
         run.plan_horizon_min = plan.horizon_min
         run.next_wake_at = self._iso(now + timedelta(minutes=plan.horizon_min))
+        # This is intentionally snapshot data rather than a schema migration:
+        # old in-flight runs have no key and therefore retain deadline semantics.
+        run.context_snapshot = dict(run.context_snapshot or {})
+        run.context_snapshot["timing"] = {"horizon_mode": plan.horizon_mode}
         run.transition_to(RunState.ACTIVE_WAIT)
         self.store.save_plan(run, activities)
         return activities
@@ -81,7 +86,7 @@ class WanderRuntimeController:
                 RuntimeActionType.SETTLE,
                 run.run_id,
                 active.activity_id,
-                reason=active.settlement_reason or SettlementReason.NATURAL_STOP,
+                reason=SettlementReason.USER_INTERRUPT if active.interrupt_requested else (active.settlement_reason or SettlementReason.NATURAL_STOP),
             )
         nodes = [self._node(item) for item in self.store.list_nodes(active.activity_id)]
         in_flight = next((node for node in reversed(nodes) if node.state in (NodeState.RUNNING, NodeState.REVIEWED)), None)
@@ -96,6 +101,8 @@ class WanderRuntimeController:
         if active.timer_ends_at and now >= self._parse(active.timer_ends_at):
             return RuntimeAction(RuntimeActionType.SETTLE, run.run_id, active.activity_id, reason=SettlementReason.TIMER_ENDED)
         if run.next_wake_at and now >= self._parse(run.next_wake_at):
+            if self._horizon_mode(run) == "estimate":
+                return RuntimeAction(RuntimeActionType.REVIEW_TIMING, run.run_id, active.activity_id, reason=SettlementReason.PLAN_HORIZON)
             return RuntimeAction(RuntimeActionType.SETTLE, run.run_id, active.activity_id, reason=SettlementReason.PLAN_HORIZON)
         if active.next_node_at and now >= self._parse(active.next_node_at):
             return RuntimeAction(RuntimeActionType.START_NODE, run.run_id, active.activity_id)
@@ -110,6 +117,39 @@ class WanderRuntimeController:
             raise ValueError("activity is not waiting for an external signal")
         activity.next_node_at = self._iso(next_node_at or self.clock())
         self.store.save_activity(activity)
+
+    def apply_horizon_review(self, activity_id: str, expected_horizon: str, *, extend_minutes: int,
+                             next_node_at: Optional[datetime], new_horizon: Optional[datetime] = None) -> bool:
+        """Atomic state update guarded by the old absolute horizon.
+
+        The decision audit is the idempotency key.  A restarted runner cannot
+        add the same extension twice because its expected horizon no longer
+        matches.
+        """
+        activity = self._activity_required(activity_id)
+        run = self._run_required(activity.run_id)
+        if activity.interrupt_requested or activity.state != ActivityState.ACTIVE_WAIT:
+            return False
+        if run.next_wake_at != expected_horizon or self._horizon_mode(run) != "estimate":
+            return False
+        try:
+            minutes = int(extend_minutes)
+            if minutes <= 0:
+                return False
+            # Extension starts from the real review moment, never from a
+            # stale planned estimate after a process was asleep/offline.
+            new_horizon = new_horizon or (self.clock() + timedelta(minutes=minutes))
+            if new_horizon <= self._parse(expected_horizon):
+                return False
+        except (TypeError, ValueError, OverflowError):
+            return False
+        run.next_wake_at = self._iso(new_horizon)
+        if activity.activity_type == "sleep":
+            activity.next_node_at = None
+        elif activity.goal_mode != GoalMode.EXTERNAL_SIGNAL:
+            activity.next_node_at = self._iso(next_node_at) if next_node_at else None
+        self.store.save_plan(run, [activity])
+        return True
 
     def begin_node(self, activity_id: str) -> WanderNode:
         activity = self._activity_required(activity_id)
@@ -161,7 +201,9 @@ class WanderRuntimeController:
         count_reached = activity.goal_mode in (GoalMode.COUNT, GoalMode.SINGLE) and node.round_index >= (activity.goal_value or 1)
         open_limit = activity.goal_mode == GoalMode.OPEN_ENDED and node.round_index >= self.max_open_nodes
         timer_done = bool(activity.timer_ends_at and now >= self._parse(activity.timer_ends_at))
-        horizon_done = bool(run.next_wake_at and now >= self._parse(run.next_wake_at))
+        # An estimate is reviewed at a node boundary by the runner.  It is not
+        # a hidden deadline; explicit activity timers remain authoritative.
+        horizon_done = bool(run.next_wake_at and now >= self._parse(run.next_wake_at) and self._horizon_mode(run) == "deadline")
         if activity.interrupt_requested:
             self._move_to_settling(run, activity, SettlementReason.USER_INTERRUPT)
             return RuntimeAction(RuntimeActionType.SETTLE, run.run_id, activity.activity_id, reason=SettlementReason.USER_INTERRUPT)
@@ -209,6 +251,11 @@ class WanderRuntimeController:
         activity.transition_to(ActivityState.PLANNED)
         self.store.save_activity(activity)
 
+    @staticmethod
+    def _horizon_mode(run: WanderRun) -> str:
+        timing = (run.context_snapshot or {}).get("timing")
+        return "estimate" if isinstance(timing, dict) and timing.get("horizon_mode") == "estimate" else "deadline"
+
     def request_interrupt(self, activity_id: str) -> None:
         activity = self._activity_required(activity_id)
         activity.interrupt_requested = True
@@ -254,8 +301,8 @@ class WanderRuntimeController:
         activity.ended_at = self._iso(self.clock())
         terminal_activity = ActivityState.INTERRUPTED if reason == SettlementReason.USER_INTERRUPT else (ActivityState.ABORTED if reason == SettlementReason.EXECUTION_ERROR else ActivityState.COMPLETED)
         activity.transition_to(terminal_activity)
-        self.store.save_activity(activity)
         activities = [self._activity(item) for item in self.store.list_activities(run.run_id)]
+        changed_activities = [activity]
         # A run-level execution error or user interruption closes the whole
         # accepted plan.  Planned activities have never acquired a node and
         # must remain truthful about that fact: persist a terminal activity
@@ -278,21 +325,20 @@ class WanderRuntimeController:
                     pending.transition_to(ActivityState.INTERRUPTED)
                 else:
                     pending.transition_to(ActivityState.ABORTED)
-                self.store.save_activity(pending)
+                changed_activities.append(pending)
         next_activity = next((item for item in activities if item.order_index > activity.order_index and item.state == ActivityState.PLANNED), None)
         if reason not in (SettlementReason.USER_INTERRUPT, SettlementReason.EXECUTION_ERROR) and next_activity:
             next_activity.transition_to(ActivityState.ACTIVE_WAIT)
             self._schedule_initial(next_activity, self.clock())
             run.transition_to(RunState.ACTIVE_WAIT)
-            self.store.save_activity(next_activity)
-            self.store.save_run(run)
+            self.store.save_plan(run, [*changed_activities, next_activity])
             return RuntimeAction(RuntimeActionType.WAIT, run.run_id, next_activity.activity_id)
         terminal_run = RunState.INTERRUPTED if reason == SettlementReason.USER_INTERRUPT else (RunState.ABORTED if reason == SettlementReason.EXECUTION_ERROR else RunState.COMPLETED)
         if run.state != RunState.SETTLING:
             run.transition_to(RunState.SETTLING)
         run.transition_to(terminal_run)
         run.ended_at, run.outcome = self._iso(self.clock()), reason.value
-        self.store.save_run(run)
+        self.store.save_plan(run, changed_activities)
         return RuntimeAction(RuntimeActionType.IDLE, run.run_id, activity.activity_id, reason=reason)
 
     def _schedule_initial(self, activity: WanderActivity, now: datetime) -> None:

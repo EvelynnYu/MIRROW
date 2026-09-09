@@ -67,6 +67,7 @@ function gapSeconds(previous: any, next: any) {
 
 function wakeReasonLabel(reason: string) {
   const labels: Record<string, string> = {
+    model_wait: '自主决定的休息', fallback_wait: '未取得有效等待时长 · 默认休息',
     continue_next: '延续刚才的想法', natural_success: '自然休息后再计划', natural_skipped: '当前材料冷却',
     execution_error_backoff: '执行失败退避', plan_cancelled: '计划被取消后重试', plan_error: '计划器异常后重试', plan_failed: '计划未形成后重试',
   };
@@ -115,7 +116,7 @@ function ActivityLog({ log, fallbackOrder }: { log: any; fallbackOrder: number }
           <small>（生命周期包含节点之间等待，不计入执行合计）</small>
         </div>
         {idleSchedule != null && idleSchedule > 1 && <div className="wander-log-gap">🕰️ 空闲调度：上一 run 结束到本 run 创建，间隔 {formatDuration(idleSchedule)}</div>}
-        {log.details?.next_plan_at && <div className="wander-log-gap">⏰ 下次计划：{new Date(log.details.next_plan_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })} · {wakeReasonLabel(String(log.details.wake_reason || ''))}</div>}
+        {log.details?.next_plan_at && <div className="wander-log-gap">⏰ 下次计划：{new Date(log.details.next_plan_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })} · {wakeReasonLabel(String(log.details.wake_reason || ''))}</div>}
         {abortReason && status.className !== 'not-started' && <div className="wander-log-error">错误：{abortReason}</div>}
         {status.className === 'not-started' && <div className="wander-log-not-started">{status.label}</div>}
         {nodes.length > 0 && <div className="wander-log-nodes">{nodes.map((node: any, index: number) => {

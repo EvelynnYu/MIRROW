@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Awaitable, Callable, Optional
 
 from .event_catalog import strategy_for
@@ -16,6 +16,7 @@ from .event_types import EventType
 from .flash_structured import FlashJsonResult, call_flash_json_detailed
 from .runtime_models import ActivityState, DecisionPhase, NodeState, SettlementReason
 from .runtime_store import WanderRuntimeStore, redact_sensitive
+from .timing_policy import normalize_delay_seconds
 
 
 @dataclass
@@ -51,6 +52,10 @@ class NodeReviewDecision:
     continue_activity: bool = True
     abort_reason: str = ""
     switch_to: Optional[tuple[EventType, str]] = None
+    next_node_delay_seconds: Optional[float] = None
+    timing_reason: str = ""
+    timing_source: str = "fallback"
+    next_node_at: str = ""
 
 
 @dataclass
@@ -60,6 +65,10 @@ class SettlementDecision:
     continue_next: bool = False
     next_inclination_note: str = ""
     emotion_effect: EmotionEffect = field(default_factory=EmotionEffect)
+    next_run_delay_seconds: Optional[float] = None
+    timing_reason: str = ""
+    timing_source: str = "fallback"
+    next_plan_at: str = ""
 
 
 class DecisionContextError(ValueError):
@@ -130,6 +139,7 @@ def _runtime_block(
     current_node: Optional[dict[str, Any]] = None,
     settlement_reason: str = "",
     prior_activities: Optional[list[dict[str, Any]]] = None,
+    run: Optional[dict[str, Any]] = None,
 ) -> str:
     event_type = EventType(activity["activity_type"])
     strategy = strategy_for(event_type)
@@ -137,7 +147,8 @@ def _runtime_block(
     contract = (
         f"event_type={event_type.value}；名称={strategy.display_name}；"
         f"目标={activity['goal_mode']}:{activity.get('goal_value')}；"
-        f"timer_ends_at={activity.get('timer_ends_at') or '无'}"
+        f"timer_ends_at={activity.get('timer_ends_at') or '无'}；"
+        f"next_node_at={activity.get('next_node_at') or '无'}；activity_started_at={activity.get('created_at') or '无'}"
     )
     parts = [
         f"[本次调用阶段]\n{phase}",
@@ -151,8 +162,12 @@ def _runtime_block(
         f"[今日漫想]\n{context.today_wander or '暂无'}",
         f"[本事件段先前活动]\n{_prior_activity_progress(prior_activities or [])}",
         f"[当前活动合同]\n{contract}",
+        f"[活动时间事实]\ncreated_at={activity.get('created_at') or '未知'}；next_node_at={activity.get('next_node_at') or '无'}",
         f"[已完成进度]\n{_completed_progress(nodes)}",
     ]
+    if run:
+        timing = (run.get("context_snapshot") or {}).get("timing") or {}
+        parts.append(f"[计划时间事实]\nhorizon_mode={timing.get('horizon_mode', 'deadline')}；horizon_at={run.get('next_wake_at') or '无'}")
     if current_node is not None:
         parts.append(
             "[当前节点真实材料]\n"
@@ -193,13 +208,15 @@ def _predecessor_activities(store: WanderRuntimeStore, activity: dict[str, Any])
 
 
 _NODE_REVIEW_INSTRUCTION = """只输出 JSON 对象：
-{"reflection":"没有深入感想时写没有感想","emotion_effect":{"changed":false,"from":"","to":"","delta":"变化描述","confidence":0.0},"continue_activity":true,"abort_reason":"","switch_to":null}
-continue_activity 表示是否继续当前活动。当为 false 且你不想就此结束漫想、而是想换去做另一件事时，用 switch_to 指定新活动（{"event_type":"事件类型","reason":"为什么想做这个"}）；否则为 null。
+{"reflection":"没有深入感想时写没有感想","emotion_effect":{"changed":false,"from":"","to":"","delta":"变化描述","confidence":0.0},"continue_activity":true,"abort_reason":"","switch_to":null,"next_node_delay_seconds":900,"timing_reason":""}
+continue_activity 表示是否继续当前活动。当为 false 且你不想就此结束漫想、而是想换去做另一件事时，用 switch_to 指定新活动（{"event_type":"事件类型","reason":"为什么想做这个"}）；否则为 null。若继续，请自主填写到下一节点前等待的秒数 next_node_delay_seconds 和 timing_reason；900 只是 JSON 示例，不是固定要求。你可以选择很久的休息；系统只会把 0 调整为至少 5 秒以避免空转。
+emotion_effect 只描述 AI 因这次当前活动而新产生或变化的自身心情；材料里其他人的情绪、旧记录里的历史情绪、t/l/s 等机器状态都不是 AI 当前的心情。from/to 必须是自然语言心情，无法确认时 changed=false。
 不要声称做过真实材料中没有发生的事情。"""
 
 _SETTLEMENT_INSTRUCTION = """只输出 JSON 对象：
-{"summary":"作为AI对整件事的综合感受","share":<true或false>,"continue_next":false,"next_inclination_note":"","emotion_effect":{"changed":false,"from":"","to":"","delta":"变化描述","confidence":0.0}}
-share 字段：这次漫想若有真实的感触、新的想法、或此刻想念用户而想主动说些什么，输出 true；否则输出 false。由你自主决定。
+{"summary":"作为K对整件事的综合感受","share":<true或false>,"continue_next":false,"next_inclination_note":"","emotion_effect":{"changed":false,"from":"","to":"","delta":"变化描述","confidence":0.0},"next_run_delay_seconds":900,"timing_reason":""}
+share 字段：这次漫想若有真实的感触、新的想法、或此刻想念用户而想主动说些什么，输出 true；否则输出 false。由你自主决定。next_run_delay_seconds 是这轮结束后下次漫想前由你自主选择的等待秒数，并填写 timing_reason；它和 continue_next 独立，continue_next 仅表示是否保留下一轮的倾向笔记。900 只是示例，不是固定要求；0 会由系统调整为至少 5 秒。
+emotion_effect 只描述 AI 因本次已完成活动而形成的自身即时心情；不要把材料中其他人的情绪、旧记录中的历史情绪或 t/l/s 机器状态抄成 AI 的心情。from/to 必须是自然语言心情，无法确认时 changed=false。
 只根据已完成节点总结，不要补造行动。"""
 
 
@@ -213,6 +230,7 @@ class _DecisionAdapterBase:
         self.store = store
         self.llm_caller = llm_caller
         self.context_builder = context_builder
+        self.clock: Callable[[], datetime] = datetime.now
 
     async def _messages(
         self,
@@ -301,6 +319,7 @@ class NodeReviewAdapter(_DecisionAdapterBase):
             activity,
             nodes,
             phase="node_review",
+            run=run,
             current_node=node,
             prior_activities=_predecessor_activities(self.store, activity),
         )
@@ -345,6 +364,13 @@ class NodeReviewAdapter(_DecisionAdapterBase):
 
         raw = detailed.parsed if detailed.status == "ok" and isinstance(detailed.parsed, dict) else None
         decision = self._normalize_review(raw, allowed_event_types) if raw is not None else None
+        if decision is not None:
+            anchor = self.clock()
+            delay, source = normalize_delay_seconds(decision.next_node_delay_seconds, now=anchor)
+            if source == "fallback":
+                decision.timing_source = source
+                decision.next_node_delay_seconds = delay
+            decision.next_node_at = (anchor + timedelta(seconds=delay)).isoformat()
         status = detailed.status if decision is not None else (
             "validation_error" if raw is not None else detailed.status
         )
@@ -401,12 +427,16 @@ class NodeReviewAdapter(_DecisionAdapterBase):
                 switch_to = None
         if not continue_activity and not abort_reason and switch_to is None:
             abort_reason = "自然停下"
+        delay, source = normalize_delay_seconds(raw.get("next_node_delay_seconds"))
         return NodeReviewDecision(
             reflection=reflection,
             emotion_effect=_normalize_effect(raw.get("emotion_effect")),
             continue_activity=continue_activity,
             abort_reason=abort_reason,
             switch_to=switch_to,
+            next_node_delay_seconds=delay,
+            timing_reason=str(raw.get("timing_reason") or "").strip()[:300],
+            timing_source=source,
         )
 
     def _record_review_failure(
@@ -454,6 +484,7 @@ class SettlementAdapter(_DecisionAdapterBase):
             activity,
             nodes,
             phase="settlement",
+            run=run,
             settlement_reason=reason.value,
             prior_activities=_predecessor_activities(self.store, activity),
         )
@@ -495,6 +526,12 @@ class SettlementAdapter(_DecisionAdapterBase):
 
         raw = detailed.parsed if detailed.status == "ok" and isinstance(detailed.parsed, dict) else None
         decision = self._normalize_settlement(raw, fallback) if raw is not None else fallback
+        anchor = self.clock()
+        delay, source = normalize_delay_seconds(decision.next_run_delay_seconds, now=anchor)
+        if source == "fallback":
+            decision.timing_source = source
+            decision.next_run_delay_seconds = delay
+        decision.next_plan_at = (anchor + timedelta(seconds=delay)).isoformat()
         if reason in (SettlementReason.USER_INTERRUPT, SettlementReason.EXECUTION_ERROR):
             decision.share = False
         status = detailed.status if raw is not None else f"fallback_{detailed.status}"
@@ -527,12 +564,16 @@ class SettlementAdapter(_DecisionAdapterBase):
         raw: dict[str, Any],
         fallback: SettlementDecision,
     ) -> SettlementDecision:
+        delay, source = normalize_delay_seconds(raw.get("next_run_delay_seconds"))
         return SettlementDecision(
             summary=str(raw.get("summary") or fallback.summary).strip(),
             share=_as_bool(raw.get("share")),
             continue_next=_as_bool(raw.get("continue_next")),
             next_inclination_note=str(raw.get("next_inclination_note") or "").strip(),
             emotion_effect=_normalize_effect(raw.get("emotion_effect")),
+            next_run_delay_seconds=delay,
+            timing_reason=str(raw.get("timing_reason") or "").strip()[:300],
+            timing_source=source,
         )
 
     @staticmethod
@@ -561,6 +602,7 @@ class SettlementAdapter(_DecisionAdapterBase):
         status: str,
         error: str,
     ) -> None:
+        fallback.next_plan_at = (self.clock() + timedelta(seconds=900)).isoformat()
         self.store.record_decision(
             run_id=run["run_id"],
             activity_id=activity["activity_id"],
@@ -569,6 +611,83 @@ class SettlementAdapter(_DecisionAdapterBase):
             recipe="WANDER_ACTIVITY",
             input_context={"runtime": runtime_block},
             parsed_output={"raw": {}, "normalized": asdict(fallback)},
-            status=status,
+            status=f"fallback_{status}",
             error=error,
         )
+
+
+@dataclass
+class HorizonReviewDecision:
+    continue_activity: bool = False
+    extend_minutes: int = 0
+    next_node_delay_seconds: float = 900.0
+    reason: str = ""
+    new_horizon: str = ""
+    next_node_at: str = ""
+
+
+_HORIZON_REVIEW_INSTRUCTION = """只输出 JSON 对象：
+{"continue_activity":false,"extend_minutes":0,"next_node_delay_seconds":900,"reason":""}
+这是原先预计时间到达后的复核：只根据真实已完成材料决定是否继续。继续时填写正整数 extend_minutes 和下一节点等待秒数；停止时不要假装已经执行新节点。"""
+
+
+class HorizonReviewAdapter(_DecisionAdapterBase):
+    """One auditable model call only when an estimated plan reaches its edge."""
+    async def review(self, activity_id: str, context: DecisionContext) -> Optional[HorizonReviewDecision]:
+        activity = self.store.get_activity(activity_id)
+        if activity is None:
+            raise ValueError("activity not found")
+        run = self.store.get_run(activity["run_id"])
+        if run is None:
+            raise ValueError("run not found")
+        old_horizon = str(run.get("next_wake_at") or "")
+        for item in reversed(self.store.list_decisions(run["run_id"], DecisionPhase.TIMING_REVIEW)):
+            normalized = item.get("parsed_output", {}).get("normalized") or {}
+            if item.get("activity_id") == activity_id and normalized.get("expected_horizon") == old_horizon:
+                if item.get("status") == "ok":
+                    if normalized.get("continue_activity"):
+                        try:
+                            datetime.fromisoformat(normalized.get("new_horizon") or "")
+                            datetime.fromisoformat(normalized.get("next_node_at") or "")
+                        except (TypeError, ValueError):
+                            return None
+                    return HorizonReviewDecision(**{k: normalized.get(k) for k in (
+                        "continue_activity", "extend_minutes", "next_node_delay_seconds", "reason", "new_horizon", "next_node_at")})
+                return None
+        nodes = self.store.list_nodes(activity_id)
+        block = _runtime_block(context, activity, nodes, phase="timing_review", run=run,
+            prior_activities=_predecessor_activities(self.store, activity)) + (
+                f"\n[计划时间事实]\nhorizon_mode=estimate；expected_horizon={old_horizon}；"
+                f"next_node_at={activity.get('next_node_at') or '无'}"
+            )
+        raw, detailed, messages = {}, None, None
+        try:
+            messages = await self._messages(context, run, block, _HORIZON_REVIEW_INSTRUCTION)
+            detailed = await self.llm_caller(messages=messages, temperature=0.0, max_tokens=16384)
+            raw = detailed.parsed if detailed.status == "ok" and isinstance(detailed.parsed, dict) else None
+            if raw is None:
+                raise ValueError("invalid_timing_review")
+            continuing = _as_bool(raw.get("continue_activity"))
+            extend = int(raw.get("extend_minutes") or 0) if continuing else 0
+            if continuing and (isinstance(raw.get("extend_minutes"), bool) or extend <= 0):
+                raise ValueError("invalid_extend_minutes")
+            delay, _ = normalize_delay_seconds(raw.get("next_node_delay_seconds"))
+            decision = HorizonReviewDecision(continuing, extend if continuing else 0, delay,
+                str(raw.get("reason") or "").strip()[:300])
+            if not decision.continue_activity:
+                decision.extend_minutes = 0
+            else:
+                anchor = self.clock()
+                decision.new_horizon = (anchor + timedelta(minutes=extend)).isoformat()
+                decision.next_node_at = (anchor + timedelta(seconds=delay)).isoformat()
+            status, error = detailed.status, detailed.error
+        except Exception as exc:
+            decision, status, error = None, "timing_review_error", type(exc).__name__
+        normalized = {"expected_horizon": old_horizon, **(asdict(decision) if decision else {})}
+        self.store.record_decision(run_id=run["run_id"], activity_id=activity_id,
+            phase=DecisionPhase.TIMING_REVIEW, model=getattr(detailed, "model", ""),
+            recipe="WANDER_ACTIVITY", input_context={"runtime": block, "user": _HORIZON_REVIEW_INSTRUCTION},
+            raw_output=getattr(detailed, "raw_content", ""), reasoning=getattr(detailed, "reasoning", ""),
+            duration_ms=getattr(detailed, "duration_ms", None),
+            parsed_output={"raw": raw or {}, "normalized": normalized}, status=status, error=error)
+        return decision

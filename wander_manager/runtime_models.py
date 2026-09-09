@@ -75,6 +75,7 @@ class DecisionPhase(str, Enum):
     NODE_EXECUTION = "node_execution"
     SELF_REFLECTION = "self_reflection"
     WISH_COMMIT = "wish_commit"
+    TIMING_REVIEW = "timing_review"
 
 
 TERMINAL_RUN_STATES = frozenset({RunState.COMPLETED, RunState.INTERRUPTED, RunState.ABORTED})
