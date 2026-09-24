@@ -1,18 +1,3 @@
-# 第三方声明 (Third-Party Notices)
-
-本仓库包含以下第三方开源项目的派生内容,按其许可证要求在此归属。
-
----
-
-## AionsHome
-
-- 项目地址: https://github.com/death34018-hue/AionsHome
-- 使用内容: `silicon_perception/collection/app_name_map.py` 中的 `KNOWN_APPS` 字典部分派生自该项目的 `activity.py`(有删改)
-- 许可证: MIT License
-
-会客和逛淘宝的原始集成移植自 AionsHome。本批只开放漫想侧的单节点活动接口与结果接收边界，不包含会客服务、淘宝服务、自动化执行器或其配置。它们默认关闭，由部署者自行接入；此说明不表示相关私有实现已在本仓库发布。
-
-```
 MIT License
 
 Copyright (c) 2026 death34018-hue
@@ -34,12 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-```
-
----
-
-## agent_tools_lib
-
-`behavior_scheduler/agent_tools_lib/` 为内嵌的第三方工具库,其许可与说明见该目录内自带文档。
-
-记忆与认知模块的设计调研参考了 AionsHome；本次发布代码包含 MIT 来源声明，详见 [memory-cognition/LICENSE-AionsHome.txt](memory-cognition/LICENSE-AionsHome.txt)。
