@@ -1,0 +1,44 @@
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Private conversations, books, indexes, and generated state
+data/
+events/
+conversations/
+sessions/
+logs/
+backups/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.jsonl
+src/self_book/entries/
+src/world_book/entries/
+src/scp_encyclopedia/entries/
+src/other_book/entries/
+src/cognition/daily_runs/
+src/world_book/flags.json
+src/world_book/suggestions*.json
+
+# Python and local build tools
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# IDE and OS state
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
