@@ -9,7 +9,6 @@
 - 项目地址: https://github.com/death34018-hue/AionsHome
 - 使用内容: `silicon_perception/collection/app_name_map.py` 中的 `KNOWN_APPS` 字典部分派生自该项目的 `activity.py`(有删改)
 - 许可证: MIT License
-- `memory-cognition/` 的总结、检索和原文追溯设计参考 AionsHome 的公开实现；新模块另附其 MIT 许可原文。事件延续链与可修订认知书为 MIRROW 的独立设计方向。
 
 会客和逛淘宝的原始集成移植自 AionsHome。本批只开放漫想侧的单节点活动接口与结果接收边界，不包含会客服务、淘宝服务、自动化执行器或其配置。它们默认关闭，由部署者自行接入；此说明不表示相关私有实现已在本仓库发布。
 
