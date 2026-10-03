@@ -1,3 +1,11 @@
+## 新增：共享耳蜗（批次 7）
+
+[共享耳蜗：源码、手机／电脑控制、原版音乐 UI 与接入指南](music-cochlea/README.md)。包含歌曲卡片、歌单、持续一起听、播放回执、歌词／音频材料、事件与日整理接口，以及可运行的独立宿主和 Android 音乐 Relay。
+
+[极简封面与手机预览](music-cochlea/media/) · [发布审计](music-cochlea/docs/RELEASE_AUDIT.md) · [项目署名清单](music-cochlea/docs/POST_CREDITS.md)。演示内容全部虚构，不带账号、私人记录或歌曲音频。
+
+**许可例外：eryu 派生分析代码使用 CC BY-NC-SA 4.0（署名、非商业、相同方式共享），不适用根目录 MIT 商业许可。** 具体文件范围及完整许可见 [耳蜗第三方声明](music-cochlea/THIRD_PARTY_NOTICES.md)。
+
 ## 新增：记忆与认知模块（批次 6）
 
 [Memory V2 与三域认知书：架构、源码、接入与测试](memory-cognition/README.md)。独立的匿名代码副本，不含私人对话、词条数据或凭据。
@@ -6,12 +14,13 @@
 
 MIRROW 是一个单用户、本地部署的 AI 伴侣系统。本仓库开源其中可独立复用的核心模块,按批次逐步发布。
 
-**这里没有完整的产品**——你拿到的是三块经过实战验证的"器官",以及把它们接进你自己系统的说明书。所有模块通过回调注入解耦:不依赖特定 LLM 厂商、不依赖特定存储、缺失的依赖一律优雅降级。
+**这里没有完整的整机产品**——你拿到的是分批发布的"器官",以及把它们接进你自己系统的说明书。模块通过宿主接口解耦，不绑定特定 LLM 厂商；缺失能力如实降级。共享耳蜗另附独立 UI／后端示例，仍不带整机私有人格或聊天大脑。
 
 ## 已发布模块
 
 | 模块 | 一句话 | 亮点 |
 |------|--------|------|
+| [music-cochlea/](music-cochlea/) | 共享耳蜗——AI 与你的音乐经历 | 后端、React UI、Windows／Android 网易云控制、歌单／卡片／材料与宿主接口；分析派生文件为非商业许可 |
 | [silicon_perception/](silicon_perception/) | 硅基感知——AI 的"感官系统" | 9 数据源 60s 监控循环、行为基线(6 层数据架构+7 维度基线)、三级触发器体系、数据时效模型(陈旧数据不伪装成正常) |
 | [wander_manager/](wander_manager/) | 漫想模式——AI 的"潜意识" | 五层主动推送引擎 + **v3 持久化运行时**(run→activity→node 可追溯身份链,重启可恢复) + **大脑架构生成器** + 10 事件目录 + 愿望板 |
 | [behavior_scheduler/](behavior_scheduler/) | 工具调用调度器——AI 的"行动力" | 三通道工具检测(Pre-tool 关键词 → 主模型 TOOL_CALL → 轻模型兜底提取)、防幻觉机制、防重复推送 |
@@ -95,11 +104,11 @@ MIRROW 的功能设计曾受以下同类项目启发,在此致谢:
 - [AionsHome](https://github.com/death34018-hue/AionsHome) — 自托管 AI 伴侣(长期记忆/语音/摄像头视觉)
 - [Operit](https://github.com/AAswordman/Operit) — 安卓端 AI 助手(工具调用能力)
 
-除已在 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 中标注的派生内容(app 包名映射表,源自 AionsHome,MIT)外,本仓库代码为独立实现。
+第三方派生内容与分批模块的归属、许可范围见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，共享耳蜗还有模块内的详细声明。
 
 ## License
 
-[MIT](LICENSE)。第三方派生内容的归属见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+MIRROW 自有代码使用 [MIT](LICENSE)，第三方代码遵循各自许可。**共享耳蜗的 eryu 派生文件使用 CC BY-NC-SA 4.0，完整仓库不能一概视为纯 MIT／可自由商用。** 归属及文件范围见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 ## 背景
 

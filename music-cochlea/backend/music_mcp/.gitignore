@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+
+# Local runtime state
+.listening-state.json
+*.log
+logs/
+
+# Environment and local secrets
+.env
+.env.*
+!.env.example
+
+# Local MCP/client config
+claude_desktop_config.json
+*.local.json
+
+# Build/cache output
+dist/
+build/
+coverage/
+.cache/
+.tmp/
+tmp/
+temp/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Downloaded archives
+*.zip
+*.real.zip
+*.github.zip
+*.7z
+*.rar
+*.tar
+*.tar.gz
+
+# Bundled mpv binaries and runtime DLLs
+# Prefer installing mpv separately or attaching binaries to GitHub Releases.
+mpv.exe
+mpv.com
+mpv-register.bat
+mpv-unregister.bat
+*.dll

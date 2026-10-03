@@ -1,0 +1,23 @@
+{
+  "name": "netease-music-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server for controlling local NetEase Cloud Music playback through neteasecli and mpv.",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "netease-music-mcp": "./src/server.js"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "check": "node --check src/server.js",
+    "smoke": "node scripts/smoke.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.18.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {}
+}

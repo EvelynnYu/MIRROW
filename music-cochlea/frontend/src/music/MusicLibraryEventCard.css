@@ -1,0 +1,8 @@
+.music-library-event-row { display: flex; justify-content: center; margin: .7rem 0; }
+.music-library-event { max-width: min(36rem, 92%); border: 1px solid #e9dcd5; border-radius: 1rem; background: linear-gradient(135deg, #fffaf7, #f8f0f2); color: #67575f; box-shadow: 0 3px 14px #6d48500c; }
+.music-library-event-static { display: flex; align-items: center; gap: .55rem; padding: .7rem .9rem; line-height: 1.5; font-size: .82rem; }
+.music-library-event summary { display: flex; align-items: center; gap: .55rem; padding: .7rem .9rem; list-style: none; cursor: pointer; line-height: 1.5; font-size: .82rem; }
+.music-library-event summary::-webkit-details-marker { display: none; }
+.music-library-event-icon { display: inline-grid; flex: 0 0 1.55rem; place-items: center; width: 1.55rem; height: 1.55rem; border-radius: 50%; background: #efdde1; color: #a26278; font-size: .95rem; }
+.music-library-event summary small { white-space: nowrap; color: #aa7e89; font-size: .7rem; }
+.music-library-event p { margin: 0 .9rem .85rem 3rem; padding-top: .65rem; border-top: 1px solid #eadde0; white-space: pre-wrap; line-height: 1.6; font-size: .8rem; }

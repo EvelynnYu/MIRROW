@@ -2,6 +2,17 @@
 
 本仓库包含以下第三方开源项目的派生内容,按其许可证要求在此归属。
 
+## 共享耳蜗（批次 7）：混合许可例外
+
+`music-cochlea/` 的完整声明与安装依赖出处见 [模块第三方声明](music-cochlea/THIRD_PARTY_NOTICES.md)。MIRROW 自有代码仍为 MIT，以下文件不能被根目录 MIT 覆盖：
+
+- `music-cochlea/backend/music_cochlea/analyze_song.py`、`enricher.py`：改编自 [eryu](https://github.com/sebastianevan200-stack/eryu)，CC BY-NC-SA 4.0；完整许可在 [模块 LICENSES](music-cochlea/LICENSES/eryu-CC-BY-NC-SA-4.0.txt)。须署名、非商业使用、修改后按相同许可分发。
+- `music-cochlea/backend/netease_api.py`：改编自 AionsHome 的 `aion-chat/music.py`，MIT，版权 death34018-hue，完整许可随模块附带。
+- `music-cochlea/backend/music_mcp/`：可选 netease-music-mcp，原版权作者 luuu-h，自带 MIT LICENSE；不是 v2 App 控制的自动回退。
+- Android Gradle Wrapper：Apache-2.0，完整许可随模块附带。
+
+不要把包含上述非商业派生内容的完整版本标为纯 MIT 或可自由商用；这是源码可公开分享的混合许可分发。
+
 ---
 
 ## AionsHome

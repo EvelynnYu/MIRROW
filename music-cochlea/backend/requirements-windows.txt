@@ -1,0 +1,4 @@
+winrt-runtime>=3,<4
+winrt-Windows.Media.Control>=3,<4
+winrt-Windows.Foundation>=3,<4
+winrt-Windows.Foundation.Collections>=3,<4
