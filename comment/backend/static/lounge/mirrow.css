@@ -1,0 +1,25 @@
+:root{--bg-color:#fff8ef;--text-color:#594235;--primary-color:#a96548;--card-bg:#fffdf8;--border-color:#ead8c8;color-scheme:light}
+:root[data-theme=dark]{--bg-color:#2b2220;--text-color:#f7e8d9;--primary-color:#e7ae89;--card-bg:#382d28;--border-color:#665047;color-scheme:dark}
+:root{--bg:var(--bg-color);--surface:var(--card-bg);--text:var(--text-color);--border:var(--border-color);--accent:var(--primary-color)}
+body{background:var(--bg-color);color:var(--text-color)}
+.reception-intro{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.reception-fields{display:grid;gap:16px;margin:20px 0}.reception-visitors{display:grid;gap:14px;margin-top:20px}
+.reception-fields>label:has(input[type=checkbox]){display:flex;align-items:center;gap:10px;min-height:44px}
+.reception-fields input[type=checkbox]{width:20px;height:20px;margin:0;flex:none}
+.reception-visitor{border-top:1px solid var(--border-color);padding-top:12px;overflow-wrap:anywhere}
+.reception-visitor .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+#receptionKey{width:100%;overflow-wrap:anywhere}#receptionStatus{line-height:1.65;overflow-wrap:anywhere}
+#cognitionRelated{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:6px}
+#cognitionRelated label{display:flex;align-items:center;gap:8px;min-height:44px;overflow-wrap:anywhere}
+#cognitionRelated input{width:18px;height:18px;flex:none;margin:0}
+#cognitionRelated label.is-primary{opacity:.5;cursor:not-allowed}
+#cognitionForm fieldset{min-width:0;border:1px solid var(--border-color);border-radius:12px}
+.lounge-page{max-width:960px;margin:auto;min-height:100dvh;background:var(--bg-color)}
+.panel,.friend-card,.actor-roster-card,.friend-dialog{background:var(--card-bg);color:var(--text-color);border-color:var(--border-color)}
+.top-bar{position:static;background:var(--bg-color);color:var(--text-color);gap:8px}
+.compact-field:has(#historyActor),.form-field:has(#actorId){display:none}
+.friend-dialog{box-sizing:border-box;width:min(620px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;margin:auto;padding:20px;border-radius:24px}
+button,input,select,textarea{font:inherit}button{min-height:44px}
+input,select,textarea{max-width:100%;box-sizing:border-box;color:inherit;background:var(--card-bg)}
+.lounge-content{padding:12px}.security-note{line-height:1.65}
+@media(max-width:420px){.top-bar{padding:12px}.top-bar h2{font-size:20px}.header-action{font-size:13px}.friend-form,.form-grid{grid-template-columns:1fr}.friend-dialog{padding:14px}.dialog-actions{position:sticky;bottom:-14px;background:var(--card-bg);padding:10px 0}.panel{padding:14px}.friend-card{min-width:0}.toggle-row{flex-wrap:wrap}}

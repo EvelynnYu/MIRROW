@@ -1,0 +1,32 @@
+{
+  "version": 2,
+  "themes": [
+    {"id":"cream","name":"奶油展柜","accent":"#b97862"},
+    {"id":"rose","name":"玫瑰信笺","accent":"#b56383"},
+    {"id":"ink","name":"午夜收藏室","accent":"#cbb588"},
+    {"id":"forest","name":"林间书房","accent":"#4c7b62"},
+    {"id":"ocean","name":"潮汐档案","accent":"#397d9b"},
+    {"id":"lavender","name":"紫雾便笺","accent":"#8770ad"},
+    {"id":"amber","name":"琥珀工坊","accent":"#a66c31"},
+    {"id":"graphite","name":"石墨仪表","accent":"#809fb5"},
+    {"id":"aurora","name":"霓光游廊","accent":"#b8a0ef"},
+    {"id":"blueprint","name":"星图工坊","accent":"#448fa9"},
+    {"id":"sakura","name":"樱色小筑","accent":"#b86987"}
+  ],
+  "frames": [
+    {"id":"none","name":"无"}, {"id":"orbit","name":"星轨环"},
+    {"id":"lace","name":"花边印章"}, {"id":"spark","name":"闪闪微光"},
+    {"id":"comet","name":"彗星轨迹"}, {"id":"ribbon","name":"丝带封签"},
+    {"id":"halo","name":"双层光环"}, {"id":"petal","name":"花瓣徽章"},
+    {"id":"circuit","name":"回路铭牌"}, {"id":"polar","name":"极光轨道"},
+    {"id":"diamond","name":"菱晶封签"}
+  ],
+  "assets": [
+    {"id":"kenney-frame-000","name":"像素边框 · 阶梯","category":"frame","file":"kenney-frame-000.png"},
+    {"id":"kenney-frame-006","name":"像素边框 · 切角","category":"frame","file":"kenney-frame-006.png"},
+    {"id":"kenney-frame-014","name":"像素边框 · 印章","category":"frame","file":"kenney-frame-014.png"},
+    {"id":"kenney-card-000","name":"像素背景卡 · 阶梯","category":"card","file":"kenney-card-000.png"},
+    {"id":"kenney-card-006","name":"像素背景卡 · 切角","category":"card","file":"kenney-card-006.png"},
+    {"id":"kenney-card-014","name":"像素背景卡 · 印章","category":"card","file":"kenney-card-014.png"}
+  ]
+}

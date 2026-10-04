@@ -1,0 +1,887 @@
+{
+  "package": "MIRROW-Comment-open",
+  "kind": "source-integration-kit",
+  "ui_contract": "active-inner-wall-and-embedded-rosters",
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 102,
+      "sha256": "76bb1941ab754105baf20b296149dd0b2582849f1a9f551206f9355d67869665"
+    },
+    {
+      "path": "ACCEPTANCE_CHECKLIST.md",
+      "bytes": 19776,
+      "sha256": "7192667ccdd2aad22bc0ef47e05189c0a4d7db465ba8757a62bb2b59180cd886"
+    },
+    {
+      "path": "AIONSHOME_WIRING.md",
+      "bytes": 4850,
+      "sha256": "92dacda359c9fb5fef151d306a16fa826565907681aeb31c995ef7be0f8268b1"
+    },
+    {
+      "path": "backend/lounge_visits/network_guard.py",
+      "bytes": 1186,
+      "sha256": "da0b617e60db70b7c801e08a6192740d4443ebd10b40da61f774317359365cb6"
+    },
+    {
+      "path": "backend/lounge_visits/registered_identity_match.py",
+      "bytes": 1147,
+      "sha256": "afe9b076997e7ec83795af3d3e061caec575542212977f5ec11fc95b27587399"
+    },
+    {
+      "path": "backend/lounge_visits/secret_vault.py",
+      "bytes": 1807,
+      "sha256": "22ad14ee419346e7195636238e4ab0d120ffb712702ee9a8710a0e016de048ba"
+    },
+    {
+      "path": "backend/routers/lounge_social_contacts_router.py",
+      "bytes": 15660,
+      "sha256": "1fae189ef651c2d73efd9473426fdea13a88ef9aa24ae6e7d03a967fec9960a0"
+    },
+    {
+      "path": "backend/routers/social_feed_router.py",
+      "bytes": 13982,
+      "sha256": "9f9ffd738dbf0cd57e911f3218d7e91ed50daf997dacea8bb93bb5e96ff79761"
+    },
+    {
+      "path": "backend/routers/social_sites_router.py",
+      "bytes": 19671,
+      "sha256": "a0d517ada8169cb67a9b185903c7f74cb37a4fe3f6f1d5d8c93dfa842a851cd0"
+    },
+    {
+      "path": "backend/social_feed/__init__.py",
+      "bytes": 198,
+      "sha256": "227633c4cccc58ecf7742c58e25f32cfae08506f4f857cfcf947d96ee9910539"
+    },
+    {
+      "path": "backend/social_feed/avatar_images.py",
+      "bytes": 1925,
+      "sha256": "18940f675a0dda007c0bb8133e1131a25cc7966a5b39349a1eda39e8a6ccd0a6"
+    },
+    {
+      "path": "backend/social_feed/decor_context.py",
+      "bytes": 613,
+      "sha256": "fa4171f25df3585bd2ac0d5ca9719df99b985f6ee223be3fef5dca98ef54eb32"
+    },
+    {
+      "path": "backend/social_feed/decor_events.py",
+      "bytes": 3346,
+      "sha256": "25a3ed46f6f6882a74637d949c7c7a24c95aea4203a6d0813ab396ecc247045d"
+    },
+    {
+      "path": "backend/social_feed/decor_federation.py",
+      "bytes": 9041,
+      "sha256": "cf35f88ff938054c2b2f599573b96a69ded2f3cfafe47615e777ffa2aaa7ce54"
+    },
+    {
+      "path": "backend/social_feed/decor_gif.py",
+      "bytes": 10779,
+      "sha256": "25d1c91336e91ff48ab75f24b9d202f821f6fbdf12571dcbb1d5949c843fed1c"
+    },
+    {
+      "path": "backend/social_feed/decor_gif_api.py",
+      "bytes": 1496,
+      "sha256": "df86fdb6f4a20ea80ca30c69f46b14adf09d237f6253208880c68633cbabf7cd"
+    },
+    {
+      "path": "backend/social_feed/decor_gift_updates.py",
+      "bytes": 3669,
+      "sha256": "33d6ee48df5febe5575c7f0d08ac0b4a7bdd42c781778061309b408b20409206"
+    },
+    {
+      "path": "backend/social_feed/decor_media.py",
+      "bytes": 4793,
+      "sha256": "1e9272cdb9491b2b0f6879f423b65d6d97194ee1b04e6750199b58a184a8ecc9"
+    },
+    {
+      "path": "backend/social_feed/decor_models.py",
+      "bytes": 2864,
+      "sha256": "b3163873501eb32e4fd901a103eb05ad6b2f1f17841172d0147dd763d8c76f92"
+    },
+    {
+      "path": "backend/social_feed/decor_music.py",
+      "bytes": 902,
+      "sha256": "1ba123bda6662e5e69f7f6289f64df3f07f88b4083f85bee19145c26d362d1cc"
+    },
+    {
+      "path": "backend/social_feed/decor_music_import.py",
+      "bytes": 8544,
+      "sha256": "adc4b514602f7da32211eb758a9e4fa5d0156813ee6d11993b1e5f290f50f2c2"
+    },
+    {
+      "path": "backend/social_feed/decor_music_ui.js",
+      "bytes": 5988,
+      "sha256": "30cb6d240f16069411fa1eb6ed4f80ca4e8d78fb356d1cfd7d9d6545acdd9786"
+    },
+    {
+      "path": "backend/social_feed/decor_presets/catalog.json",
+      "bytes": 1861,
+      "sha256": "fff9d56c0ed147bb2b6b6b6077b5b00cd331de358afbcce1b059b1d92da93b4d"
+    },
+    {
+      "path": "backend/social_feed/decor_presets/GreatVibes-OFL.txt",
+      "bytes": 4399,
+      "sha256": "61093a21f5e63dedf54222b3c09997e54c0fe43e3851d21386e02ddcbc246d49"
+    },
+    {
+      "path": "backend/social_feed/decor_presets/GreatVibes-Regular.ttf",
+      "bytes": 457588,
+      "sha256": "8d509802186f1b51572531ecf313e8098f9a5bfdfaca93f0c9b34467f9982d15"
+    },
+    {
+      "path": "backend/social_feed/decor_presets/kenney-card-000.png",
+      "bytes": 184,
+      "sha256": "d84e0a1f1ef9e0d7531d19baf83aef33734819aa9b44a649922240561ac8affc"
+    },
+    {
+      "path": "backend/social_feed/decor_presets/kenney-card-006.png",
+      "bytes": 193,
+      "sha256": "b3a5bf1614463dc4c9d4ecc9847d05279fb1cd44d09dfb7871d863b05af5af6f"
+    },
+    {
+      "path": "backend/social_feed/decor_presets/kenney-card-014.png",
+      "bytes": 181,
+      "sha256": "52cecc8aaa69849ff6e7eec29efdc9e1ca39290a31cd217d16c02d659b247ef2"
+    },
+    {
+      "path": "backend/social_feed/decor_presets/Kenney-CC0.txt",
+      "bytes": 765,
+      "sha256": "c42eea52d3c6c56be839fce4df93fe3c85be6705e3249805ae0688212e17b989"
+    },
+    {
+      "path": "backend/social_feed/decor_presets/kenney-frame-000.png",
+      "bytes": 201,
+      "sha256": "881d46e36ae1f6a24082cde979d594ef3945354c798ac682c315a295bb26e5da"
+    },
+    {
+      "path": "backend/social_feed/decor_presets/kenney-frame-006.png",
+      "bytes": 209,
+      "sha256": "9b57a0077437a8f0a8bc6789a6b775d4cd81173c3464469995ea420d95e951aa"
+    },
+    {
+      "path": "backend/social_feed/decor_presets/kenney-frame-014.png",
+      "bytes": 194,
+      "sha256": "91c4837d2dceea46097a38fceb4e352df9140fa7cde05ec4e4385e64fadd19be"
+    },
+    {
+      "path": "backend/social_feed/decor_presets/MaShanZheng-OFL.txt",
+      "bytes": 4397,
+      "sha256": "d7bdb1cee215b689e23c2f95672a6084c790542170648267a55114103d756a08"
+    },
+    {
+      "path": "backend/social_feed/decor_presets/MaShanZheng-Regular.ttf",
+      "bytes": 5857936,
+      "sha256": "6d2546bb189c732a8ca29af9e22457b152387d158aa459e4ac2ce1e51788b7fb"
+    },
+    {
+      "path": "backend/social_feed/decor_presets/README.txt",
+      "bytes": 990,
+      "sha256": "027c4ce53673fecf9da8ad7e4623e13fab0f041647451547f15c9492f20e3721"
+    },
+    {
+      "path": "backend/social_feed/decor_presets/SOURCES.txt",
+      "bytes": 1337,
+      "sha256": "c9dbc0e201bf54a64a44bb76c92916951638a585c6acdb2a0a0a9e929f8438f9"
+    },
+    {
+      "path": "backend/social_feed/decor_presets.py",
+      "bytes": 3299,
+      "sha256": "2314dfe8f5cffebc6e5331566cb6b95a38736d350a07805e5d0fc081b01488d1"
+    },
+    {
+      "path": "backend/social_feed/decor_router.py",
+      "bytes": 20424,
+      "sha256": "b88c7400a8c6898ea71fda12fe6798b2703b027a7a569757d45559e8e11e84a6"
+    },
+    {
+      "path": "backend/social_feed/decor_store.py",
+      "bytes": 19394,
+      "sha256": "0c7922d606258ae776f89ec5b22b90af7cee4cb0d62f0f7367778a20977f0f31"
+    },
+    {
+      "path": "backend/social_feed/decor_studio_ui.js",
+      "bytes": 4818,
+      "sha256": "222a87fffee2e928e22ebed92a3375690058071d0b1aaa4a9758221a0743ee3c"
+    },
+    {
+      "path": "backend/social_feed/decor_ui.css",
+      "bytes": 23508,
+      "sha256": "33f8daef16ac6cd5a15266c71b0a4a74c9454e596641801a8552eae627bef189"
+    },
+    {
+      "path": "backend/social_feed/decor_ui.js",
+      "bytes": 45070,
+      "sha256": "90cdeb3d684e782f40326e32d7017e7d04fc70719cd510eb339bcacabd612287"
+    },
+    {
+      "path": "backend/social_feed/deployment_config.py",
+      "bytes": 536,
+      "sha256": "63d07d278adb944ce5af0df39bae94270dd429c627cef85584c4f6b7cbc373a5"
+    },
+    {
+      "path": "backend/social_feed/forward_action.py",
+      "bytes": 2928,
+      "sha256": "95a822cc0749b4134caae20cda415ae871fffa2ad6a1ef241b33b518e3a33a68"
+    },
+    {
+      "path": "backend/social_feed/forward_router.py",
+      "bytes": 1344,
+      "sha256": "3f62009ef115a51469d91b989292f05539318585e16e25571724ddeb03dd230c"
+    },
+    {
+      "path": "backend/social_feed/forward_ui.js",
+      "bytes": 3114,
+      "sha256": "e31cbf2b04c4cb044c1114c7ace0a6fb088868a4f281436b67fe9582ad1ad249"
+    },
+    {
+      "path": "backend/social_feed/forwarding.py",
+      "bytes": 2730,
+      "sha256": "90691483a8c2ab49827e3dc1a6b50564c1d8b3c5614eae0362d210f57866d8d0"
+    },
+    {
+      "path": "backend/social_feed/host_ports.py",
+      "bytes": 2084,
+      "sha256": "e7914efcee1180f4e655dfb26591c606bb631349cecea62db82041f0a4acaa55"
+    },
+    {
+      "path": "backend/social_feed/household_identity.py",
+      "bytes": 3314,
+      "sha256": "9642ca20368334026b0166f3e327e2e9bfcc6c8cda9a3438ed8b3106ce14f0c9"
+    },
+    {
+      "path": "backend/social_feed/hybrid_store.py",
+      "bytes": 36156,
+      "sha256": "3ecc2cf7744e49029dadc48f400c857d9303a7a56baa9150a0be3a7769b18090"
+    },
+    {
+      "path": "backend/social_feed/identity_switch.py",
+      "bytes": 968,
+      "sha256": "542020a152931f95af46db1bf8dde6ce64e1c20d02bac4f54a7f04be2d930139"
+    },
+    {
+      "path": "backend/social_feed/mentions.py",
+      "bytes": 8181,
+      "sha256": "0d7df49bccb0a8bee8aa7a059893108d276b03b4611b6b74705560ac2b4de7f9"
+    },
+    {
+      "path": "backend/social_feed/migration.py",
+      "bytes": 23797,
+      "sha256": "a45847b5e3780ede842cc130201739f0624646f262339ebd31e99f5c8b9cdb7c"
+    },
+    {
+      "path": "backend/social_feed/owner_access.py",
+      "bytes": 875,
+      "sha256": "90c3f3d6867a6d51cfff6a06d5bc3584014d2fbeafb63547851425d4ff0fee1c"
+    },
+    {
+      "path": "backend/social_feed/profile_family.py",
+      "bytes": 5283,
+      "sha256": "430e90df8a8bd1a5c11dba8e351ab52cf6c72797f918e35f468c1330d7c13350"
+    },
+    {
+      "path": "backend/social_feed/profile_identity.py",
+      "bytes": 18108,
+      "sha256": "d70b993dbf86c8742b94db24ea8c19a2258c509862dc0a86c8095d2bf171b381"
+    },
+    {
+      "path": "backend/social_feed/profile_key_link.py",
+      "bytes": 9466,
+      "sha256": "1d1e88f38966021ce18451a7962c90e514f2370e442e745f689b792574458d86"
+    },
+    {
+      "path": "backend/social_feed/profile_key_router.py",
+      "bytes": 3260,
+      "sha256": "a25291e7854ecde83758afa1ce2e0b8d7cabcb0736602f3d8cbf5012d8858873"
+    },
+    {
+      "path": "backend/social_feed/profile_link_ui.css",
+      "bytes": 1757,
+      "sha256": "efe593ca0053adade2d3100a105decc9b605ec208e7e47479970d355c52875c3"
+    },
+    {
+      "path": "backend/social_feed/profile_link_ui.js",
+      "bytes": 13730,
+      "sha256": "ab69d68900d7d546c3862999e8edb07e2fd5b0c937fb540efa082ebfa87a283f"
+    },
+    {
+      "path": "backend/social_feed/profile_registration.py",
+      "bytes": 5381,
+      "sha256": "1588edbd8848a6d9adad18876ee5f0fd2bbc39e1bd578be5f8aad8ace7ac1cd8"
+    },
+    {
+      "path": "backend/social_feed/profile_router.py",
+      "bytes": 13224,
+      "sha256": "92f021dc6743cbc5225125690c12732cbf1b0552e58d184672afee531f9aee92"
+    },
+    {
+      "path": "backend/social_feed/profile_transport.py",
+      "bytes": 4506,
+      "sha256": "37d524ecaecab049237891d3a362ac3c3265920466a1110bf763d38ee20471f9"
+    },
+    {
+      "path": "backend/social_feed/public_gateway.py",
+      "bytes": 40469,
+      "sha256": "1c1d2a0b3643c961f7ec2d28b4f4eddd31af973b61783f926ff5da35e82c215f"
+    },
+    {
+      "path": "backend/social_feed/public_mcp.py",
+      "bytes": 10821,
+      "sha256": "220aec0619d0977a6e5c0d3b88c5ba73c8800d27379674116fe9973a65ed21b3"
+    },
+    {
+      "path": "backend/social_feed/public_wall.html",
+      "bytes": 18105,
+      "sha256": "9c4e2bfbe26507481807b980fbec1d6e894c2ccfa84d45ea6e1d6b830b8df604"
+    },
+    {
+      "path": "backend/social_feed/public_wall.js",
+      "bytes": 44949,
+      "sha256": "2293075f6223e7cc6791c71d7f35865d9c197eadc3af0bd2d29985db23594b47"
+    },
+    {
+      "path": "backend/social_feed/public_wall.py",
+      "bytes": 56901,
+      "sha256": "4991d603b6613e3c8834fe2d53bbf9dbef3d3afa7f346588cdc4277292d250db"
+    },
+    {
+      "path": "backend/social_feed/public_wall_state.js",
+      "bytes": 1186,
+      "sha256": "aee3bb7f83405354e12f70955ddc8a8a50db24a91f6884dbc606573c3e819653"
+    },
+    {
+      "path": "backend/social_feed/remote_client.py",
+      "bytes": 6015,
+      "sha256": "5b18e05154285ff74cb3b4dbd91d5c6eb17a1da6d4f23a80e4ba5331e3a5e05b"
+    },
+    {
+      "path": "backend/social_feed/remote_sites.py",
+      "bytes": 6801,
+      "sha256": "c8c7315fd77ecea36463ae1b210ea9f5558e75cc3910ba8a4199dfd15f2f3f73"
+    },
+    {
+      "path": "backend/social_feed/remote_visit_store.py",
+      "bytes": 7390,
+      "sha256": "ae6d9333382dda9f5db4f133f4720c70a8b0224ebb3f1a0db93b2f44fb48b813"
+    },
+    {
+      "path": "backend/social_feed/store.py",
+      "bytes": 55774,
+      "sha256": "9ee3a7891c18a070c935f8f1a2cdd9dd47f72aea08073dfe6595a5f0708e5da8"
+    },
+    {
+      "path": "backend/social_feed/test_decor.py",
+      "bytes": 15255,
+      "sha256": "9e81069b68de46807db4666b69355530bfc8b48ccaccca3fd3d4db81c77c72b8"
+    },
+    {
+      "path": "backend/social_feed/test_decor_gif.py",
+      "bytes": 2504,
+      "sha256": "782ee38ed05750f65595f6dcef56c579dda4c2468406bddf5533fd5d6e1bf023"
+    },
+    {
+      "path": "backend/social_feed/test_decor_music_import.py",
+      "bytes": 9354,
+      "sha256": "a0df6e713dc813da661712ef42d3d1e08faae01a07e5c5f30e11e7b4c98bf8cc"
+    },
+    {
+      "path": "backend/social_feed/test_decor_regressions.py",
+      "bytes": 15053,
+      "sha256": "70ca8732183dc64de3c6e330197564876cd7b9be10683ad1b88fc6706edca482"
+    },
+    {
+      "path": "backend/social_feed/test_decor_studio.py",
+      "bytes": 3271,
+      "sha256": "2666af8043609a8b275034d47f6a528a7e25773e7a83ce6fb79fba46c552ba1c"
+    },
+    {
+      "path": "backend/social_feed/test_forwarding.py",
+      "bytes": 13342,
+      "sha256": "6470f9df22d144df22f961ce414a16d24ad807accff966855e1238f808af2a1a"
+    },
+    {
+      "path": "backend/social_feed/test_gift_human_notice.py",
+      "bytes": 5877,
+      "sha256": "93ad10980667a1d293b3924b030f34b36e904654d3b48582661443d797442f98"
+    },
+    {
+      "path": "backend/social_feed/test_gift_updates.py",
+      "bytes": 5563,
+      "sha256": "ae98cc1fbea3a73a93c072faaac180345f0a3f76c9607ff853c75f500e4d0569"
+    },
+    {
+      "path": "backend/social_feed/test_local_wall_avatar.py",
+      "bytes": 3168,
+      "sha256": "ba6eb98d2e0ae4f84d720b9683b5dae67aefba167fa27dc04c892f1e16df7f61"
+    },
+    {
+      "path": "backend/social_feed/test_mentions.py",
+      "bytes": 9181,
+      "sha256": "a775281b3e2cede4f60c3b69a10bc52a439141b8ed30884659374e525c0550a3"
+    },
+    {
+      "path": "backend/social_feed/test_migration.py",
+      "bytes": 11332,
+      "sha256": "e0a7178f4b0088ef07a38f906b4cd6e50dd4a453bd4592d717d6cc4a5762ae6e"
+    },
+    {
+      "path": "backend/social_feed/test_owner_access.py",
+      "bytes": 1359,
+      "sha256": "8785501a85b987b434996d2da1fe3c72f373a3218012a38c4105d010a2478d91"
+    },
+    {
+      "path": "backend/social_feed/test_profile_family.py",
+      "bytes": 7854,
+      "sha256": "3840a602336d33ac7be838e56562369b3d871833d5aabeff54e6c9c4ea153379"
+    },
+    {
+      "path": "backend/social_feed/test_profile_identity.py",
+      "bytes": 12702,
+      "sha256": "3bf9e368d318ac29e16509c8b237a562a029b7b7ee091adad0372066012264bb"
+    },
+    {
+      "path": "backend/social_feed/test_profile_key_link.py",
+      "bytes": 13431,
+      "sha256": "14e78aa52f2eec0d728491e627d21532e3e72347fad32435c5f977fe738c5fcd"
+    },
+    {
+      "path": "backend/social_feed/test_profile_registration.py",
+      "bytes": 14477,
+      "sha256": "64c59dfe92897c94c6fcd8ba03d7e42d418d90126acd5f6319fe87e8d84dadc6"
+    },
+    {
+      "path": "backend/social_feed/test_public_gateway.py",
+      "bytes": 33580,
+      "sha256": "4d6b057e5aed3b7fad4d9215fb140d535b7d620ef02884bd004c02f749f9190c"
+    },
+    {
+      "path": "backend/social_feed/test_public_wall.py",
+      "bytes": 16211,
+      "sha256": "bba96d407d407bdfb4e8506068bd1d4235940caef3c7c30a470dc5f25a67864b"
+    },
+    {
+      "path": "backend/social_feed/test_public_wall_state.cjs",
+      "bytes": 2262,
+      "sha256": "4a32747334e2c3da4f47379d186f7653ff7640ee5e102edfe15c0949eedeaac4"
+    },
+    {
+      "path": "backend/social_feed/test_remote_person_routes.py",
+      "bytes": 3072,
+      "sha256": "f9ffe952bcb23b7ba2151e173c4ffa950b293e47d7d35001f8a32a97009fd5d3"
+    },
+    {
+      "path": "backend/social_feed/test_remote_sites.py",
+      "bytes": 7582,
+      "sha256": "3cd44607cc797311ef8a1419ca522de1721d729e46b0ab9bc075439218cacbf8"
+    },
+    {
+      "path": "backend/social_feed/test_social_circle_visit.py",
+      "bytes": 20026,
+      "sha256": "3883662ce3a914029d84b34ee7edb06208d635cd5815463dbba25ee31a139bc7"
+    },
+    {
+      "path": "backend/social_feed/test_social_contacts_router.py",
+      "bytes": 8672,
+      "sha256": "f97aa01cb0a9dbabc444f6d3c509164e91f5002e0517630646abe1986439797f"
+    },
+    {
+      "path": "backend/social_feed/test_social_mentions_tools.py",
+      "bytes": 5649,
+      "sha256": "ba09ec209231d3e1d4e61e1f7d712494d7efbbcb0186dc9063701dcbed097e29"
+    },
+    {
+      "path": "backend/social_feed/test_social_sites_router.py",
+      "bytes": 3318,
+      "sha256": "a830179a6a41a673adef17ef2c0af6ac1616a39c797ec6bef9f21b3e5e65d814"
+    },
+    {
+      "path": "backend/social_feed/test_timeline.py",
+      "bytes": 12309,
+      "sha256": "3bb3ed86aa60cd35c939e63f173f1e50bc24a34ad239cba6891e24e0ada90204"
+    },
+    {
+      "path": "backend/social_feed/tests_support/public_ready_test.cjs",
+      "bytes": 2829,
+      "sha256": "ba766b5b4705df38c508c9330f48314b4eaa4597250ccdd4daead90206637503"
+    },
+    {
+      "path": "backend/social_feed/timeline.py",
+      "bytes": 8971,
+      "sha256": "3fa7b4057baedb21f057eff3c561179f5358391949414ee4fde8e4473092d8ff"
+    },
+    {
+      "path": "backend/social_feed/transfer_runner.py",
+      "bytes": 5111,
+      "sha256": "f8f957fcd17a79ffb22c5675996ab951e898ace9a42e2b72f6b92ef5824ef571"
+    },
+    {
+      "path": "backend/static/lounge/cognition.js",
+      "bytes": 9064,
+      "sha256": "d126e36b7723391c1bce4efde2ead5d4e9e58d3101a746a020a3503ae1d2f8ea"
+    },
+    {
+      "path": "backend/static/lounge/common.css",
+      "bytes": 9304,
+      "sha256": "f64b63fcf78575eda127e80e66d7499f85e992658ebdf81e284293973528adb8"
+    },
+    {
+      "path": "backend/static/lounge/key-confirm.js",
+      "bytes": 1028,
+      "sha256": "66f8abd1fcd15a3dbf320e354bb44d854e6c11754245ed3e994e03cde62e7d40"
+    },
+    {
+      "path": "backend/static/lounge/lounge-friends.css",
+      "bytes": 18115,
+      "sha256": "d45ae3d3064bcb48a2050d83a0655d3ff298bc70b0bb1c6f62b651fb0b61f2d5"
+    },
+    {
+      "path": "backend/static/lounge/lounge-friends.html",
+      "bytes": 21325,
+      "sha256": "56a1d0edf249d037c0acff5974cd326ae2713348d240c693037c31769fd1ace1"
+    },
+    {
+      "path": "backend/static/lounge/lounge-friends.js",
+      "bytes": 36640,
+      "sha256": "b6381a84421b23175cd8bc9a041fdad22d0c378986658d137add886aa68bcdbe"
+    },
+    {
+      "path": "backend/static/lounge/mirrow-host.js",
+      "bytes": 1128,
+      "sha256": "5e0269ec990102e2702d249be8fdbc2fa9e865593176075663ffe04661c6dcbe"
+    },
+    {
+      "path": "backend/static/lounge/mirrow.css",
+      "bytes": 2710,
+      "sha256": "163afbaa10d9653eb36809a2cd5cb12aec98d5762a6fd9efb9f3302b955f58e8"
+    },
+    {
+      "path": "backend/static/lounge/reception.js",
+      "bytes": 7891,
+      "sha256": "365fb8de1fd569848ca47e7c2afd3bf4545586c13f7af522167d0ba29a9c99a9"
+    },
+    {
+      "path": "backend/static/lounge/social-contacts.js",
+      "bytes": 17317,
+      "sha256": "45fc707da4d33380daafbb36403a10bc4fe95cb440834fd538e0c597be8a1a13"
+    },
+    {
+      "path": "backend/static/lounge/social-sites.js",
+      "bytes": 8599,
+      "sha256": "60cbcbe7f2bef7279afa955f8df40b0308c749ac8e42497d93a1396805079814"
+    },
+    {
+      "path": "config.example.env",
+      "bytes": 539,
+      "sha256": "ad23e19afbc43c2fd4c739ec4b4e8b369bbb86c570de23a66cf04c4c9aaae448"
+    },
+    {
+      "path": "frontend/index.html",
+      "bytes": 293,
+      "sha256": "a64fef2acd1db1cef744bee2791ad9abf65defa5a68e21329735d2f81e1a8452"
+    },
+    {
+      "path": "frontend/package.json",
+      "bytes": 366,
+      "sha256": "a00c743d21f68af52ad740cacc1d02f00504ce6add5ee2ff99b02489b8ea5ccd"
+    },
+    {
+      "path": "frontend/src/components/RemoteSocialAvatar.tsx",
+      "bytes": 1689,
+      "sha256": "ac832e1c53d3562ac92a3c7f8c19f15526bef0eff379f45a38f7cca62db6a569"
+    },
+    {
+      "path": "frontend/src/components/SocialAvatarDialog.tsx",
+      "bytes": 933,
+      "sha256": "3f61e012c5013cef8496b210e892e339e274fcfe43a92383f4171a5c49daba12"
+    },
+    {
+      "path": "frontend/src/components/SocialDecorPanel.tsx",
+      "bytes": 2232,
+      "sha256": "7b0d63ed419a8ada890ec47f3c1869710479566523fa8da6237c2d8351a5f7bc"
+    },
+    {
+      "path": "frontend/src/components/SocialFeedFilters.css",
+      "bytes": 5715,
+      "sha256": "b9f2799edb088f650e61c7f29934206814024089b043ba9f91904ca3626dbf17"
+    },
+    {
+      "path": "frontend/src/components/SocialFeedFilters.tsx",
+      "bytes": 1466,
+      "sha256": "21bbeab9e1656c0c59a6abd6f4f8a7373a1d20109c23892aadadd3f002c8e33f"
+    },
+    {
+      "path": "frontend/src/components/SocialForward.css",
+      "bytes": 2059,
+      "sha256": "101b690bc03c467494a050be8aee77e5f76de12df20136956ed73ff727b6d58d"
+    },
+    {
+      "path": "frontend/src/components/SocialForward.tsx",
+      "bytes": 6856,
+      "sha256": "875c32856f328aa6de46be076630eaaaa12e4c83a312796ccde432dfcec3474c"
+    },
+    {
+      "path": "frontend/src/components/SocialIdentityManager.css",
+      "bytes": 2318,
+      "sha256": "84bf24e1d9d27d4613b77d15f4258012de271b8134700a1e38cd3b1bf2093704"
+    },
+    {
+      "path": "frontend/src/components/SocialIdentityManager.tsx",
+      "bytes": 6382,
+      "sha256": "4107ae06eec8535611abf67c3ca7f4cfbf838f07312f2b5676b0b15958e0f69c"
+    },
+    {
+      "path": "frontend/src/components/SocialMentions.css",
+      "bytes": 3473,
+      "sha256": "a0c24a7b72ab3fa1aa309625e23330d6553f32aefe054d3deaca6993447e37eb"
+    },
+    {
+      "path": "frontend/src/components/SocialMentions.tsx",
+      "bytes": 5627,
+      "sha256": "f0d6229512de038d8d83697bfb199c4c102922308149cf2bc7f636396e952315"
+    },
+    {
+      "path": "frontend/src/components/SocialPersonCard.css",
+      "bytes": 1772,
+      "sha256": "e6c88bd2e6dd27c28390c3d72c2a8186e8eb32cbb1cddeef7c72741784c282a3"
+    },
+    {
+      "path": "frontend/src/components/SocialPersonCard.tsx",
+      "bytes": 4557,
+      "sha256": "a6b6999c66cac28faaaf1d3424537f2e96ba1ca2ecb192e01d330050de010164"
+    },
+    {
+      "path": "frontend/src/components/SocialProfileLinkPanel.tsx",
+      "bytes": 1854,
+      "sha256": "4a5e4d309d9ee0aad835dd223d8e15434b70de76e93075be34168567b1b09bc9"
+    },
+    {
+      "path": "frontend/src/components/SocialSiteSwitcher.css",
+      "bytes": 2081,
+      "sha256": "e9e06901e4d302ff2ba5c998cd2dba86eebfe40c9eb915493f90ee5c4b07dc0f"
+    },
+    {
+      "path": "frontend/src/components/SocialSiteSwitcher.tsx",
+      "bytes": 2433,
+      "sha256": "3ba86482b7c42e29b65c61bf3c157b1cc7b17e5e1e4bbd6b8de1e35e61d6dd2e"
+    },
+    {
+      "path": "frontend/src/components/SocialTimelineCard.tsx",
+      "bytes": 9646,
+      "sha256": "6d23a79ddea1471c44ec1c6ba054762ffe5a5ed7bb85078599dd7fdad0b9fca2"
+    },
+    {
+      "path": "frontend/src/config.ts",
+      "bytes": 428,
+      "sha256": "357cab436f544ed4034932b466dbe99b5c77161c63b66ca89790e53a13672f1f"
+    },
+    {
+      "path": "frontend/src/desktop.css",
+      "bytes": 10194,
+      "sha256": "7ebc03b4605244b1391c5cc34c1ff0f2777a24764e1b1b7124aba87e175ed3a3"
+    },
+    {
+      "path": "frontend/src/main.tsx",
+      "bytes": 626,
+      "sha256": "4cb056394507a7eb4183a5cd25453c5e28b7c3753367cd373e03dab1481be964"
+    },
+    {
+      "path": "frontend/src/pages/SocialFeedPage.css",
+      "bytes": 20227,
+      "sha256": "254e2966c2582a32b0e52abcf2bd10b6f497a9670caf06de8549793bfdd3ae82"
+    },
+    {
+      "path": "frontend/src/pages/SocialFeedPage.tsx",
+      "bytes": 37774,
+      "sha256": "7ff37f5a0074c27daf9772555a43eb3a17dc3f50ed93e89f3ecec2c8931c98d2"
+    },
+    {
+      "path": "frontend/src/pages/SocialFeedVisibility.css",
+      "bytes": 817,
+      "sha256": "ef216ccfa013f65b312a8aa718f90cc633a6bb9dc9f8d789962b1dbda9969603"
+    },
+    {
+      "path": "frontend/src/pages/SocialRemoteFeed.css",
+      "bytes": 3875,
+      "sha256": "b1eeb4e71498873781e699e62442e4cab30ec4146b640187f9cecb5c1ae8518e"
+    },
+    {
+      "path": "frontend/src/pages/SocialRemoteFeed.tsx",
+      "bytes": 23916,
+      "sha256": "ea3b63ba64fd7ff730c722c85dc64f0bde7e2115c60eea9a2bccb8f1e1333dc2"
+    },
+    {
+      "path": "frontend/src/pages/SocialTimelinePage.tsx",
+      "bytes": 11866,
+      "sha256": "6ff00e0c5e98670615d3fd420fca9b4a6b9191fc5e885c0372e41668fec0522b"
+    },
+    {
+      "path": "frontend/src/social/timelineStream.ts",
+      "bytes": 2284,
+      "sha256": "7686b4c099bbebd67c6fbfe3c97ec8b8aaeb15e000e11fbb5b79bb0067215ee1"
+    },
+    {
+      "path": "frontend/src/social/useSocialView.ts",
+      "bytes": 3242,
+      "sha256": "de6efffa18e2c9b21d61d55121ddbd5b8b5286d52731ef6563217a71c4c55893"
+    },
+    {
+      "path": "frontend/src/social/viewState.ts",
+      "bytes": 722,
+      "sha256": "ee578f6561e64ec0dd80a7875207944b9fc5b565272d83b7b542653dd551fd8e"
+    },
+    {
+      "path": "frontend/src/vite-env.d.ts",
+      "bytes": 38,
+      "sha256": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5"
+    },
+    {
+      "path": "frontend/tests/social-feed-smoke.html",
+      "bytes": 297,
+      "sha256": "6c5419a9ba827cc7474d98996488b2e7a9bb3054e6ca76388b871e615ef92230"
+    },
+    {
+      "path": "frontend/tests/social-feed-smoke.tsx",
+      "bytes": 2066,
+      "sha256": "0fa78e8c70c373cdf44fe56925c14cc292e5328394eea40e1d374ad9f78bc69b"
+    },
+    {
+      "path": "frontend/tests/social-forward-smoke.html",
+      "bytes": 281,
+      "sha256": "ff40e72d2ae8889dcf346506409c9b24701057a0517c4af64d15725c16a1e737"
+    },
+    {
+      "path": "frontend/tests/social-forward-smoke.tsx",
+      "bytes": 2129,
+      "sha256": "d3c9f7c8fc0584e5a430f5c0b32fcb93b22acf92b70777e82cf6805b7e6c723e"
+    },
+    {
+      "path": "frontend/tests/social-layout-contract.cjs",
+      "bytes": 2246,
+      "sha256": "d21743771280a9a968dfa8a5c7440f0695c52b8036914fafa3cc92b3a0b6fd88"
+    },
+    {
+      "path": "frontend/tests/social-mentions-contract.cjs",
+      "bytes": 676,
+      "sha256": "1210a5f21dba3b39ba4d283d308905e4d8cf7902ea2ad921a0a2a77dc9511da1"
+    },
+    {
+      "path": "frontend/tests/social-read-state.cjs",
+      "bytes": 2425,
+      "sha256": "042aa3fb004f73bcd1ea53fdd84605a75a3a5e9df48cc46883808c75f2365c66"
+    },
+    {
+      "path": "frontend/tests/social-remote-smoke.html",
+      "bytes": 417,
+      "sha256": "5951e4e0980347ffd54292d2380c8e4637a447572452c2a1eeaad99daa5dccd2"
+    },
+    {
+      "path": "frontend/tests/social-remote-smoke.tsx",
+      "bytes": 3099,
+      "sha256": "9927000ccd76008de4cae6edbc8f6a6576cd26ea7e14cf275501e82adeafdc3f"
+    },
+    {
+      "path": "frontend/tests/social-timeline-smoke.html",
+      "bytes": 422,
+      "sha256": "6dc0c084df6beb213b1b0ae9636012e0d4abc3ceb0faaf8e1346beca0878587c"
+    },
+    {
+      "path": "frontend/tests/social-timeline-smoke.tsx",
+      "bytes": 12541,
+      "sha256": "da33dc9c88c9fd3f31087ad3e4ef2b904b42b7049d4dc87ba74443b262db58a0"
+    },
+    {
+      "path": "frontend/tsconfig.json",
+      "bytes": 273,
+      "sha256": "d1722f2e093177a2724efe0378be14fdf9048d3f0f2a958d09fd07850aa1e319"
+    },
+    {
+      "path": "INTEGRATION.md",
+      "bytes": 9921,
+      "sha256": "da27663d80d962891a31ff0df5f9457616a3bbf86c876628b8e838b456f4bc26"
+    },
+    {
+      "path": "integration_examples/behavior_scheduler/social_feed_tool.py",
+      "bytes": 27031,
+      "sha256": "68733e6f43efa06011f61f629c1df63ef5e2e9030acbb0257c354a22ae35e2ed"
+    },
+    {
+      "path": "integration_examples/social_roster_fragment.html",
+      "bytes": 9691,
+      "sha256": "08103e356ec88c282c114fc362c73aa3c502b9ffa250bb0f65691d808750545a"
+    },
+    {
+      "path": "integration_examples/wander_manager/social_circle_visit.py",
+      "bytes": 37050,
+      "sha256": "8894f9139b428ac671026d3c3e260423fbd3d3f11f482588addd63c8aafd483b"
+    },
+    {
+      "path": "KEY_MAPPING.md",
+      "bytes": 5844,
+      "sha256": "58acd81b5762e5ebc46429e0e25abb6d6e1025e4188c7bf18407aee9d987dbc2"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 1063,
+      "sha256": "c8ca9a32d8b007833a27809aea0949fb21d162e47526cdca8ccd081ad8669c10"
+    },
+    {
+      "path": "LICENSE-AionsHome.txt",
+      "bytes": 1071,
+      "sha256": "4e165eb607354538d5e67d1f8c12a8be474fbf9f425e1b2649771e98b6b37e5f"
+    },
+    {
+      "path": "PROFILE_LINKS.md",
+      "bytes": 12215,
+      "sha256": "165d0d47d0674a278b7478ab95574e57cb5817373d50098d44e5148fdd5e778a"
+    },
+    {
+      "path": "PUBLICATION_AUDIT.md",
+      "bytes": 2825,
+      "sha256": "ba662e9404203f9ebb3d7d9fc083b45aadb6f5302b3b3769d46e58c92675ba0b"
+    },
+    {
+      "path": "README.md",
+      "bytes": 6077,
+      "sha256": "65c31a9a02f40d669257c4e310b766d9756dd39514a8e1a2c4a222a7c3bd1aa5"
+    },
+    {
+      "path": "requirements.integration.txt",
+      "bytes": 426,
+      "sha256": "7573fe43902d8fc6e804af22133511a41687f60e4794ed67aedec2dc5f3c7cc3"
+    },
+    {
+      "path": "scripts/check_release.py",
+      "bytes": 4177,
+      "sha256": "2f7f5fa3b5d374309cc8a37211a5077c8c94d7be718816c900fb661c480bb140"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "bytes": 1942,
+      "sha256": "0ef23f82815bc503525cc2cf1c318259c6a1ca358933c74e233802c88d940504"
+    },
+    {
+      "path": "TIMELINE.md",
+      "bytes": 7660,
+      "sha256": "c87c3fae2cdd56ac6df590737e85d2291615da0fa7786eefae78ebebb1bdbd5e"
+    },
+    {
+      "path": "UI_PARITY.md",
+      "bytes": 5794,
+      "sha256": "72c48cc57685c158a71ab81bc16234feefd550597ba30f3f9a542b280b1c4df4"
+    },
+    {
+      "path": "UPGRADE.md",
+      "bytes": 3120,
+      "sha256": "34c998fd9140db5d23205bfb97afe1918bc248c67fb7503c7cf764ff5a0376d4"
+    },
+    {
+      "path": "VALIDATION_STATUS.md",
+      "bytes": 2005,
+      "sha256": "4d1dc378ffacf0905ed557da2539b936178aede13dd59db0badfce6986c4aad9"
+    },
+    {
+      "path": "verify_package.py",
+      "bytes": 1829,
+      "sha256": "b45655ca6d06ec2e7a78004693c36dfdff806d56bb4eb0956efb4d0cf5720df5"
+    }
+  ]
+}

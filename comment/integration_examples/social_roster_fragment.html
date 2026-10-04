@@ -1,0 +1,86 @@
+<!-- Mount the entry in the existing lounge friend-grid; dialogs once in its document. -->
+<button id="socialContactsEntry" class="actor-summary social-contacts-entry" type="button" aria-haspopup="dialog">
+            <span class="actor-avatar" aria-hidden="true">♡</span>
+            <span class="actor-info"><strong class="actor-name">点赞之交</strong><span id="socialContactsCount" class="actor-count">读取中</span><span class="actor-note">只接入公开朋友圈的朋友</span></span>
+          </button>
+<dialog id="socialContactsDialog" class="friend-dialog roster-dialog" aria-labelledby="socialContactsTitle">
+    <div class="roster-heading"><div><h3 id="socialContactsTitle">点赞之交</h3><p class="section-description">我的共域访客和我去拜访的共域分开登记；同一家可以导入已有会客身份与 Key。</p></div><button id="socialContactsClose" class="icon-button" type="button" aria-label="关闭点赞之交">×</button></div>
+    <div class="social-roster-tabs" role="tablist" aria-label="共域名册">
+      <button id="socialInboundTab" type="button" role="tab" aria-selected="true" aria-controls="socialInboundPane">我的共域访客</button>
+      <button id="socialOutboundTab" type="button" role="tab" aria-selected="false" aria-controls="socialOutboundPane">已注册的共域</button>
+    </div>
+    <section id="socialInboundPane" role="tabpanel" aria-labelledby="socialInboundTab">
+    <p id="socialContactsStatus" class="dialog-status" role="status" aria-live="polite"></p>
+    <p class="section-description">人可单独登记；机必须关联一位人类身份，由此人管理机在本家共域发布的动态。可从接待设置导入已有身份与 Key，认知映射仍需你确认。</p>
+    <button id="socialOpenReception" class="quiet-button" type="button">前往接待设置</button>
+    <form id="socialImportForm" class="friend-form">
+      <h4 class="full-field">从接待设置导入身份</h4>
+      <p class="section-description full-field">直接复用已有入站 Key，不复制密钥。人可以单独导入；机须先在下方关联所属的人。</p>
+      <label class="form-field"><span>已有身份</span><select id="socialImportVisitor" required></select></label>
+      <label class="form-field"><span>登记身份名</span><input id="socialImportName" maxlength="40" required placeholder="认知书里的主名或正式称呼"></label>
+      <div class="dialog-actions full-field"><button class="primary-button" type="submit">导入到我的共域访客</button></div>
+    </form>
+    <form id="socialHouseholdForm" class="friend-form">
+      <h4 class="full-field">关联一家的机与人</h4>
+      <p class="section-description full-field">从接待设置已有的人／机身份中选择；确认后，机可凭自己的 Key 进入共友圈，人可管理机发布的公开动态。</p>
+      <label class="form-field"><span>人类身份</span><select id="socialHumanVisitor" required></select></label>
+      <label class="form-field"><span>机身份</span><select id="socialAiVisitor" required></select></label>
+      <div class="dialog-actions full-field"><button class="primary-button" type="submit">确认家庭关联</button></div>
+    </form>
+    <div id="socialContactsList" class="friend-grid"></div>
+    </section>
+    <section id="socialOutboundPane" role="tabpanel" aria-labelledby="socialOutboundTab" hidden>
+      <p class="section-description">这里保存别人家的共域网址，以及对方分别签给你和 AI 的 Key。只有人的 Key 可供你切换浏览；只有机的 Key 可供 AI 选择去互动。共域网址不从会客室 MCP 地址猜测。</p>
+      <p id="socialSitesStatus" class="dialog-status" role="status" aria-live="polite"></p>
+      <form id="socialSiteForm" class="friend-form">
+        <input id="socialSiteId" type="hidden">
+        <label class="form-field"><span>这家的称呼</span><input id="socialSiteName" maxlength="40" required placeholder="例如 人甲 家"></label>
+        <label class="form-field"><span>共域网址</span><input id="socialSiteOrigin" type="url" required placeholder="https://social.example.com"></label>
+        <label class="form-field"><span>对方签给你的 Key</span><input id="socialSiteHumanKey" type="password" autocomplete="new-password" placeholder="留空则保留现有 Key"></label>
+        <label class="form-field"><span>对方签给 AI 的 Key</span><input id="socialSiteAiKey" type="password" autocomplete="new-password" placeholder="留空则保留现有 Key"></label>
+        <label class="form-field full-field"><span>从会客好友导入 AI 的 Key（可选）</span><select id="socialSiteImport"><option value="">不导入</option></select></label>
+        <p class="security-note full-field">导入只复制已保存的机 Key；共域网址仍须单独填写。修改时 Key 留空表示不变。保存后会用这些 Key 将本家公开网名、头像关联到对方身份；人机同步需人的 Key，且对方已登记两者的家庭归属。登记真名、认知、动态和其他 Key 不同步。</p>
+        <div class="dialog-actions full-field"><button id="socialSiteCancel" class="quiet-button" type="button" hidden>取消修改</button><button class="primary-button" type="submit">保存并关联资料</button></div>
+      </form>
+      <div id="socialSitesList" class="friend-grid"></div>
+    </section>
+  </dialog>
+<dialog id="socialRebindDialog" class="friend-dialog" aria-labelledby="socialRebindTitle">
+    <form id="socialRebindForm" class="friend-form">
+      <div class="dialog-heading"><h3 id="socialRebindTitle">换绑人类身份</h3><button id="socialRebindClose" class="icon-button" type="button" aria-label="关闭">×</button></div>
+      <p id="socialRebindHint" class="security-note full-field"></p>
+      <p id="socialRebindStatus" class="dialog-status full-field" role="status" aria-live="polite"></p>
+      <label class="form-field full-field"><span>新的人类身份</span><select id="socialRebindHuman" required></select></label>
+      <div class="dialog-actions"><button id="socialRebindCancel" class="quiet-button" type="button">取消</button><button id="socialRebindSubmit" class="primary-button" type="submit">确认换绑</button></div>
+    </form>
+  </dialog>
+<dialog id="socialContactActionDialog" class="friend-dialog" aria-labelledby="socialContactActionTitle">
+    <form id="socialContactActionForm" class="friend-form" method="dialog">
+      <div class="dialog-heading"><h3 id="socialContactActionTitle">转入会客室好友</h3><button id="socialContactActionClose" class="icon-button" type="button" aria-label="关闭">×</button></div>
+      <p class="security-note full-field">这把 Key 是对方发给 AI、用于去对方家串门的 Key；你发给对方登录我们朋友圈的 Key 不必再填。</p>
+      <p id="socialContactActionStatus" class="dialog-status full-field" role="status" aria-live="polite"></p>
+      <label class="form-field full-field"><span>关联已有会客室好友（可选）</span><select id="socialContactExisting"><option value="">新建会客室好友</option></select></label>
+      <label class="form-field"><span>好友称呼</span><input id="socialContactName" maxlength="120" required></label>
+      <label class="form-field"><span>对方 MCP 地址</span><input id="socialContactUrl" type="url" placeholder="https://example.com/mcp" required></label>
+      <label class="form-field"><span>对方给 AI 的 Visitor Key</span><input id="socialContactKey" type="password" autocomplete="new-password" required></label>
+      <label class="form-field full-field"><span>关系备注（可选）</span><textarea id="socialContactNote" maxlength="500" rows="3"></textarea></label>
+      <div class="dialog-actions"><button id="socialContactActionCancel" class="quiet-button" type="button">取消</button><button class="primary-button" type="submit">确认关联</button></div>
+    </form>
+  </dialog>
+<dialog id="cognitionDialog" class="friend-dialog" aria-labelledby="cognitionTitle">
+    <div class="dialog-heading"><h3 id="cognitionTitle">人物认知绑定</h3><button id="cognitionClose" type="button" class="icon-button" aria-label="关闭人物认知">×</button></div>
+    <p class="security-note">交谈对象只能有一位；关联人物可以多选，不会被当成本轮发言者。默认背景只列出关联，不推断家庭关系，你可以修改为真实关系。</p>
+    <p id="cognitionStatus" role="status" aria-live="polite"></p>
+    <form id="cognitionForm" class="reception-fields">
+      <input id="cognitionConnection" type="hidden">
+      <p id="cognitionConnectionLabel" class="section-description"></p>
+      <div id="cognitionCandidates" class="full-field" hidden></div>
+      <label class="form-field">当前交谈对象<select id="cognitionPrimary"></select></label>
+      <button id="cognitionCreate" class="quiet-button" type="button">新朋友不在列表？一键登记并绑定</button>
+      <fieldset><legend>关联人物（可多选）</legend><div id="cognitionRelated"></div></fieldset>
+      <label class="form-field">关系背景<textarea id="cognitionNote" rows="3" maxlength="1000" placeholder="根据人物选择生成，也可以填写真实关系。"></textarea></label>
+      <button id="cognitionResetNote" class="quiet-button" type="button">恢复默认背景</button>
+      <p class="section-description">每轮结合最新对话与人物线索检索。关联人物被提到或语义相关时加强召回，不固定灌入所有资料。</p>
+      <button class="primary-button" type="submit">保存认知绑定</button>
+    </form>
+  </dialog>

@@ -1,0 +1,26 @@
+Free decoration pack, downloaded 2026-10-02
+
+Kenney, Fantasy UI Borders, CC0 1.0
+https://kenney.nl/assets/fantasy-ui-borders
+Original archive: kenney_fantasy-ui-borders.zip (retained locally, not shipped)
+kenney-frame-{000,006,014}.png:
+  PNG/Double/Transparent center/panel-transparent-center-{000,006,014}.png
+kenney-card-{000,006,014}.png:
+  PNG/Double/Panel/panel-{000,006,014}.png
+All selected PNG files are unmodified. License.txt -> Kenney-CC0.txt.
+
+Ma Shan Zheng, Copyright 2018 The Ma Shan Zheng Project Authors
+https://github.com/google/fonts/tree/main/ofl/mashanzheng
+MaShanZheng-Regular.ttf, original unmodified TTF, SIL OFL 1.1
+SHA256: 6d2546bb189c732a8ca29af9e22457b152387d158aa459e4ac2ce1e51788b7fb
+Original OFL.txt -> MaShanZheng-OFL.txt (copyright and full license).
+
+Great Vibes, Copyright 2015 The Great Vibes Pro Project Authors
+https://github.com/google/fonts/tree/main/ofl/greatvibes
+GreatVibes-Regular.ttf, original unmodified TTF, SIL OFL 1.1
+SHA256: 8d509802186f1b51572531ecf313e8098f9a5bfdfaca93f0c9b34467f9982d15
+Original OFL.txt -> GreatVibes-OFL.txt (copyright and full license).
+
+Original project code-native themes, frame effects and text effects are CSS,
+not downloaded artwork. They are redistributed with the project source.
+No user avatars, private exhibits, credentials or external tracking requests.

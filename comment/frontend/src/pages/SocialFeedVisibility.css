@@ -1,0 +1,28 @@
+.social-feed-compose-sheet select {
+  border: 1px solid var(--border-color, #444);
+  border-radius: 10px;
+  background: var(--bg-secondary, #222);
+  color: inherit;
+  padding: 0 10px;
+}
+
+.social-feed-visibility-control {
+  max-width: 86px;
+  border: 1px solid var(--border-color, #444);
+  border-radius: 8px;
+  background: var(--bg-secondary, #222);
+  color: var(--text-secondary, #aaa);
+  padding: 3px 4px;
+  font-size: 11px;
+}
+
+.social-feed-visibility-control:disabled { opacity: .55; }
+.social-feed-delete { color: #e88383 !important; }
+.social-feed-delete { margin-left: auto; border-color: rgba(232, 131, 131, .25); background: rgba(232, 131, 131, .05); }
+.social-feed-delete:disabled { opacity: .55; cursor: wait; }
+
+@media (max-width: 768px) {
+  .social-feed-compose-sheet select {
+    min-height: 42px;
+  }
+}

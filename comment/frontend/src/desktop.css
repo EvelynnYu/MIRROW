@@ -1,0 +1,184 @@
+/* PC reading room. Keep native/mobile styling and all business state untouched. */
+@media (min-width: 1024px) {
+  #root:has(.app[data-platform="pc"]) {
+    width: 100%; max-width: 1800px; border: 0; margin: 0 auto;
+    text-align: left; min-height: 100dvh;
+  }
+  .app[data-platform="pc"] {
+    --bg-primary: #fcfaf6;
+    --bg-secondary: #f3efe7;
+    --bg-sidebar: #eee9df;
+    --text-primary: #413c34;
+    --text-secondary: #787064;
+    --border-color: #e2dbcf;
+    --accent: #947244;
+    --accent-hover: #795b32;
+    --user-bg: #eaf0ec;
+    --assistant-bg: #fffdf9;
+    --shadow: 0 4px 20px #493b2710;
+    --radius: 14px;
+    height: 100dvh; min-height: 0;
+    font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif;
+    font-size: 15px; line-height: 1.6;
+    background: var(--bg-primary); color: var(--text-primary);
+  }
+  .app[data-platform="pc"].night-mode {
+    --bg-primary: #fff6f6; --bg-secondary: #f7e7e9;
+    --bg-sidebar: #f1dfe2; --text-primary: #402a31;
+    --text-secondary: #70545d; --border-color: #dbc3c9;
+    --accent: #9d4f60; --accent-hover: #7f3c4b;
+    --user-bg: #efd9df; --assistant-bg: #fffafa;
+  }
+  .app[data-platform="pc"] .header:not(.harem-header) {
+    flex-shrink: 0; min-height: 78px; padding: 16px 26px;
+    gap: 18px; background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-color);
+  }
+  .app[data-platform="pc"] .header-left { min-width: 0; gap: 28px; flex: 1; }
+  .app[data-platform="pc"] .header h1 {
+    font-family: Georgia, "Times New Roman", serif; font-size: 25px;
+    font-weight: 500; letter-spacing: 2px; margin: 0; color: var(--text-primary);
+    flex: 0 0 auto;
+  }
+  .app[data-platform="pc"] .tabs {
+    min-width: 0; gap: 3px; padding: 4px; overflow-x: auto;
+    background: var(--bg-secondary); border: 1px solid var(--border-color);
+    border-radius: 12px; scrollbar-width: thin;
+  }
+  .app[data-platform="pc"] .tab {
+    flex: 0 0 auto; white-space: nowrap; padding: 8px 12px;
+    font-size: 13px; line-height: 1.5; border-radius: 8px;
+    color: var(--text-secondary); transition: background .15s, color .15s;
+  }
+  .app[data-platform="pc"] .tab.active {
+    background: var(--bg-primary); color: var(--text-primary);
+    box-shadow: 0 1px 5px #493b2718; font-weight: 650;
+  }
+  .app[data-platform="pc"] .tab:hover:not(.active) { background: var(--border-color); }
+  .app[data-platform="pc"] .header-controls { flex-shrink: 0; gap: 6px; }
+  .app[data-platform="pc"] .header-controls > button { border-radius: 10px; }
+  .app[data-platform="pc"] .container { min-height: 0; }
+  .app[data-platform="pc"] .sidebar {
+    width: 238px; flex: 0 0 238px; padding: 22px 16px;
+    background: var(--bg-sidebar); scrollbar-width: thin;
+    scrollbar-color: #c6bbaa transparent;
+  }
+  .app[data-platform="pc"] .sidebar-top-row { margin-bottom: 16px; }
+  .app[data-platform="pc"] .sidebar-section { margin-top: 24px; }
+  .app[data-platform="pc"] .sidebar-section h3 {
+    font-size: 12px; font-weight: 650; letter-spacing: 1px;
+    color: var(--text-secondary); white-space: nowrap;
+  }
+  .app[data-platform="pc"] .session-header { gap: 8px; align-items: center; }
+  .app[data-platform="pc"] .session-header-btns { gap: 4px; }
+  .app[data-platform="pc"] .session-header-btns button {
+    width: 27px; height: 27px; padding: 0; border-radius: 8px;
+    background: transparent; color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+  }
+  .app[data-platform="pc"] .session-item {
+    padding: 13px 12px; margin-bottom: 8px; border: 1px solid transparent;
+    border-radius: 12px; background: transparent; box-shadow: none;
+  }
+  .app[data-platform="pc"] .session-item:hover { background: #ffffff65; }
+  .app[data-platform="pc"] .session-item.active {
+    background: var(--bg-primary); border-color: var(--border-color);
+    box-shadow: 0 3px 12px #493b2709; color: var(--text-primary);
+  }
+  .app[data-platform="pc"] .session-title { font-size: 14px; font-weight: 600; }
+  .app[data-platform="pc"] .session-meta { color: var(--text-secondary); font-size: 11px; margin-top: 5px; }
+  .app[data-platform="pc"] .session-stats { font-size: 11px; padding-top: 16px; }
+  .app[data-platform="pc"] .main { min-width: 0; min-height: 0; }
+  .app[data-platform="pc"] .chat-container:not(.harem-chat-bg) {
+    padding: 20px clamp(22px, 3vw, 64px) 18px; min-height: 0;
+    width: 100%; max-width: 1280px; align-self: center;
+  }
+  .app[data-platform="pc"] .session-title-bar {
+    padding: 0 0 14px; border-bottom: 1px solid var(--border-color);
+    margin-bottom: 12px; font-size: 12px;
+  }
+  .app[data-platform="pc"] .session-title-bar h2 { font-size: 16px; }
+  .app[data-platform="pc"] .session-title-bar button { font-size: 12px; padding: 6px 11px; border-radius: 8px; }
+  .app[data-platform="pc"] .chat-container:not(.harem-chat-bg) .messages {
+    background: transparent; padding: 0 8px; border-radius: 0; min-height: 0;
+  }
+  .app[data-platform="pc"] .message { margin-bottom: 24px; }
+  .app[data-platform="pc"] .message-avatar { width: 36px; height: 36px; border-radius: 13px; }
+  .app[data-platform="pc"] .message-group-content { max-width: 82%; }
+  .app[data-platform="pc"] .message-header { font-size: 11px; margin-bottom: 8px; color: var(--text-secondary); }
+  .app[data-platform="pc"] .message-bubble {
+    padding: 12px 17px; border-radius: 4px 16px 16px;
+    line-height: 1.85; font-size: 15px; box-shadow: 0 2px 8px #493b2705;
+  }
+  .app[data-platform="pc"] .message.assistant .message-bubble { border-color: var(--border-color); }
+  .app[data-platform="pc"] .message.user .message-bubble { border-radius: 16px 4px 16px 16px; }
+  .app[data-platform="pc"] .thinking-chain { border-color: var(--border-color); }
+  .app[data-platform="pc"] .thinking-chain-toggle { font-size: 11px; color: var(--text-secondary); }
+  .app[data-platform="pc"] .input-area:not(.input-mobile) {
+    flex-shrink: 0; padding: 14px 0 0; margin-top: 12px;
+    border-top: 1px solid var(--border-color);
+  }
+  .app[data-platform="pc"] .input-area:not(.input-mobile) .input-row {
+    display: flex; align-items: flex-end; gap: 10px;
+    background: var(--assistant-bg); border: 1px solid var(--border-color);
+    border-radius: 16px; padding: 10px; box-shadow: var(--shadow);
+  }
+  .app[data-platform="pc"] .input-row:focus-within { border-color: var(--accent); }
+  .app[data-platform="pc"] .input-area:not(.input-mobile) .message-input {
+    flex: 1; min-width: 0; padding: 8px; min-height: 62px; max-height: 180px;
+    border: 0; border-radius: 0; box-shadow: none; background: transparent;
+    font-size: 14px; line-height: 1.65;
+  }
+  .app[data-platform="pc"] .input-area .input-actions { flex: 0 0 auto; }
+  .app[data-platform="pc"] .send-button {
+    margin: 0; min-width: 68px; padding: 10px 16px; font-size: 13px;
+    border-radius: 10px; background: var(--accent); color: #fff;
+  }
+  .app[data-platform="pc"] .send-button:disabled { opacity: .45; }
+  .app[data-platform="pc"] .input-controls { margin-top: 10px; gap: 12px; align-items: center; }
+  .app[data-platform="pc"] .input-left { min-width: 0; flex-wrap: wrap; gap: 8px; }
+  .app[data-platform="pc"] .input-info { font-size: 10px; text-align: left; }
+  .app[data-platform="pc"] :is(.image-upload-btn, .topic-end-button) {
+    white-space: nowrap; font-size: 11px; padding: 7px 10px; border-radius: 8px;
+    background: transparent; border-color: var(--border-color); color: var(--text-secondary);
+  }
+  .app[data-platform="pc"] :is(.monitor-page, .memory-page, .events-page, .persona-page, .reading-page, .image-gallery-page) {
+    padding: 28px clamp(24px, 4vw, 64px); background: var(--bg-primary);
+  }
+  .app[data-platform="pc"] :is(.monitor-header, .memory-header, .events-header, .reading-header) h2 {
+    font-size: 23px; color: var(--text-primary); font-weight: 550; letter-spacing: .04em;
+  }
+  .app[data-platform="pc"] :is(.monitor-tabs, .monitor-filters) { gap: 7px; }
+  .app[data-platform="pc"] .monitor-v2 { --monitor-accent: var(--accent); }
+  .app[data-platform="pc"] .monitor-v2-shell { padding: 36px 42px; }
+  .app[data-platform="pc"] .monitor-v2-title h1 { color: var(--text-primary); font-size: 28px; }
+  .app[data-platform="pc"] .monitor-v2-tabs { gap: 30px; }
+  .app[data-platform="pc"] .monitor-v2-tabs button { padding: 14px 2px; }
+  /* Use the page's actual width, not the window outside its sidebar/container. */
+  .app[data-platform="pc"] .social-feed-header { padding: 20px max(28px, calc((100% - 1100px) / 2)); }
+  .app[data-platform="pc"] .social-feed-heading h2 { font-size: 24px; color: var(--text-primary); }
+  .app[data-platform="pc"] .social-feed-body { width: min(820px, 100%); padding: 28px 28px 96px; }
+  .app[data-platform="pc"] .reading-page .cognition-panel { max-width: 1160px; margin: 0 auto; }
+  .app[data-platform="pc"] :is(.persona-page-shell, .image-gallery-header, .image-gallery-filters, .image-gallery-grid) { width: min(100%, 1160px); }
+  .app[data-platform="pc"] .image-gallery-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+  .app[data-platform="pc"] :is(.monitor-node, .monitor-inspector, .context-message, .context-proof > div) {
+    border-color: var(--border-color); border-radius: 14px; box-shadow: 0 3px 14px #493b2707;
+  }
+  .app[data-platform="pc"] :is(.ledger-modal, .settings-panel, .calendar-panel) {
+    border: 1px solid var(--border-color); border-radius: 18px;
+    box-shadow: 0 24px 80px #30281924; background: var(--bg-primary);
+  }
+  .app[data-platform="pc"] :is(button, a, input, textarea, select):focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 3px;
+  }
+  .app[data-platform="pc"] :is(.sidebar, .messages, .context-full-text) {
+    scrollbar-width: thin; scrollbar-color: #c6bbaa transparent;
+  }
+}
+@media (min-width: 1024px) and (max-width: 1399px) {
+  .app[data-platform="pc"] .header:not(.harem-header) { flex-wrap: wrap; gap: 10px; padding: 12px 22px; }
+  .app[data-platform="pc"] .header-left { flex-basis: 100%; }
+  .app[data-platform="pc"] .header-controls { margin-left: auto; }
+  .app[data-platform="pc"] .sidebar { width: 220px; flex-basis: 220px; padding: 18px 12px; }
+  .app[data-platform="pc"] .input-controls { flex-wrap: wrap; }
+}

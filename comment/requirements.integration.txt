@@ -1,0 +1,12 @@
+# Host provides its own Visitor/MCP runtime; check against its lock file first.
+fastapi>=0.115
+pydantic>=2.10,<3
+httpx>=0.28,<1
+Pillow>=11,<13
+uvicorn>=0.34
+# Offline tests only:
+pytest>=8
+pytest-asyncio>=0.25
+# Optional host ffmpeg for animated/audio decor; no automatic download.
+# Optional opencv-python-headless + numpy for GIF optical smoothing.
+# Without these, the GIF studio honestly falls back to ordinary keyframes.
