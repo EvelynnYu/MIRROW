@@ -94,6 +94,40 @@ async def test_home_delivery_observation_is_bounded_and_available_to_both_trigge
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('read_source', ['chat', 'wander'])
+async def test_notification_ack_failure_preserves_completed_actions(feed, monkeypatch, read_source):
+    moment = await feed.create_moment('aning', '供测试的动态')
+    notices = await feed.unread_notifications('k')
+
+    async def decide(_messages):
+        return {'content': json.dumps({
+            'actions': [{'action': 'comment', 'moment_id': moment['id'], 'content': '已经回复'}],
+            'next': {'kind': 'exit'}, 'reflection': '完成了这次交流',
+        }, ensure_ascii=False)}
+
+    async def failed_ack(*args, **kwargs):
+        raise OSError('fixture acknowledgment unavailable')
+
+    monkeypatch.setattr(feed, 'mark_notifications_read', failed_ack)
+    visit = SocialCircleVisit(decide, store=feed, context_builder=_context_builder)
+    kwargs = dict(request=None, previous_nodes=[], activity_reason='测试邀请',
+                  run_id='r', activity_id='a', node_id='n', persona='测试人格',
+                  session_id='session', read_source=read_source)
+    first = await visit.visit_step(**kwargs)
+    assert first['status'] == 'success' and first['exit']
+    assert first['notification_read_status'] == 'failed'
+    assert first['read_notification_ids'] == [str(row['id']) for row in notices]
+    assert first['action_results'][0]['status'] == 'success'
+    assert await feed.unread_notifications('k') == notices
+    summary = await activity_summary(feed, [{'source_payload': first}])
+    assert '已经回复' in summary and '完成了这次交流' in summary
+    # Retrying the same node replays the committed receipt, not a second comment.
+    second = await visit.visit_step(**kwargs)
+    assert second['action_results'][0]['comment_id'] == first['action_results'][0]['comment_id']
+    assert len((await feed.get_moment(moment['id']))['comments']) == 1
+
+
+@pytest.mark.asyncio
 async def test_unread_batch_is_idempotent_and_summary_has_grounded_reply(feed):
     moment = await feed.create_moment('aning', '今天新来的小伙伴')
     assert len(await feed.unread_notifications('k')) == 1

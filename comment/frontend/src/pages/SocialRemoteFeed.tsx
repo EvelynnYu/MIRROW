@@ -239,7 +239,7 @@ export default function SocialRemoteFeed({ site, sites, onSwitch, onBack }: {
   };
 
   const removeComment = async (item: Moment, row: Comment) => {
-    if (busy || row.author !== actorId || !window.confirm('删除自己在这家共域的这条评论？删除后无法恢复。')) return;
+    if (busy || !(row.can_delete ?? row.author === actorId) || !window.confirm('删除这条评论？删除后无法恢复。')) return;
     setBusy(true); setError(''); setStatus('');
     try {
       await request(`/moments/${encodeURIComponent(item.id)}/comments/${encodeURIComponent(row.id)}`, {method:'DELETE'});

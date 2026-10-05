@@ -80,7 +80,15 @@ function mountMentions(slot, compact = false) {
           }, 'mention-option');option.setAttribute('aria-pressed',String(selected));option.disabled=!selected&&state.ids.length>=8;results.append(option);
         }
         if (!results.childNodes.length) results.textContent = '没有可艾特的成员';
-      } catch (error) { state.supported = false; panel.remove(); toggle.hidden = true; status('这家共域暂不支持艾特；正常发布不受影响。', true); }
+      } catch (error) {
+        if (seq !== sequence || actor !== viewingActor || !slot.isConnected || !panel.open) return;
+        if (error.message === 'unsupported') {
+          state.supported = false; panel.remove(); toggle.hidden = true;
+          status('这家共域暂不支持艾特；正常发布不受影响。', true);
+        } else {
+          results.textContent = '艾特候选暂不可用，可重新搜索或关闭后再试。';
+        }
+      }
     };
     input.addEventListener('input', () => void search()); await search();
   };

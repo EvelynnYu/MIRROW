@@ -8,6 +8,31 @@ from social_feed.remote_sites import RemoteSite
 
 
 @pytest.mark.asyncio
+async def test_remote_mentions_require_local_ui_header(monkeypatch):
+    calls = []
+    monkeypatch.setattr(routes, '_site', lambda _: object())
+
+    class Client:
+        async def request(self, remote, actor, method, path, **kwargs):
+            calls.append(path)
+            if path == '/social/v1/me':
+                return {'actor': {'actor_id': 'visitor:human'}, 'can_manage_avatar': True}
+            return {'people': []}
+
+    monkeypatch.setattr(routes, 'RemoteSocialClient', Client)
+    app = FastAPI()
+    app.include_router(routes.router)
+    # Exercise the real local_ui dependency, not the bypass used by other cases.
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://test') as client:
+        denied = await client.get('/api/social-sites/fixture/mention-people')
+        assert denied.status_code == 403 and calls == []
+        allowed = await client.get('/api/social-sites/fixture/mention-people',
+                                   headers={'X-MIRROW-Lounge-Admin': '1'})
+        assert allowed.status_code == 200
+        assert calls[-1] == '/social/v1/mention-people'
+
+
+@pytest.mark.asyncio
 async def test_remote_person_and_remark_use_human_key_and_remote_scope(monkeypatch):
     calls = []
     site = RemoteSite('fixture', 'Fixture', 'https://home.example.test', 'human-fixture', 'ai-fixture', True, 1, 1)

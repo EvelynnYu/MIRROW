@@ -24,7 +24,7 @@ export default function SocialMentions({endpoint, selected, onChange, disabled=f
       setLoading(true); setProblem('');
       try {
         const url=new URL(endpoint, window.location.href); if(query.trim())url.searchParams.set('q',query.trim());
-        const response=await fetch(url.toString(),{cache:'no-store',signal:controller.signal});
+        const response=await fetch(url.toString(),{cache:'no-store',signal:controller.signal,headers:{'X-MIRROW-Lounge-Admin':'1'}});
         if(!response.ok)throw new Error(response.status===404?'unsupported':'unavailable');
         const payload=await response.json() as {items?:MentionPerson[];capability?:string};
         if(current!==sequence.current)return;
@@ -34,7 +34,7 @@ export default function SocialMentions({endpoint, selected, onChange, disabled=f
       } catch(error) {
         if(current!==sequence.current||controller.signal.aborted)return;
         if(error instanceof Error&&error.message==='unsupported'){setSupported(false);setOpen(false);}
-        else {setSupported(false);setProblem('艾特候选暂不可用；不影响正常发布。');}
+        else {setProblem('艾特候选暂不可用，请重试；不影响正常发布。');}
       } finally {if(current===sequence.current)setLoading(false);}
     },180);
     return()=>{window.clearTimeout(timer);controller.abort();};
@@ -48,7 +48,7 @@ export default function SocialMentions({endpoint, selected, onChange, disabled=f
   };
   const chips=<div className="social-mention-chips" aria-label="已艾特成员">{chosen.map(person=><span className="social-mention-chip" key={person.actor_id}><button type="button" disabled={!onPerson} onClick={()=>{setOpen(false);onPerson?.(person.actor_id);}}>@{label(person)}</button><button type="button" aria-label={`移除 ${label(person)}`} disabled={disabled} onClick={()=>onChange(selected.filter(id=>id!==person.actor_id))}>×</button></span>)}</div>;
   return <div className={`social-mentions${compact?' social-mentions-inline':''}`}>
-    {supported===false&&problem&&<small className="social-mention-problem">{problem}</small>}
+    {problem&&!open&&<small className="social-mention-problem">{problem}</small>}
     {!compact&&chosen.length>0&&chips}
     {supported!==false&&<button type="button" className="social-mention-open" disabled={disabled} title={selected.length?`已选 ${selected.length} 位，点击修改`:'艾特成员'} aria-label={selected.length?`艾特成员，已选 ${selected.length} 位`:'艾特成员'} aria-haspopup="dialog" aria-expanded={open} onClick={()=>setOpen(true)}><span aria-hidden="true">@</span>{compact?(selected.length>0&&<small>{selected.length}</small>):<span>提到谁{selected.length?` · ${selected.length}`:''}</span>}</button>}
     <dialog ref={dialog} className="social-mention-picker" aria-label="选择艾特成员" onCancel={event=>{event.preventDefault();setOpen(false);}}>

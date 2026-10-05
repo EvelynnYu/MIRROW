@@ -335,8 +335,8 @@
     },
     {
       "path": "backend/social_feed/public_wall.js",
-      "bytes": 44949,
-      "sha256": "2293075f6223e7cc6791c71d7f35865d9c197eadc3af0bd2d29985db23594b47"
+      "bytes": 45248,
+      "sha256": "2afa5991febf008b0c6472ed53bc9b485ad05362fce95e89f0f9c03bb6a8f8ea"
     },
     {
       "path": "backend/social_feed/public_wall.py",
@@ -465,8 +465,8 @@
     },
     {
       "path": "backend/social_feed/test_remote_person_routes.py",
-      "bytes": 3072,
-      "sha256": "f9ffe952bcb23b7ba2151e173c4ffa950b293e47d7d35001f8a32a97009fd5d3"
+      "bytes": 4224,
+      "sha256": "bc5e8ddf1b62d6fff001e456ffde2ded46a7409769ee512ac748d6987534967f"
     },
     {
       "path": "backend/social_feed/test_remote_sites.py",
@@ -475,8 +475,8 @@
     },
     {
       "path": "backend/social_feed/test_social_circle_visit.py",
-      "bytes": 20026,
-      "sha256": "3883662ce3a914029d84b34ee7edb06208d635cd5815463dbba25ee31a139bc7"
+      "bytes": 21910,
+      "sha256": "257d9da4bdadc51c5e999ee1ef0c938896133d2cb4ce882c84a3dee9c5de3ec2"
     },
     {
       "path": "backend/social_feed/test_social_contacts_router.py",
@@ -497,6 +497,11 @@
       "path": "backend/social_feed/test_timeline.py",
       "bytes": 12309,
       "sha256": "3bb3ed86aa60cd35c939e63f173f1e50bc24a34ad239cba6891e24e0ada90204"
+    },
+    {
+      "path": "backend/social_feed/tests_support/public_mentions_test.cjs",
+      "bytes": 2107,
+      "sha256": "2cdb4b9c078be52a3763062afa8cbe1e8af1c1fb5e6bccc1d8d1b1cee350e951"
     },
     {
       "path": "backend/social_feed/tests_support/public_ready_test.cjs",
@@ -569,6 +574,11 @@
       "sha256": "60cbcbe7f2bef7279afa955f8df40b0308c749ac8e42497d93a1396805079814"
     },
     {
+      "path": "CHAIN_AUDIT.md",
+      "bytes": 3141,
+      "sha256": "c06e3fb469a78b4a94bfd984398b98416461a52b7b8b322f2413b62a95f5eec5"
+    },
+    {
       "path": "config.example.env",
       "bytes": 539,
       "sha256": "ad23e19afbc43c2fd4c739ec4b4e8b369bbb86c570de23a66cf04c4c9aaae448"
@@ -635,8 +645,8 @@
     },
     {
       "path": "frontend/src/components/SocialMentions.tsx",
-      "bytes": 5627,
-      "sha256": "f0d6229512de038d8d83697bfb199c4c102922308149cf2bc7f636396e952315"
+      "bytes": 5645,
+      "sha256": "41bb6f8e23d87cf3317cde94d99649d2e33da993bf2d4d854e290cc15825c9aa"
     },
     {
       "path": "frontend/src/components/SocialPersonCard.css",
@@ -705,8 +715,8 @@
     },
     {
       "path": "frontend/src/pages/SocialRemoteFeed.tsx",
-      "bytes": 23916,
-      "sha256": "ea3b63ba64fd7ff730c722c85dc64f0bde7e2115c60eea9a2bccb8f1e1333dc2"
+      "bytes": 23913,
+      "sha256": "02f34ca9f9da260d85d36f2c964adbfdd9c90d5ca8a631ab3dc8fdde26c5e632"
     },
     {
       "path": "frontend/src/pages/SocialTimelinePage.tsx",
@@ -752,6 +762,11 @@
       "path": "frontend/tests/social-forward-smoke.tsx",
       "bytes": 2129,
       "sha256": "d3c9f7c8fc0584e5a430f5c0b32fcb93b22acf92b70777e82cf6805b7e6c723e"
+    },
+    {
+      "path": "frontend/tests/social-interaction-contract.cjs",
+      "bytes": 3853,
+      "sha256": "6c486360693fa1b4180ef959c2a890e4ccf8ffbc922fd3786eaed0da77122729"
     },
     {
       "path": "frontend/tests/social-layout-contract.cjs",
@@ -810,8 +825,8 @@
     },
     {
       "path": "integration_examples/wander_manager/social_circle_visit.py",
-      "bytes": 37050,
-      "sha256": "8894f9139b428ac671026d3c3e260423fbd3d3f11f482588addd63c8aafd483b"
+      "bytes": 37789,
+      "sha256": "dd2d9c2c9896f5687b20f285d38e1f5b7cc7db2358bfe1f1604fa0e6947a03a7"
     },
     {
       "path": "KEY_MAPPING.md",
@@ -835,13 +850,13 @@
     },
     {
       "path": "PUBLICATION_AUDIT.md",
-      "bytes": 2825,
-      "sha256": "ba662e9404203f9ebb3d7d9fc083b45aadb6f5302b3b3769d46e58c92675ba0b"
+      "bytes": 3485,
+      "sha256": "2ae02db50ff049d8a80be609924c69ae1ea986c4c997e8c53f027f73e75940f9"
     },
     {
       "path": "README.md",
-      "bytes": 6077,
-      "sha256": "65c31a9a02f40d669257c4e310b766d9756dd39514a8e1a2c4a222a7c3bd1aa5"
+      "bytes": 6241,
+      "sha256": "4566409b1d9b369439ea93511ce1ef4d8ab906e4c5599b61fdaea3061ed0ba30"
     },
     {
       "path": "requirements.integration.txt",
@@ -870,13 +885,13 @@
     },
     {
       "path": "UPGRADE.md",
-      "bytes": 3120,
-      "sha256": "34c998fd9140db5d23205bfb97afe1918bc248c67fb7503c7cf764ff5a0376d4"
+      "bytes": 3383,
+      "sha256": "c16d4d61fd2c8d5bae41f651db5cc25cba76ac7873a9608c63fcb7be7d1e4342"
     },
     {
       "path": "VALIDATION_STATUS.md",
-      "bytes": 2005,
-      "sha256": "4d1dc378ffacf0905ed557da2539b936178aede13dd59db0badfce6986c4aad9"
+      "bytes": 3222,
+      "sha256": "ef971f5662dcfa65f1a84a55793d6b4ffc46c1aa6abff5d07d9d9a42ff8674fb"
     },
     {
       "path": "verify_package.py",

@@ -449,9 +449,18 @@ class SocialCircleVisit:
             except Exception as exc:
                 results.append({'action': kind, 'status': 'failed', 'moment_id': target[:100],
                                 'error': type(exc).__name__})
+        notification_read_status = 'not_needed'
+        notification_read_error = ''
         if notices:
-            await store.mark_notifications_read('k', [str(row['id']) for row in notices],
-                                                read_source=read_source, read_source_id=node_id)
+            try:
+                await store.mark_notifications_read('k', [str(row['id']) for row in notices],
+                                                    read_source=read_source, read_source_id=node_id)
+                notification_read_status = 'confirmed'
+            except Exception as exc:
+                # Read acknowledgement is separate from already committed actions.
+                # Preserve their receipts; a later real read can acknowledge again.
+                notification_read_status = 'failed'
+                notification_read_error = type(exc).__name__
         next_choice = decision.get('next') if isinstance(decision.get('next'), dict) else {}
         next_kind = str(next_choice.get('kind') or 'exit').strip().lower()
         next_request: dict[str, str] = {'kind': 'exit'}
@@ -501,7 +510,10 @@ class SocialCircleVisit:
         return {
             'status': 'success', 'scope': page, 'viewed_moment_ids': list(visible)[:50],
             'viewed_moment_refs': [{'site_id':r.get('source',{}).get('site_id',site.id if site else ''),'moment_id':r['id']} for r in items][:10],
+            # IDs describe material actually read, not proof of persisted read state.
             'read_notification_ids': [str(row['id']) for row in notices],
+            'notification_read_status': notification_read_status,
+            **({'notification_read_error': notification_read_error} if notification_read_error else {}),
             'action_results': results, 'reflection': _excerpt(decision.get('reflection'), 300),
             'next_request': next_request, 'exit': next_request['kind'] == 'exit',
             'share_intent': bool(decision.get('share')) if allow_share and next_request['kind'] == 'exit' else False,
