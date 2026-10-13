@@ -131,7 +131,9 @@ def test_wander_fact_builder_and_ack(client):
     service = client.app.state.services
     wander = service['wander']
     built = asyncio.run(wander.build('WANDER_V2', wander_runtime_text='合成运行材料'))
-    assert built.system_content.endswith('合成运行材料')
+    assert built.decision_messages[-1]['content'] == '合成运行材料'
+    assert built.sections['wander_runtime']['text'] == '合成运行材料'
+    service['lifecycle'].active_date()
     payload = {'message': '合成分享', 'event_id': 'activity-example', 'event_type': 'keyword_expansion'}
     wander.stopping = False
     assert wander.push(payload) is True
@@ -148,6 +150,7 @@ def test_real_wander_chain_with_synthetic_model(client):
     service = client.app.state.services
     wander = service['wander']
     # Actual public planner, node handler, reviewer, settlement, share and stores;
+    service['lifecycle'].active_date()
     # only the external model transport is replaced with deterministic JSON.
     async def plan(**kwargs):
         return FlashJsonResult(parsed={'horizon_min': 20, 'activities': [{'event_type': 'keyword_expansion',

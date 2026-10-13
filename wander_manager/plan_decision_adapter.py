@@ -227,12 +227,12 @@ class PlanDecisionAdapter:
             self._record_context_error(run, runtime_block, f"recipe_build:{type(exc).__name__}")
             return None
         system_content = getattr(built, "system_content", "")
-        sections = getattr(built, "sections", {}) or {}
-        runtime_section = sections.get("wander_runtime", {})
-        if not system_content or not runtime_section.get("text") or not system_content.rstrip().endswith(runtime_block.rstrip()):
+        from .context_wire import decision_messages
+        try:
+            messages = decision_messages(built, runtime_block, _OUTPUT_INSTRUCTION)
+        except ValueError:
             self._record_context_error(run, runtime_block, "runtime_block_not_final_or_missing")
             return None
-        messages = [{"role": "system", "content": system_content}, {"role": "user", "content": _OUTPUT_INSTRUCTION}]
         try:
             detailed = await self.llm_caller(messages=messages, temperature=0.0, max_tokens=16384)
         except Exception as exc:

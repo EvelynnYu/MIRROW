@@ -13,6 +13,7 @@ _chronicle = None
 _music_context = None
 _music_record = None
 _music_playback = None
+_music_receipt = None
 
 
 def configure_chronicle(provider=None):
@@ -27,9 +28,10 @@ def get_chronicle():
     return _chronicle
 
 
-def configure_music(*, context=None, record=None, playback=None):
-    global _music_context, _music_record, _music_playback
+def configure_music(*, context=None, record=None, playback=None, receipt=None):
+    global _music_context, _music_record, _music_playback, _music_receipt
     _music_context, _music_record, _music_playback = context, record, playback
+    _music_receipt = receipt
 
 
 def music_context(subject):
@@ -43,11 +45,19 @@ def record_music_experience(payload, *, source_id):
 async def play_music(payload):
     import inspect
     if _music_playback is None:
-        return False
+        return {'success': False, 'error': 'playback_not_configured'}
     result = _music_playback(payload)
     if inspect.isawaitable(result):
         result = await result
-    return result is True
+    return result if isinstance(result, dict) else {'success': False, 'error': 'playback_session_receipt_required'}
+
+
+async def music_receipt(session_id, song_id):
+    import inspect
+    if _music_receipt is None:
+        return {'state': 'unavailable'}
+    result = _music_receipt(session_id, song_id)
+    return await result if inspect.isawaitable(result) else result
 
 
 def register_event_handler(event_type, handler, *, available=None):

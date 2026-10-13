@@ -18,6 +18,7 @@ class Memory:
         self.source = ConversationSource(store.path, canonical_sessions_only=True)
         self.events = MemoryV2Store(config.data_dir / 'memory_v2.db')
         self.lock = asyncio.Lock()
+        self.days = None
         books.ROOT = config.data_dir / 'cognition'
 
     @staticmethod
@@ -43,7 +44,10 @@ class Memory:
 
     async def encode(self, active_date):
         day = date.fromisoformat(active_date)
-        if day >= date.today():
+        closed = self.days.get(active_date) if self.days else None
+        if closed and closed['state'] == 'closed':
+            self.days.verify(active_date)
+        elif day >= date.today() or (closed and closed['state'] == 'open'):
             raise ValueError('only_completed_calendar_days')
         async with self.lock:
             plan = ReplayPlanner(self.source).plan_active_date(active_date)
@@ -78,5 +82,5 @@ class Memory:
                     max_tokens=max_tokens))['content']
 
             settled = await settle_completed_day(self.events, active_date=active_date,
-                completed_before_active_date=date.today().isoformat(), model_call=model_call, source_namespace='mainline')
+                completed_before_active_date=(day.fromordinal(day.toordinal() + 1).isoformat() if closed else date.today().isoformat()), model_call=model_call, source_namespace='mainline')
             return {'status': settled.status, 'batches': reports, 'settlement': settled.safe_dict()}

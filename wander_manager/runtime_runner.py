@@ -783,7 +783,10 @@ class WanderRuntimeRunner:
                 return RunnerTickResult(
                     self._delay_until(due), action.run_id or "", "waiting_external"
                 )
-            await self.executor.confirm_external_completion(node["node_id"], "duration_elapsed")
+            receipt = await self.executor.poll_external_completion(node["node_id"])
+            if receipt.status == NodeExecutionStatus.WAITING_EXTERNAL:
+                delay = 30 if receipt.completion_signal in {'paused', 'unknown', 'unavailable'} else 5
+                return RunnerTickResult(delay, action.run_id or '', 'waiting_external')
             node = self.store.get_node(node["node_id"])
         if node["execution_status"] == NodeExecutionStatus.SUCCEEDED.value:
             if event_type == EventType.SELF_REFLECTION:

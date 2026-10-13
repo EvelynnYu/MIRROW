@@ -10,6 +10,7 @@ from uuid import uuid4
 
 class Store:
     def __init__(self, directory: Path):
+        self.active_date_provider = None
         directory.mkdir(parents=True, exist_ok=True)
         self.path = directory / 'conversation.db'
         with self.connection() as db:
@@ -26,6 +27,9 @@ class Store:
                     request_id TEXT PRIMARY KEY, user_message_id TEXT NOT NULL,
                     assistant_message_id TEXT, state TEXT NOT NULL, error TEXT NOT NULL DEFAULT '');
             ''')
+            columns = {row['name'] for row in db.execute('PRAGMA table_info(conversation_messages)')}
+            if 'tool_calls' not in columns:
+                db.execute("ALTER TABLE conversation_messages ADD COLUMN tool_calls TEXT NOT NULL DEFAULT '[]'")
             # An interrupted provider call is not silently replayed on restart.
             db.execute("UPDATE chat_requests SET state='interrupted',error='process_restarted' WHERE state='running'")
         if not self.setting('session_id'):
@@ -62,10 +66,12 @@ class Store:
         with self.connection() as db:
             return [dict(row) for row in db.execute('SELECT * FROM conversation_messages WHERE session_id=? ORDER BY id', (self.session_id,))]
 
-    def append(self, role, content, *, message_id=None, event_type='', wander=False, _db=None):
+    def append(self, role, content, *, message_id=None, event_type='', wander=False, sentinel=False, active_date=None, _db=None):
+        if active_date is None:
+            active_date = self.active_date_provider() if self.active_date_provider else datetime.now().astimezone().date().isoformat()
         if _db is None:
             with self.connection() as db:
-                return self.append(role, content, message_id=message_id, event_type=event_type, wander=wander, _db=db)
+                return self.append(role, content, message_id=message_id, event_type=event_type, wander=wander, sentinel=sentinel, active_date=active_date, _db=db)
         message_id = message_id or uuid4().hex
         timestamp = datetime.now().astimezone().isoformat()
         if _db is not None:
@@ -76,8 +82,8 @@ class Store:
                     raise ValueError('message_identity_conflict')
                 return dict(existing)
             db.execute('''INSERT INTO conversation_messages(active_date,calendar_date,session_id,timestamp,
-                role,content,message_id,is_wander,event_type) VALUES(?,?,?,?,?,?,?,?,?)''',
-                (timestamp[:10], timestamp[:10], self.session_id, timestamp, role, content, message_id, int(wander), event_type))
+                role,content,message_id,is_wander,is_sentinel,event_type) VALUES(?,?,?,?,?,?,?,?,?,?)''',
+                (active_date, timestamp[:10], self.session_id, timestamp, role, content, message_id, int(wander), int(sentinel), event_type))
             return dict(db.execute('SELECT * FROM conversation_messages WHERE message_id=?', (message_id,)).fetchone())
 
     def request(self, request_id):
@@ -94,9 +100,11 @@ class Store:
             self.append('user', content, message_id=request_id, _db=db)
             db.execute("INSERT INTO chat_requests VALUES(?,?,NULL,'running','')", (request_id, request_id))
 
-    def finish_request(self, request_id, content):
+    def finish_request(self, request_id, content, tool_calls=None):
         with self.connection() as db:
             message = self.append('assistant', content, message_id='reply_' + request_id, _db=db)
+            db.execute('UPDATE conversation_messages SET tool_calls=? WHERE message_id=?',
+                (json.dumps(tool_calls or [], ensure_ascii=False), message['message_id']))
             db.execute("UPDATE chat_requests SET state='complete',assistant_message_id=? WHERE request_id=?",
                 (message['message_id'], request_id))
         return message

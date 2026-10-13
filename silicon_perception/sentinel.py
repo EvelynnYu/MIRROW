@@ -492,73 +492,10 @@ class SiliconSentinel:
                                                    current_time=current_time, status_timeline=status_timeline,
                                                    schedule_text=schedule_text, foreground_app=foreground_app,
                                                    baseline_context=baseline_text)
-                    # [PUSH] 标记：Flash 判断该主动说话 → 活跃门控 → Pro 生成 → 推送
+                    from .sentinel_pipeline import process_decision
                     summary = self._summarizer.get_summary()
-                    # 记录 Flash 决策。推送成功由 flash_push/pattern 记录——此处仅记录未推送的（被门控/冷却/Flash判否）。
-                    # pattern 优先，不重复写 info。（设计约定：sentinel_events 同一次评估不应有 info+pattern 两条）
-                    has_push = "[PUSH]" in summary
-                    actually_pushed = False
-                    if has_push and self._on_push and self._call_pro_llm:
-                        clean = summary.replace("[PUSH]", "").strip()
-                        if self._should_suppress_push(snapshot) and clean:
-                            # 正在对话 → 延迟推送。2min 后若仍未回复 → 补推；若回复了 → 入上下文
-                            key = "|".join(triggers)[:80] if triggers else "flash"
-                            self._deferred_push[key] = {"clean": clean, "triggers": triggers, "at": time.monotonic()}
-                            logger.debug(f"Sentinel: 延迟推送 ({key})")
-                        elif clean:
-                            skip_due_to_cooldown = False
-                            last_push = self._store.get_last_push_time("flash_push")
-                            if last_push:
-                                try:
-                                    import datetime as _dt
-                                    last_dt = _dt.datetime.fromisoformat(last_push)
-                                    if (_dt.datetime.now() - last_dt).total_seconds() < 1800:
-                                        logger.debug("Sentinel: flash_push 频率约束跳过 (上次: %s)", last_push[:19])
-                                        skip_due_to_cooldown = True
-                                except Exception:
-                                    pass
-                            if not skip_due_to_cooldown:
-                                clean = summary.replace("[PUSH]", "").strip()
-                                if clean:
-                                    try:
-                                        pro_result = await self._call_pro_llm(clean)
-                                        content = pro_result.get("content", "") if isinstance(pro_result, dict) else str(pro_result)
-                                        reasoning = pro_result.get("reasoning") if isinstance(pro_result, dict) else None
-                                        if content:
-                                            # 保存 Flash 决策上下文（供监控台调试）
-                                            self._last_flash_context = {
-                                                "timestamp": __import__('datetime').datetime.now().isoformat(),
-                                                "summary": clean,
-                                                "triggers": triggers,
-                                                "baseline_context": baseline_text if baseline_result else "",
-                                                "sensor_snapshot": {
-                                                    "hr": snapshot.heart_rate,
-                                                    "steps": snapshot.steps_today,
-                                                    "idle": f"{snapshot.input_idle_seconds:.0f}s" if snapshot.input_idle_seconds else "N/A",
-                                                    "screen": snapshot.screen_active,
-                                                    "location": snapshot.location_category or "N/A",
-                                                },
-                                                "trends": trends,
-                                                "pushed": True,
-                                                "push_content": content,
-                                            }
-                                            # 持久化
-                                            self._store.insert_event(
-                                                rule_id="flash_push", priority="pattern",
-                                                message=clean, pushed=True,
-                                                event_type="pattern",
-                                            )
-                                            # 推送（含思考过程）
-                                            await self._on_push({
-                                                "message": content, "rule_id": "flash_push",
-                                                "priority": "medium",
-                                                "timestamp": __import__('datetime').datetime.now().isoformat(),
-                                                "reasoning": reasoning,
-                                            })
-                                            actually_pushed = True
-                                            logger.info(f"Perception PUSH: {content[:80]}")
-                                    except Exception as e:
-                                        logger.warning(f"Perception Pro call failed: {e}")
+                    has_push = self._summarizer.get_decision().should_push
+                    actually_pushed = await process_decision(self, snapshot, triggers)
                     # 记录 Flash 决策（仅未推送时——推送成功由 flash_push/pattern 记录）
                     if not actually_pushed:
                         self._store.insert_event(
@@ -917,26 +854,12 @@ class SiliconSentinel:
             except Exception as e:
                 logger.warning(f"Sentinel LLM 润色失败: {e}")
 
-        # 推送
-        if self._on_push:
-            try:
-                await self._on_push({
-                    "message": message,
-                    "rule_id": rule_id,
-                    "priority": priority,
-                    "timestamp": datetime.now().isoformat(),
-                })
-            except Exception as e:
-                logger.error(f"Sentinel 推送失败: {e}")
-
-        # 记录事件
-        self._store.insert_event(
-            rule_id=rule_id,
-            priority=priority,
-            snapshot_id=snapshot_id,
-            message=message,
-            pushed=True,
-        )
+        from .delivery import deliver_push
+        await deliver_push(self._on_push, {
+            "message": message, "rule_id": rule_id, "priority": priority,
+            "timestamp": datetime.now().isoformat(),
+        }, store=self._store, event={"rule_id": rule_id, "priority": priority,
+            "snapshot_id": snapshot_id, "message": message})
 
     def _should_suppress_push(self, snapshot) -> bool:
         """活跃门控：仅当用户正在实时对话时抑制推送。
@@ -957,36 +880,8 @@ class SiliconSentinel:
         return False
 
     async def _check_deferred_push(self):
-        """检查延迟推送队列：阈值秒后用户仍未回复 → 执行 PUSH。回复了 → 放弃。"""
-        if not self._deferred_push or not self._call_pro_llm or not self._on_push:
-            return
-        now = time.monotonic()
-        for key, item in list(self._deferred_push.items()):
-            if now - item["at"] < self._push_defer_seconds:
-                continue
-            del self._deferred_push[key]
-            # 再次确认用户未回复
-            if self._should_suppress_push(self._last_snapshot):
-                logger.debug(f"Sentinel: 延迟推送取消（用户已回复）→ 入上下文 ({key})")
-                continue
-            # 执行推送
-            try:
-                pro_result = await self._call_pro_llm(item["clean"])
-                content = pro_result.get("content", "") if isinstance(pro_result, dict) else str(pro_result)
-                if content:
-                    self._store.insert_event(
-                        rule_id="flash_push", priority="pattern",
-                        message=item["clean"], pushed=True, event_type="pattern",
-                    )
-                    await self._on_push({
-                        "message": content, "rule_id": "flash_push",
-                        "priority": "medium",
-                        "timestamp": __import__('datetime').datetime.now().isoformat(),
-                        "reasoning": pro_result.get("reasoning") if isinstance(pro_result, dict) else None,
-                    })
-                    logger.info(f"Perception PUSH (deferred): {content[:80]}")
-            except Exception as e:
-                logger.warning(f"Sentinel: 延迟推送失败: {e}")
+        from .sentinel_pipeline import check_deferred
+        await check_deferred(self)
 
     async def _polish_message(self, template_msg: str, prompt_extra: str) -> Optional[str]:
         """用 Flash 润色消息，保持 AI 的语气风格"""

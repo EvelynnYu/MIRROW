@@ -58,6 +58,7 @@ class Wander:
         self.task = None
         self.error = ''
         self.stopping = False
+        self.lifecycle = None
         self.runner = WanderRuntimeRunner(store=self.store,
             controller=WanderRuntimeController(self.store, clock=datetime.now, max_open_nodes=8),
             planner=PlanDecisionAdapter(self.store, provider.structured, self.build,
@@ -74,6 +75,23 @@ class Wander:
 
     async def build(self, recipe, **kwargs):
         persona = self.messages.profile()['persona']
+        if self.lifecycle:
+            from context_builder import ContextBuilder
+            from context_builder.assembly import assemble_context_result
+            from .context_sources import history_messages
+            rows, diaries = self.memory.context_sources.select_history()
+            active = self.lifecycle.days.active()
+            facts = await self.memory.context_sources.facts(active_date=active['date'] if active else None)
+            facts.update(earlier_diaries=diaries,
+                current_activity=kwargs.get('wander_activity_text', ''))
+            built = await ContextBuilder.build(recipe, persona=persona,
+                host_history=history_messages(rows), host_materials=facts)
+            wire = assemble_context_result(built)
+            runtime = kwargs.get('wander_runtime_text', '')
+            if runtime:
+                wire.append({'role': 'system', 'name': 'mirrow_sources', 'content': runtime})
+            return SimpleNamespace(system_content=persona, formatted_messages=wire, decision_messages=wire,
+                sections={'wander_runtime': {'text': runtime}})
         if recipe == 'WANDER_PUSH':
             # Sharing receives the complete actual activity, not just its summary.
             packet = {'activity': kwargs['wander_activity_text'], 'history': [
@@ -86,10 +104,12 @@ class Wander:
 
     async def context(self):
         rows = self.messages.messages()
+        active = self.lifecycle.days.active() if self.lifecycle else None
+        day = active['date'] if active else datetime.now().date().isoformat()
         conversation = json.dumps([{k: r[k] for k in ('role', 'content', 'timestamp', 'message_id', 'event_type')}
-            for r in rows if r['active_date'] == datetime.now().date().isoformat()], ensure_ascii=False)
+            for r in rows if r['active_date'] == day], ensure_ascii=False)
         common = dict(persona=self.messages.profile()['persona'], session_id=self.messages.session_id,
-            current_time=datetime.now().isoformat(), user_status='部署者已开启闲时漫想；设备状态未知',
+            current_time=datetime.now().isoformat(), user_status=json.dumps(self.lifecycle.status(), ensure_ascii=False) if self.lifecycle else '设备状态未知',
             today_conversation=conversation)
         return RuntimeContextBundle(plan=RuntimeContext(**common), decision=DecisionContext(**common),
             self_reflection=SelfReflectionContext(**common,
@@ -101,7 +121,7 @@ class Wander:
         return await self.provider.complete(messages, internal=True)
 
     def push(self, payload):
-        if self.stopping:
+        if self.stopping or (self.lifecycle and not self.lifecycle.can_push()):
             return False
         self.messages.append('assistant', payload['message'], message_id='wander_' + payload['event_id'],
             event_type=payload['event_type'], wander=True)
@@ -117,9 +137,13 @@ class Wander:
         self.task = asyncio.create_task(self.loop())
 
     async def loop(self):
+        from .wander_events import capture_activity
         try:
             while not self.stopping:
                 result = await self.runner.tick()
+                if result.run_id:
+                    for activity in self.store.list_activities(result.run_id):
+                        capture_activity(self, activity['activity_id'])
                 if not self.stopping:
                     await self.runner.wait(result.delay_seconds)
         except asyncio.CancelledError:
@@ -137,6 +161,8 @@ class Wander:
             self.task = None
         if snapshot:
             await self.runner.settle_interrupt(snapshot['activity_id'])
+        from .wander_events import capture_open_day
+        capture_open_day(self)
 
     def status(self):
         return {'running': bool(self.task and not self.task.done() and not self.stopping),

@@ -29,11 +29,14 @@ class DataSnapshot:
     """一次监控周期采集的所有数据聚合"""
     timestamp: str = ""
     heart_rate: Optional[int] = None
+    heart_rate_source: Optional[str] = None
     screen_active: Optional[bool] = None
     foreground_app: Optional[str] = None
     foreground_exe: Optional[str] = None
     mirrow_visible: Optional[bool] = None
     user_status: Optional[str] = None
+    # 最近一次用户状态声明真正生效的时刻；重启后从持久化履历恢复。
+    user_status_since: Optional[str] = None
     is_period: bool = False
     period_day: Optional[int] = None
 
@@ -45,12 +48,18 @@ class DataSnapshot:
     last_message_seconds: float = 999999.0
     hr_sustained_high_count: int = 0  # 连续 >threshold 的采样次数
 
-    # 🆕 键鼠空闲
+    # 🆕 键鼠空闲（input_idle_seconds 只代表已确认的本地物理输入）
     input_idle_seconds: Optional[float] = None
+    # Raw Input 来源状态：不落 SQLite，仅供本 tick 行为推断/摘要使用。
+    physical_input_idle_seconds: Optional[float] = None
+    remote_input_idle_seconds: Optional[float] = None
+    input_origin_available: bool = False
+    last_input_origin: Optional[str] = None
 
     # 🆕 步数
     cumulative_steps: Optional[int] = None
     steps_today: Optional[int] = None
+    steps_logical_date: Optional[str] = None
     steps_stagnant_minutes: int = 0
 
     # 🆕 GPS
@@ -58,19 +67,62 @@ class DataSnapshot:
     location_lng: Optional[float] = None
     location_address: Optional[str] = None
     location_category: Optional[str] = None
+    location_place_id: Optional[str] = None
+    location_place_name: Optional[str] = None
+    location_environment: Optional[str] = None  # 登记地点环境，不等于实测室内外
 
     # 🆕 屏幕使用时长
     screen_time_minutes: Optional[int] = None
     top_app_category: Optional[str] = None
+    screen_time_logical_date: Optional[str] = None
 
     # 🆕 当前手机前台App + 屏幕状态 + 系统分类（2min 轮询）
     mobile_app_package: Optional[str] = None
     mobile_screen_on: Optional[bool] = None
     mobile_app_name: Optional[str] = None
+    mobile_observed_window_package: Optional[str] = None
+    mobile_overlay_package: Optional[str] = None
+    mobile_underlying_package: Optional[str] = None
+    mobile_foreground_resolution: Optional[str] = None
 
     # 🆕 行为状态
     behavior_state: Optional[str] = None
     active_app_session: Optional[str] = None
+
+    # 🆕 WiFi
+    wifi_connected: Optional[bool] = None
+    wifi_ssid: Optional[str] = None
+    wifi_bssid: Optional[str] = None
+    wifi_is_home: Optional[bool] = None
+    wifi_transition_serial: int = 0
+
+    # 🆕 手机视觉（MobileVisionSource 周期性截屏→轻量分类）
+    mobile_vision_app_name: Optional[str] = None
+    mobile_vision_package: Optional[str] = None
+    mobile_vision_category: Optional[str] = None
+    mobile_vision_activity: Optional[str] = None
+    mobile_vision_description: Optional[str] = None
+    mobile_vision_confidence: Optional[float] = None
+
+    # 🆕 手机通知摘要（NotificationsSource，5min；隐私克制——只存「包名×数量」，不存全文）
+    notifications_summary: Optional[str] = None
+
+    # 🆕 PC 运行进程（RunningProcessesSource，5min；游戏/编码/应用分类，排除系统黑名单）
+    running_apps: list = field(default_factory=list)
+    running_apps_summary: Optional[str] = None
+
+    # 🆕 手机姿态/运动/光线（SensorContextSource，AionsHome 移植 2026-08-24）
+    phone_posture: Optional[str] = None    # face_up/face_down/portrait/landscape_left/landscape_right/tilted
+    phone_motion: Optional[str] = None     # still/slight/moving/strong
+    phone_light: Optional[str] = None      # dark/dim/normal/bright
+    phone_screen: Optional[str] = None     # on/off
+
+    # 🆕 远程会话能力标注（RemoteSessionSource 只表示软件在运行；活动远程
+    # 输入由上面的 remote_input_idle_seconds 证明）
+    remote_control_active: Optional[bool] = None
+
+    # 多源事实并列结果。它只组织事实、时效和冲突，不替 LLM 下结论。
+    semantic_observations: list = field(default_factory=list)
 
     # 🆕 字段时效：field_group → captured_at ISO 时间戳。用于 is_stale() 判断。
     field_ts: Dict[str, str] = field(default_factory=dict)
@@ -81,7 +133,8 @@ class DataSnapshot:
         if not ts:
             return None
         try:
-            return (datetime.now() - datetime.fromisoformat(ts)).total_seconds()
+            captured = datetime.fromisoformat(ts)
+            return (datetime.now(captured.tzinfo) - captured).total_seconds()
         except Exception:
             return None
 
@@ -243,6 +296,13 @@ class AnomalyDetector:
             })
             logger.info(f"Sentinel 规则触发: {rule.id} {rule.name} (priority={rule.priority.value})")
 
+        from neuron_registry import record_neuron_execution
+        if triggered:
+            record_neuron_execution("sentinel_anomaly_detector", status="ok",
+                                    output_preview=f"触发 {len(triggered)} 条: {','.join(t['rule_id'] for t in triggered[:3])}")
+        else:
+            record_neuron_execution("sentinel_anomaly_detector", status="ok", output_preview="(无告警)")
+
         return triggered
 
     # ── 冷却 ──────────────────────────────────────────
@@ -336,7 +396,7 @@ class AnomalyDetector:
             except Exception:
                 pass
             # 读作息表
-            from mirrow_core.settings_manager import get_setting
+            from settings_manager import get_setting
             sched = get_setting("user_schedule") or {}
             ws = sched.get("work_start", "09:00")
             we = sched.get("work_end", "18:00")
@@ -349,7 +409,7 @@ class AnomalyDetector:
     def _is_wfh_today() -> bool:
         """今日是否勾选了居家办公（带日期，次日自动失效）。"""
         try:
-            from mirrow_core.settings_manager import get_setting
+            from settings_manager import get_setting
             sp = get_setting("silicon_perception") or {}
             wfh_date = sp.get("wfh_date")
             return wfh_date == datetime.now().strftime("%Y-%m-%d")

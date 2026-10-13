@@ -1,3 +1,4 @@
+from .public_contracts import execution_record, receipt_message
 # 行为调度器主逻辑
 #
 # 架构层级：
@@ -499,37 +500,8 @@ class BehaviorScheduler:
         return _paras[-1] if _paras else text
 
     def _build_system_prompt(self, night_mode_enabled: bool = False) -> str:
-        """构建决策层系统提示词"""
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
-        return f"""你是一个智能助手，可以使用以下工具：
-
-当前时间: {current_time}
-
-{self.tools_description}
-
-## 工具调用规则
-
-当需要使用工具时，先告诉用户你要做什么，然后输出工具调用：
-[TOOL_CALL]
-{{"tool": "工具名", "parameters": {{"参数名": "参数值"}}}}
-[/TOOL_CALL]
-
-### 重要规则：
-1. 先说话，再调用工具
-2. 每次只能调用一个工具
-3. 工具名必须是上述列表中存在的工具
-4. 不需要工具时直接回复用户
-5. 工具返回结果后，根据结果继续调用工具或直接回复用户
-6. 用户明确要求看摄像头/打开摄像头/拍照/自拍/看看周围/看她在干嘛/看用户时，必须调用 eyes
-7. {"用户提到蓝牙玩具/情趣玩具/振动玩具/Lush/控制玩具/连接玩具/扫描蓝牙设备时，必须调用 toys" if night_mode_enabled else "用户提到蓝牙玩具/情趣玩具等时，提醒用户开启深夜模式（点击页面爱心图标），不要调用 toys"}
-
-### 示例：
-用户："帮我搜一下Python教程"
-助手：让我搜一下~
-[TOOL_CALL]
-{{"tool": "web_search", "parameters": {{"query": "Python教程"}}}}
-[/TOOL_CALL]"""
-
+        from .public_contracts import tool_contract
+        return tool_contract(self.tools)
 
     def _extract_camera_prompt(self, user_message: str) -> Optional[str]:
         """从用户消息中识别明确的摄像头查看意图。"""
@@ -1427,7 +1399,6 @@ class BehaviorScheduler:
                         f"请在回复中自然地引用以上真实结果，不要编造。"
                         f"此工具已完成，不要再重复调用。"
                     )
-                    messages.append({"role": "system", "content": result_msg})
                     tool_call_record = {
                         "tool": std.tool_name, "parameters": std.parameters,
                         "description": desc,
@@ -1436,7 +1407,11 @@ class BehaviorScheduler:
                     }
                     if exec_result.get("error"):
                         tool_call_record["error"] = exec_result["error"]
+                    tool_call_record = execution_record(tool_call_record, exec_result)
                     tool_calls.append(tool_call_record)
+                    material = receipt_message(tool_call_record)
+                    if material:
+                        messages.append(material)
                     # 推送 tool_complete 给前端
                     await self._notify_status("tool_complete", tool_call_record)
                     # 写入去重字典，防止后续 Pro TOOL_CALL 重复执行同一工具
@@ -1820,9 +1795,12 @@ class BehaviorScheduler:
                     record = {"tool": t_name, "parameters": t_params, "description": desc, "result": content, "success": success}
                     if exec_r.get("error"):
                         record["error"] = exec_r["error"]
+                    record = execution_record(record, exec_r)
                     tool_calls.append(record)
                     await self._notify_status("tool_complete", record)
-                    all_results.append(f"[{t_name}]: {content}")
+                    material = receipt_message(record)
+                    if material:
+                        all_results.append(material["content"])
                     _log_context_scheduler(f"多工具执行 | tool: {t_name} | success: {success}")
                 if all_results:
                     _std_fail_count = 0
@@ -1840,7 +1818,7 @@ class BehaviorScheduler:
                         messages.append({"role": "system", "content": self._build_tool_narrative(_tools_done, multi=True)})
                     multi_result = "\n---\n".join(all_results)
                     multi_result += f"\n\n{self._DEFAULT_TOOL_FEEDBACK}"
-                    messages.append({"role": "system", "content": multi_result})
+                    messages.append({"role": "system", "name": "mirrow_tool_receipt", "_material_kind": "tool_receipt", "content": multi_result})
                     if _nl_pushed_this_round == False and natural_language:
                         pushed_preview = getattr(self, '_pushed_preview_nl', '')
                         if natural_language.strip() != pushed_preview.strip():
@@ -2127,6 +2105,7 @@ class BehaviorScheduler:
                 **({"error": exec_error} if exec_error else {}),
                 **({"extra_data": exec_result.get("extra_data")} if exec_result.get("extra_data") else {}),
             }
+            tool_call_record = execution_record(tool_call_record, exec_result)
             tool_calls.append(tool_call_record)
             await self._notify_status("tool_complete", tool_call_record)
 
@@ -2165,7 +2144,9 @@ class BehaviorScheduler:
             if natural_language and clean_content != "嗯。":
                 messages.append({"role": "system", "content": self._build_tool_narrative(tool_name)})
 
-            messages.append({"role": "system", "content": tool_result_msg})
+            material = receipt_message(tool_call_record)
+            if material:
+                messages.append(material)
 
         # 超过最大轮数
         self._state = SchedulerState.WAITING_USER
@@ -2218,13 +2199,16 @@ class BehaviorScheduler:
                 "description": user_facing,
                 "result": exec_result.get("content") or exec_result.get("error", "")
             }
+            tool_call_record = execution_record(tool_call_record, exec_result)
             tool_calls.append(tool_call_record)
             await self._notify_status("tool_complete", tool_call_record)
 
             if exec_result.get("success"):
-                await self._push_llm_reply(exec_result.get("content", ""))
+                visible = ('操作结果已记录在工具栏。' if exec_result.get('delivery') == 'ui_only'
+                    else exec_result.get('content', ''))
+                await self._push_llm_reply(visible)
                 return SchedulerResult(
-                    final_response=exec_result.get("content", ""),
+                    final_response=visible,
                     tool_calls=tool_calls,
                     state=SchedulerState.COMPLETE,
                     need_user_input=False,
@@ -2446,6 +2430,7 @@ class BehaviorScheduler:
                 "result": exec_result.get("content") or exec_result.get("error", ""),
                 "extra_data": exec_result.get("extra_data"),
             }
+            tool_call_record = execution_record(tool_call_record, exec_result)
             tool_calls.append(tool_call_record)
 
             await self._notify_status("tool_complete", tool_call_record)
@@ -2469,7 +2454,9 @@ class BehaviorScheduler:
                 "role": "assistant",
                 "content": parse_result.clean_content or f"[调用工具: {command.tool}]"
             })
-            messages.append({"role": "user", "content": tool_result_msg})
+            material = receipt_message(tool_call_record)
+            if material:
+                messages.append(material)
 
         # 超过最大轮数
         self._state = SchedulerState.WAITING_USER

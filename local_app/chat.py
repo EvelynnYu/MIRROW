@@ -23,6 +23,7 @@ class Chat:
     def __init__(self, store, provider, memory, wander):
         self.store, self.provider, self.memory, self.wander = store, provider, memory, wander
         self.lock = asyncio.Lock()
+        self.lifecycle = None
         self.scheduler = BehaviorScheduler(call_llm_func=provider.complete,
             use_agent_tools=False, tool_registry={'search_memory': MemorySearch(memory)},
             enable_memorial_detection=False, raise_model_errors=True)
@@ -42,15 +43,19 @@ class Chat:
                     raise ValueError('request_identity_conflict')
                 return prior
             # Explicitly turn off the current idle period before freezing history.
+            if self.lifecycle:
+                await self.lifecycle.before_message()
             await self.wander.stop()
             self.store.begin_request(request_id, content)
+            if self.lifecycle:
+                self.lifecycle.accepted_message(content)
             try:
                 history = await chat_context(self.store, self.memory, content)
                 result = await self.scheduler.process_message(content, conversation_history=history,
                     session_id=self.store.session_id)
                 if not result.final_response.strip():
                     raise ValueError('empty_reply')
-                self.store.finish_request(request_id, result.final_response)
+                self.store.finish_request(request_id, result.final_response, result.tool_calls)
             except BaseException:
                 self.store.fail_request(request_id)
                 raise

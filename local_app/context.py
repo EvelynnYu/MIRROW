@@ -21,6 +21,17 @@ async def runtime_context(recipe, *, persona='', wander_runtime_text='', **kwarg
 
 
 async def chat_context(store, memory, user_text):
+    if getattr(memory, 'context_sources', None):
+        from .context_sources import history_messages
+        from context_builder.assembly import assemble_context_result
+        rows, diaries = memory.context_sources.select_history(exclude_current=True)
+        active_date = store.messages()[-1]['active_date']
+        facts = await memory.context_sources.facts(user_text, active_date=active_date)
+        facts.update(memory_sources=await memory.search(user_text), earlier_diaries=diaries,
+            current_time=datetime.now().astimezone().isoformat(), active_date=active_date)
+        result = await ContextBuilder.build('FULL_CHAT', host_history=history_messages(rows),
+            host_materials=facts, host_turn=[{'role': 'user', 'content': user_text}])
+        return assemble_context_result(result)
     profile = store.profile()
     messages = []
     rows = store.messages()

@@ -265,19 +265,11 @@ class _DecisionAdapterBase:
         except Exception as exc:
             raise DecisionContextError(f"recipe_build:{type(exc).__name__}") from exc
 
-        system_content = getattr(built, "system_content", "")
-        sections = getattr(built, "sections", {}) or {}
-        runtime_section = sections.get("wander_runtime", {})
-        if (
-            not system_content
-            or not runtime_section.get("text")
-            or not system_content.rstrip().endswith(runtime_block.rstrip())
-        ):
-            raise DecisionContextError("runtime_block_not_final_or_missing")
-        return [
-            {"role": "system", "content": system_content},
-            {"role": "user", "content": instruction},
-        ]
+        from .context_wire import decision_messages
+        try:
+            return decision_messages(built, runtime_block, instruction)
+        except ValueError as exc:
+            raise DecisionContextError(str(exc)) from exc
 
     @staticmethod
     def _usage_value(usage: dict[str, Any], *keys: str) -> Optional[int]:

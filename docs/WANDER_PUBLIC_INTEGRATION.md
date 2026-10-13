@@ -50,7 +50,7 @@ register_event_handler(
 
 ## 音乐与其他服务
 
-`configure_music(context=..., record=..., playback=...)` 分别注入已有音乐经历读取、幂等经历写入和真实播放回调。`playback(payload)` 可同步或异步，仅明确 `True` 代表播放已确认；设备失败不会换设备补播。写入回调接收 `payload, source_id=...`，由宿主持久化去重，不直接覆盖自我书。
+`configure_music(context=..., record=..., playback=..., receipt=...)` 分别注入已有音乐经历读取、幂等经历写入、真实播放和曲终回执。`playback(payload)` 可同步或异步，返回 `success=True` 与真实 `music_session_id`；必要时附 `playback.duration_sec`。旧布尔 True 不再足以确认播放会话。`receipt(session_id, song_id)` 返回真实 state，只有 `finished` 才完成节点；预计时长只是查回执的起点。设备失败不会换设备补播。写入回调接收 `payload, source_id=...`，由宿主持久化去重，不直接覆盖自我书。
 
 高层管理器的音乐事件还需要 `music_mcp_client.is_running()` 和既有曲目服务；只注册播放回调不会凭空提供选歌/歌词。也可自行组装 runner 并注入音乐处理器。私有情绪服务不随包提供；需要时显式注入 `runner.affect_service`，否则跳过外部情绪写入。
 

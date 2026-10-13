@@ -126,6 +126,7 @@ class NodeExecutionAdapter:
         music_playback_enabled: Callable[[], bool] | None = None,
         get_idle_seconds: Callable[[], float] | None = None,
         get_setting: Callable[[str], Any] | None = None,
+        music_playback_receipt: Callable | None = None,
     ):
         self.store = store
         self.handler_factory = handler_factory
@@ -133,6 +134,7 @@ class NodeExecutionAdapter:
         self.music_playback_enabled = music_playback_enabled
         self.get_idle_seconds = get_idle_seconds
         self.get_setting = get_setting
+        self.music_playback_receipt = music_playback_receipt
 
     async def execute(self, node_id: str, *, comment_draft: str = "") -> NodeExecutionResult:
         """Execute one claimed node.
@@ -644,6 +646,12 @@ class NodeExecutionAdapter:
                         retry_safe=False,
                     )
             payload["played"] = True
+            playback = getattr(handler, '_last_runtime_playback', {}) or {}
+            session_id = str(playback.get('music_session_id') or '')
+            if not session_id:
+                return NodeExecutionResult(NodeExecutionStatus.FAILED,
+                    summary=f"《{title}》播放会话未确认", payload=payload,
+                    error='playback_session_unavailable', retry_safe=False)
             expected_completion_at = (self.clock() + timedelta(seconds=duration_sec)).isoformat()
             return NodeExecutionResult(
                 NodeExecutionStatus.WAITING_EXTERNAL,
@@ -654,6 +662,8 @@ class NodeExecutionAdapter:
                     "playback_started": True,
                     "expected_completion_at": expected_completion_at,
                     "netease_song_id": str(payload["netease_song_id"]),
+                    "music_session_id": session_id,
+                    "completion_deadline_at": (self.clock() + timedelta(seconds=max(duration_sec * 3, duration_sec + 600))).isoformat(),
                 },
                 retry_safe=False,
             )
@@ -749,7 +759,7 @@ class NodeExecutionAdapter:
         node_id: str,
         signal: str,
     ) -> NodeExecutionResult:
-        if signal not in {"playback_finished", "duration_elapsed"}:
+        if signal != "playback_finished":
             raise ValueError("unsupported completion signal")
         node = self._required_node(node_id)
         activity = self._required_activity(node.activity_id)
@@ -775,6 +785,38 @@ class NodeExecutionAdapter:
                 retry_safe=False,
             ),
         )
+
+    async def poll_external_completion(self, node_id):
+        import inspect
+        node = self._required_node(node_id)
+        activity = self._required_activity(node.activity_id)
+        if EventType(activity['activity_type']) != EventType.LISTEN_MUSIC or node.state != NodeState.RUNNING or node.execution_status != NodeExecutionStatus.WAITING_EXTERNAL.value:
+            raise ValueError('music_node_not_waiting')
+        refs = node.side_effect_refs
+        if not refs.get('music_session_id'):
+            receipt = {'state': 'missing'}
+        else:
+            try:
+                from .host_hooks import music_receipt
+                callback = self.music_playback_receipt or music_receipt
+                receipt = callback(refs['music_session_id'], refs.get('netease_song_id', ''))
+                if inspect.isawaitable(receipt):
+                    receipt = await receipt
+            except Exception:
+                receipt = {'state': 'unavailable'}
+        state = str(receipt.get('state', 'unknown')) if isinstance(receipt, dict) else 'unknown'
+        if state == 'finished':
+            return await self.confirm_external_completion(node_id, 'playback_finished')
+        deadline = refs.get('completion_deadline_at')
+        expired = bool(deadline and self.clock() >= datetime.fromisoformat(deadline))
+        if expired or state in {'ended', 'external', 'failed', 'superseded', 'paused_timeout', 'missing', 'song_mismatch'}:
+            return self._finish(self._required_run(activity['run_id']), activity, node,
+                NodeExecutionResult(NodeExecutionStatus.FAILED, summary='播放未取得完整曲终回执',
+                    payload={**node.source_payload, 'playback_receipt_state': state},
+                    side_effect_refs=refs, error='playback_completion_timeout' if expired else 'playback_' + state,
+                    retry_safe=False))
+        return NodeExecutionResult(NodeExecutionStatus.WAITING_EXTERNAL, completion_signal=state,
+            payload=node.source_payload, side_effect_refs=refs, retry_safe=False)
 
     @staticmethod
     def _material_result(

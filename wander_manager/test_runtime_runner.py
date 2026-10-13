@@ -719,6 +719,7 @@ class RuntimeRunnerTests(unittest.TestCase):
 
             async def start_runtime_playback(self, _song_id):
                 self.starts += 1
+                self._last_runtime_playback = {'music_session_id': 'synthetic-session'}
                 return True
 
         class MusicFactory:
@@ -752,9 +753,12 @@ class RuntimeRunnerTests(unittest.TestCase):
         self.assertEqual(1, music_factory.handler.starts)
         self.assertEqual([], self.store.list_decisions(run.run_id, DecisionPhase.TIMING_REVIEW))
         self.now = self.now.replace(minute=3)
+        runner.executor.music_playback_receipt = lambda *_: {'state': 'unknown'}
+        self.assertEqual('waiting_external', asyncio.run(runner.tick()).action)
+        runner.executor.music_playback_receipt = lambda *_: {'state': 'finished'}
         asyncio.run(runner.tick())
         node = self.store.get_node(node["node_id"])
-        self.assertEqual("duration_elapsed", node["completion_signal"])
+        self.assertEqual("playback_finished", node["completion_signal"])
         self.assertEqual("completed", self.store.get_activity(activity.activity_id)["state"])
         self.assertEqual(1, music_factory.handler.starts)
 

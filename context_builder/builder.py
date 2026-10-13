@@ -94,6 +94,11 @@ class ContextBuilder:
     @classmethod
     async def build(cls, recipe_name: str, **kwargs) -> ContextResult:
         """按 Recipe 名构建上下文。"""
+        if 'host_materials' in kwargs:
+            from .public_materials import build_materials
+            return build_materials(recipe_name, persona=kwargs.get('persona', ''),
+                history=kwargs.get('host_history', ()), materials=kwargs['host_materials'],
+                turn=kwargs.get('host_turn', ()))
         recipe = get_recipe(recipe_name)
         if not recipe:
             raise ValueError(f"Unknown recipe: {recipe_name}")

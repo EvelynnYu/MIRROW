@@ -15,6 +15,10 @@ from .provider import Provider, ModelUnavailable
 from .memory import Memory
 from .wander import Wander
 from .chat import Chat
+from .lifecycle import Lifecycle
+from .lifecycle_api import create_router as lifecycle_router
+from .context_sources import ContextSources
+from .sentinel import Sentinel
 
 
 class Profile(BaseModel):
@@ -40,15 +44,25 @@ def create_app(config=None, transport=None):
     memory = Memory(config, store, provider)
     wander = Wander(config, store, provider, memory)
     chat = Chat(store, provider, memory, wander)
+    life = Lifecycle(store, memory, provider, wander, chat)
+    memory.context_sources = ContextSources(store, life.days, memory)
+    memory.context_sources.register('recent_inner_wander',
+        lambda **kwargs: wander.store.list_recent_inner_wander(hours=36, limit=10))
+    sentinel = Sentinel(store, provider, life)
 
     @asynccontextmanager
     async def lifespan(app):
+        await life.start()
+        await sentinel.start()
         yield
+        await sentinel.stop()
+        await life.stop()
         if wander.task is not None:
             await wander.stop()
 
     app = FastAPI(title='MIRROW Local', lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
-    app.state.services = dict(store=store, provider=provider, memory=memory, wander=wander, chat=chat)
+    app.state.services = dict(store=store, provider=provider, memory=memory, wander=wander, chat=chat, lifecycle=life,
+        context_sources=memory.context_sources, sentinel=sentinel)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=['127.0.0.1', 'localhost', '[::1]', 'testserver'])
 
     @app.middleware('http')
@@ -73,6 +87,8 @@ def create_app(config=None, transport=None):
     @app.get('/api/local/state')
     def state():
         return {'configured': config.configured, 'profile': store.profile(), 'messages': store.messages(),
+            'lifecycle': life.snapshot(),
+            'sentinel': sentinel.state(),
             'unfinished_requests': store.pending_or_failed_requests(),
             'wander': wander.status(), 'capabilities': {'chat': True, 'memory': True, 'wander': True,
                 'lounge': False, 'taobao': False}}
@@ -104,8 +120,11 @@ def create_app(config=None, transport=None):
         async with chat.lock:
             if action == 'start':
                 require_model()
+                life.active_date()
                 await wander.start()
             elif action == 'stop':
+                preferences = life.settings().model_copy(update={'autonomous_wander': False})
+                life.configure(preferences)
                 await wander.stop()
             else:
                 raise HTTPException(404)
@@ -143,7 +162,10 @@ def create_app(config=None, transport=None):
         return True  # loopback launcher + same-origin boundary above
 
     async def load_day(day, session_id):
-        if date.fromisoformat(day) >= date.today():
+        record = life.days.get(day)
+        if record and record['state'] == 'closed':
+            return life.days.verify(day)
+        if date.fromisoformat(day) >= date.today() or (record and record['state'] == 'open'):
             raise HTTPException(409, '当前日保留原始对话；只整理已结束日期')
         return [row for row in store.messages() if row['active_date'] == day]
 
@@ -153,6 +175,15 @@ def create_app(config=None, transport=None):
 
     app.include_router(cognition_router(authorize=authorize, load_day=load_day,
         llm=cognition_llm, session_id=lambda: store.session_id))
+    app.include_router(lifecycle_router(life, require_model))
+    class PresenceInput(BaseModel):
+        visible: bool
+
+    @app.post('/api/local/presence')
+    def presence(body: PresenceInput):
+        from datetime import datetime
+        store.set_setting('browser_presence', {'visible': body.visible, 'recorded_at': datetime.now().astimezone().isoformat()})
+        return {'saved': True}
     dist = ROOT / 'wander_frontend' / 'dist'
     if dist.is_dir():
         app.mount('/', StaticFiles(directory=dist, html=True), name='local-ui')

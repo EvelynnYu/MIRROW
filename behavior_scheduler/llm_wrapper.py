@@ -77,44 +77,8 @@ class LLMWrapper(ABC):
             self.register_tool(tool)
 
     def _create_system_prompt(self) -> str:
-        """构建系统提示词：工具可用性描述 + 强制规则（行为约束）。
-
-        工具数据从 build_tool_data_entries 统一取（与 Flash extractor 共用数据源）。
-        """
-        from datetime import datetime
-        from context_builder.ingredients import build_tool_data_entries
-
-        tools_desc = []
-        for entry in build_tool_data_entries(self.tools, visible_only=True):
-            tools_desc.append(
-                f"### {entry['name']}\n"
-                f"{entry['description']}\n"
-                f"参数:\n{entry['schema_nl']}\n"
-            )
-        tools_block = "\n".join(tools_desc)
-
-        # 注意：当前时间不放在系统提示词中（避免破坏 DeepSeek prompt caching），
-        # 而是附加在 execute() 的 user_input 末尾。
-
-        return f"""## 可用工具
-
-以下工具供你调用，**必须使用对应的工具**，不能凭自己的知识编造答案。
-
-{tools_block}
-
-## 工具调用规则
-
-1. 实时数据（天气、时间、搜索、网页内容等）：**必须**调用对应工具，不能凭记忆回答
-2. 文件操作（读、写、执行代码）：**必须**调用对应工具
-3. 用户明确要求"搜索""查""看""刷""浏览""打开"等：**必须**调用对应工具
-4. 当你不确定是否需要工具时：优先调用工具，不要猜
-5. 如果工具返回错误，根据错误信息修正参数后重试，不要放弃
-6. 每次可以调用一个或多个工具；如需连续操作（如先删旧提醒再建新），每步一行 TOOL_CALL
-7. 工具名必须是上述列表中存在的工具
-8. 参数必须符合 schema 定义
-9. 你不是被动的问答机——可以**主动**调用工具关心用户：主动 eyes 看她、主动 check_phone 查手机、主动 schedule_self_task 设查岗、主动 band 查健康。不需要等用户开口要求。
-
-"""
+        from .public_contracts import tool_contract
+        return tool_contract(self.tools)
 
     def extract_natural_language(self, content: str) -> str:
         """从LLM输出中提取自然语言部分"""
@@ -410,6 +374,9 @@ class OpenAICompatibleWrapper(LLMWrapper):
                 # 支持多轮对话思维链：保留reasoning_content
                 for msg in conversation_history:
                     msg_dict = {"role": msg.get("role"), "content": msg.get("content")}
+                    for key in ('name', '_material_kind'):
+                        if key in msg:
+                            msg_dict[key] = msg[key]
                     # 如果有reasoning_content，添加到消息中
                     reasoning_content = msg.get("reasoning_content")
                     if reasoning_content:
@@ -435,6 +402,8 @@ class OpenAICompatibleWrapper(LLMWrapper):
                 # 无方括号——防止 AI 学到 [标签: HH:MM] 格式在回复里引用时间
                 messages.append({"role": "user", "content": f"当前时间: {current_time}\n\n{user_input}"})
 
+            from .public_projection import project_messages
+            messages = project_messages(messages, model=self.model, base_url=getattr(self, 'base_url', ''))
             # 构建请求参数
             # Flash 模型不需要高 max_tokens（响应通常很短）
             is_flash = "flash" in self.model.lower()

@@ -302,18 +302,8 @@ class SelfReflectionAdapter:
                 )
         except Exception as exc:
             raise ValueError(f"recipe_build:{type(exc).__name__}") from exc
-        system_content = getattr(built, "system_content", "")
-        sections = getattr(built, "sections", {}) or {}
-        if (
-            not system_content
-            or not sections.get("wander_runtime", {}).get("text")
-            or not system_content.rstrip().endswith(runtime_block.rstrip())
-        ):
-            raise ValueError("runtime_block_not_final_or_missing")
-        return [
-            {"role": "system", "content": system_content},
-            {"role": "user", "content": _OUTPUT_INSTRUCTION},
-        ]
+        from .context_wire import decision_messages
+        return decision_messages(built, runtime_block, _OUTPUT_INSTRUCTION)
 
     def _runtime_block(
         self,

@@ -2503,11 +2503,11 @@ class ListenMusicHandler(BaseEventHandler):
         from .host_hooks import play_music
         target = str(device or 'computer')
         try:
-            success = await play_music({'device': target, 'song': dict(song_data)})
+            receipt = await play_music({'device': target, 'song': dict(song_data)})
         except Exception:
-            success = False
-        self._last_runtime_playback = {'success': success, 'device': target,
-                                      'error': '' if success else 'playback_not_confirmed'}
+            receipt = {'success': False, 'error': 'playback_not_confirmed'}
+        success = receipt.get('success') is True and bool(receipt.get('music_session_id'))
+        self._last_runtime_playback = {**receipt, 'success': success, 'device': target}
         return success
 
     async def _call_music_tool(self, name: str, arguments: dict) -> Any:

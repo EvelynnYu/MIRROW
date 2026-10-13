@@ -17,4 +17,11 @@
 .chat-message small { display: block; color: #c9becb; }
 .chat-compose { display: grid; gap: 10px; }
 .chat-compose button { justify-self: end; }
+.lifecycle-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 12px; }
+.local-form label.check { display: flex; align-items: center; }
+.local-form .check input { width: auto; }
+.local-shell select { padding: 10px; color: inherit; background: #26212e; border-radius: 8px; }
+.lifecycle article { border-top: 1px solid #65516b; margin-top: 20px; }
+.lifecycle pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.diary-text { white-space: pre-wrap; }
 @media(max-width: 600px) { .local-shell { padding: 24px 16px; } .local-form { padding: 16px; } .chat-message { max-width: 96%; } }

@@ -613,6 +613,11 @@ class CommandExecutor:
         self.tools = tools
 
     async def execute(self, command: Command) -> Dict[str, Any]:
+        from .public_contracts import complete_receipt
+        result = await self._execute(command)
+        return complete_receipt(result, self.tools.get(command.tool), command.parameters)
+
+    async def _execute(self, command: Command) -> Dict[str, Any]:
         """执行命令"""
         if not command.is_executable():
             return {
@@ -638,6 +643,8 @@ class CommandExecutor:
                 "content": result.content or "",
                 "tool": tool_name,
                 "parameters": command.parameters,
+                "status": result.status.value,
+                "delivery": getattr(result, 'delivery', 'model'),
             }
             if result.error:
                 rv["error"] = result.error

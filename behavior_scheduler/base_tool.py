@@ -29,6 +29,7 @@ class BaseTool(ABC):
 
     name: str = ""
     description: str = ""  # 给LLM看的工具描述
+    pro_guide: str = ""  # Static usage guide; independent of live context and schemas.
     flash_description: str = ""  # 给 Flash 意图提取的目录式精简描述（一句话"工具是干嘛的"）；空则回退 description
     parameters_schema: Dict[str, Any] = {}  # 参数schema
     single_use: bool = False  # True 时每轮对话只能执行一次（如 send_voice）

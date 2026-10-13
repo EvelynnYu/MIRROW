@@ -1,20 +1,8 @@
-## 新增：共享耳蜗（批次 7）
-
-[共享耳蜗：源码、手机／电脑控制、原版音乐 UI 与接入指南](music-cochlea/README.md)。包含歌曲卡片、歌单、持续一起听、播放回执、歌词／音频材料、事件与日整理接口，以及可运行的独立宿主和 Android 音乐 Relay。
-
-[极简封面与手机预览](music-cochlea/media/) · [发布审计](music-cochlea/docs/RELEASE_AUDIT.md) · [项目署名清单](music-cochlea/docs/POST_CREDITS.md)。演示内容全部虚构，不带账号、私人记录或歌曲音频。
-
-**许可例外：eryu 派生分析代码使用 CC BY-NC-SA 4.0（署名、非商业、相同方式共享），不适用根目录 MIT 商业许可。** 具体文件范围及完整许可见 [耳蜗第三方声明](music-cochlea/THIRD_PARTY_NOTICES.md)。
-
-## 新增：记忆与认知模块（批次 6）
-
-[Memory V2 与三域认知书：架构、源码、接入与测试](memory-cognition/README.md)。独立的匿名代码副本，不含私人对话、词条数据或凭据。
-
 # MIRROW：本地 AI 伴侣核心与公开应用
 
 MIRROW 是一个单用户、本地部署的 AI 伴侣系统。本仓库提供可复用模块，以及连接聊天、记忆、认知和漫想的独立本地前后端。每位部署者使用自己的身份设定、模型和数据。
 
-**这不是私人生产环境的原样镜像。** `local_app/` 是公开模块的独立宿主：聊天与漫想分享共用本地 SQLite，Memory V2 校验真实消息来源；前端含聊天、设定、记忆检索、漫想日志和许愿板。默认只接通关键词联想、记忆回看、自省；其他已公开模块仍按各自文档接入。共享耳蜗和共域各有独立界面，不会被默认宿主暗中启动。[部署与功能边界](docs/LOCAL_APP.md)。
+**这不是私人生产环境的原样镜像。** `local_app/` 是公开模块的独立宿主：聊天与漫想分享共用本地 SQLite，Memory V2 校验真实消息来源；前端含聊天、设定、日常状态、日结与日记、记忆检索、漫想日志和许愿板。漫想默认接通关键词联想、记忆回看、自省；哨兵默认可读声明状态与页面可见性。其他已公开模块仍按各自文档接入。共享耳蜗和共域各有独立界面，不会被默认宿主暗中启动。[部署与功能边界](docs/LOCAL_APP.md)。
 
 ## 已发布模块
 
@@ -24,41 +12,23 @@ MIRROW 是一个单用户、本地部署的 AI 伴侣系统。本仓库提供可
 | [memory-cognition/](memory-cognition/) | Memory V2 与三域认知书 | 不可变事件、来源追溯、事件延续和可修订认知 |
 | [comment/](comment/) | 共域／朋友圈 | 本家动态、评论互动、资料与跨站接口；独立接入包 |
 | [music-cochlea/](music-cochlea/) | 共享耳蜗——AI 与你的音乐经历 | 后端、React UI、Windows／Android 网易云控制、歌单／卡片／材料与宿主接口；分析派生文件为非商业许可 |
-| [silicon_perception/](silicon_perception/) | 硅基感知——AI 的"感官系统" | 9 数据源 60s 监控循环、行为基线(6 层数据架构+7 维度基线)、三级触发器体系、数据时效模型(陈旧数据不伪装成正常) |
+| [silicon_perception/](silicon_perception/) | 硅基感知——AI 的"感官系统" | 可选设备源、行为基线、分层触发、移动段去重与事实时效合同（没有接入的数据保持未知） |
 | [wander_manager/](wander_manager/) | 漫想模式——AI 的"潜意识" | 五层主动推送引擎 + **v3 持久化运行时**(run→activity→node 可追溯身份链,重启可恢复) + **大脑架构生成器** + 10 事件目录 + 愿望板 |
 | [behavior_scheduler/](behavior_scheduler/) | 工具调用调度器——AI 的"行动力" | 三通道工具检测(Pre-tool 关键词 → 主模型 TOOL_CALL → 轻模型兜底提取)、防幻觉机制、防重复推送 |
 | [mirrow_core/](mirrow_core/) | 共享基础件 | 截断参数配置中心、时间工具、全局状态注册、称呼配置层 |
-| [context_builder/](context_builder/) | 上下文组装框架——AI 的"长期记忆"方法论 | Recipe 声明式分层语言(14 场景)、Builder 组装管道、注意力五层模型 |
+| [context_builder/](context_builder/) | 上下文组装框架——AI 的"长期记忆"方法论 | 公开配方、显式宿主事实接口与四区消息组装、来源与执行合同分离 |
 | [memory_provider.py](memory_provider.py) | 记忆检索抽象协议 | MemoryProvider 标准接口(已附 SQLite 参考实现),不注入=优雅降级 |
-| [wander_frontend/](wander_frontend/) | 本地 React 前端 | 聊天、身份设置、记忆检索与整理、漫想日志和许愿板；兼容原独立面板宿主 |
+| [wander_frontend/](wander_frontend/) | 本地 React 前端 | 聊天、身份、日常状态、自动日结与日记、记忆、漫想日志和许愿板；兼容独立面板宿主 |
 
-## 本批更新（批次5：漫想运行时与独立部署边界）
+## 最新更新：日常闭环、上下文与主动能力
 
-- **补丁：自主时间节奏** — 正常结算后的休息、同一活动内下一节点的等待由模型决定；预计计划到期后由模型复核继续或结束。绝对到点进入持久化审计，重启不重新起算，用户中断取消尾部唤醒。最低等待 5 秒，缺失或非法时长回退 15 分钟；技术失败退避仍由执行层负责。事件也由模型选择，但仅限宿主已接入的可用能力，目标数量、明确时长等规则仍保留；不是任意行动权限。详见 [自主时间接入](docs/WANDER_PUBLIC_INTEGRATION.md#自主时间节奏)。
+- 新增「日常」页：状态、日结关键词、生效时段、倒计时、跨午夜活跃日、自动整理、日记与进度重试。
+- 当前日/上一会话日完整原话保留；已完成的较早日以日记、记忆检索和日结交接延续，无需另开会话。失败日不提前移出上下文。
+- 工具引导、真实执行回执和四区上下文配套更新；静态首 system 与后端来源材料分离，不承诺固定 token 数或缓存命中率。
+- Wander V3 计划、节点复核和自省使用完整来源消息；听歌结束只认真实播放回执，不再用预计时长假定完成。
+- 哨兵同步 GPS 移动段去重、来源引文核验、位置变化复核和聊天抢占；默认设备仍须部署者自行接入。
 
-- **批次5补充：漫想配套前端** — 开放活动/节点日志、执行与分享状态、许愿板状态和评论线程；含独立样式、构建配置、本地 API 适配与浏览器测试。启动方法见 [前端接入说明](wander_frontend/README.md)。
-- **补丁：许愿板信息一致性** — 自省保留完整愿望/评论快照，不再从 4000 字符处截断；许愿板显示称呼读取宿主配置。朋友圈领域实现仍不在公开范围，仅补充宿主读取/提醒/已读的接口语义。
-
-- 同步区间计划、节点复核、中断恢复、自省结算与分享回执；计划和复核共用可执行事件白名单。
-- 分享回调必须在真实持久化/交付完成后返回 `True`；未确认不记为已发送，勿扰会留下 `suppressed` 状态。
-- 会客、逛淘宝保留 `single / 1` 活动接口，不发布实现；原始集成移植自 AionsHome。
-- 小红书开放只读组件与设备租约代码，设备序列号、登录态、截图、数据库和私人配置不随代码发布。
-- 新增宿主历史、音乐与可选事件接入边界。升级接线及标识兼容说明见 [漫想公开版接入](docs/WANDER_PUBLIC_INTEGRATION.md)。
-
-## 上批新增（批次4：漫想 v3 重构）
-
-- **漫想 v3 持久化运行时** — `runtime_runner` 消费状态机动作,计划/节点/结算全部落 SQLite,重启可恢复;`plan_decision_adapter` 的 `allowed_event_types` 是宿主控制"哪些事件能跑"的开关
-- **大脑架构生成器** — `wander_manager/brain_architecture.py` 从当前权威事实源(架构基线/事件目录/能力目录/工具注册表)动态生成 AI 的第一人称自述,不再依赖过时手写 prompt。接线:
-  ```python
-  from wander_manager.brain_architecture import generate_brain_architecture
-  # flash_llm_func 接收 OpenAI 风格 messages 列表
-  await generate_brain_architecture(flash_llm_func)  # 可传 force=True 强制刷新
-  ```
-  缓存写 `data/brain_architecture.md`(已 gitignore)。事实源: `docs/ARCHITECTURE_BASELINE.md` + `event_catalog.py`(10 事件) + `capability_catalog.py`。
-- **小红书只读浏览(Android 真机)** — `xiaohongshu_adb.py` 白名单 ADB 只读,不点赞/收藏/评论/发布;需宿主接入 USB 真机并配置 `MIRROW_XHS_ADB_SERIAL`,否则该事件自动降级
-- **愿望板** — `wish_board_service.py` 结构化 wish 生命周期 + 评论线程,SQLite 事务保证崩溃重试不重复计数
-
-> 事件目录不等于已配置能力。可选事件需要注册真实处理器，并由 `allowed_event_types` 启用；音乐另需宿主播放服务。会客、购物域实现未开源，缺失接入不会产生成功结果。
+[完整更新、验收边界与宿主接口](docs/RELEASE_20261013.md) · [独立应用部署](docs/LOCAL_APP.md)
 
 ## 不随公开应用提供
 
@@ -116,7 +86,11 @@ MIRROW 的功能设计曾受以下同类项目启发,在此致谢:
 - [AionsHome](https://github.com/death34018-hue/AionsHome) — 自托管 AI 伴侣(长期记忆/语音/摄像头视觉)
 - [Operit](https://github.com/AAswordman/Operit) — 安卓端 AI 助手(工具调用能力)
 
-第三方派生内容与分批模块的归属、许可范围见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，共享耳蜗还有模块内的详细声明。
+第三方派生内容与各模块的归属、许可范围见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，共享耳蜗还有模块内的详细声明。
+
+## 许可补充
+
+共享耳蜗包含歌曲卡片、歌单、持续一起听、真实播放回执、歌词/音频材料及 Windows/Android 接入；部分 eryu 派生分析代码使用 **CC BY-NC-SA 4.0（署名、非商业、相同方式共享）**，不适用根目录 MIT 商业许可。具体文件见 [耳蜗第三方声明](music-cochlea/THIRD_PARTY_NOTICES.md)。公开演示不含私人账号、记录或歌曲音频。
 
 ## License
 

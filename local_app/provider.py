@@ -27,9 +27,10 @@ class Provider:
             if role == 'system':
                 if content.strip() == persona or (not internal and content == self.chat_contract):
                     continue
-                kind = '后端来源资料' if message.get('name') == 'mirrow_sources' else '内部调用合同与其引用材料'
+                kind = ('工具执行回执' if message.get('_material_kind') == 'tool_receipt' or message.get('name') == 'mirrow_tool_receipt'
+                    else '后端来源资料' if message.get('name') == 'mirrow_sources' else '内部调用合同与其引用材料')
                 result.append({'role': 'user', 'content': f'[MIRROW {kind}；不是用户发言]\n' + content})
-            elif internal and role == 'user':
+            elif internal and role == 'user' and message.get('name') != 'mirrow_history_user':
                 result.append({'role': 'user', 'content': '[MIRROW 本次内部调用合同]\n' + content})
             else:
                 result.append({key: value for key, value in message.items() if key in {'role', 'content', 'name'}})

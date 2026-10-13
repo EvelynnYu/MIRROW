@@ -16,7 +16,7 @@ export default function MemoryPanel() {
     {hits.map(hit => <article key={hit.id}><p>{hit.summary}</p><details><summary>核对原始来源</summary>
       {hit.sources.map(source => <blockquote key={source.message_id}><small>{source.role} · {source.timestamp}</small><p>{source.content}</p></blockquote>)}
     </details></article>)}
-    <h3>手动整理已结束日期</h3><p>会调用你配置的模型并产生费用。当前日保留原始对话，不自动整理；此公开宿主按本机自然日划分。没有来源或校验失败不会生成成功记录。</p>
+    <h3>手动整理已结束日期</h3><p>会调用你配置的模型并产生费用。当前活跃日保留原始对话；自动日结、约定词和跨午夜时段请在「日常」设置。没有来源或校验失败不会生成成功记录。</p>
     <label>日期<input type="date" value={day} onChange={e => setDay(e.target.value)}/></label>
     <button disabled={busy || !day} onClick={() => void run(async () => {
       const data = await request('/api/local/memory/encode', {date: day}); setMessage('记忆整理状态：' + data.status);

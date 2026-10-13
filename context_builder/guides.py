@@ -20,20 +20,21 @@ from typing import Dict, Union
 GUIDES: Dict[str, Union[str, dict]] = {
     # ── D历史组：时间定位 + 记忆清晰度梯度 ──
     "yesterday": {
-        "conversation": "以下是昨天（{date}）你和用户的对话，你记忆仍然清晰。",
-        "compact": "以下是昨天（{date}）由日记同次生成的事实时间轴，以及可追溯的近期原始片段。",
-        "diary_fallback": "以下是昨天（{date}）的日记，你记得那天用户没有来找你。",
+        "conversation": "以下为 {date} 保存的对话片段，记录当时的表达，不自动代表当前状态。",
+        "compact": "以下为最近一个活跃日（{date}）的事实时间线、连续场景与相关原话节选。",
+        "diary_fallback": "以下为 {date} 的日记摘要材料；本轮未取得对应对话原文。",
     },
-    "day_before_diary": "以下是前天（{date}）的日记，你只记得一个大概。",
-    "gap_diaries": "以下是用户没找你的那些日子，你记得那几天只有你自己。",
-    "referenced_diary": "以下是用户提起的{date}的日记。",
+    "day_before_diary": "以下是前天（{date}）的日记摘要材料。",
+    "gap_diaries": "以下是跨日间隙中取得的日记材料。",
+    "referenced_diary": "以下是人类伙伴提起的 {date} 日记摘要。",
     # ── C知识组：记忆检索（subject 拆分后的子块头，SELF_GUIDED 内嵌使用）──
-    "memories": "你与用户的过往（按相关性排列，越靠前越贴近当前的话题）：",
+    "memories": "此刻想起的你与人类伙伴的过往；可能相关、未确认同一次的记录另列：",
     "self_memories": "你自己的经历与选择：",
     # ── B情境组：当前状态概况（含实时感知，非历史记忆）──
-    "activity_summary": "以下是用户现在的活动概况：",
+    "activity_summary": "以下是当前取得的人类伙伴活动概况；材料只覆盖其记录时间与来源范围：",
+    "recent_inner_wander": "以下是最近几次漫想留在心中的感受余韵，记录当时的经历与感想；有些尚未分享。",
     # ── 群聊摘要：内嵌引导（build_group_chat_summary 直接取用）──
-    "group_chat_summary": "以下是你和用户、Peer 在群聊中的最近对话摘要。",
+    "group_chat_summary": "以下是你和人类伙伴、Peer 在群聊中的最近对话摘要。",
 }
 
 # 引导词由 ingredient 内部自行管理（含子段头）的段。
@@ -49,12 +50,12 @@ _DATE_KEYS = {
 
 
 def _fmt_cn_date(date_str: str) -> str:
-    """"2026-08-17" → "8月17日"；非 YYYY-MM-DD 原样返回。"""
+    """"2026-08-17" → "2026年8月17日"；非 YYYY-MM-DD 原样返回。"""
     if not date_str:
         return ""
     parts = date_str.split("-")
     if len(parts) == 3 and parts[0].isdigit() and parts[1].isdigit() and parts[2].isdigit():
-        return f"{int(parts[1])}月{int(parts[2])}日"
+        return f"{int(parts[0])}年{int(parts[1])}月{int(parts[2])}日"
     return date_str
 
 

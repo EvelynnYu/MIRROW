@@ -97,6 +97,7 @@ class RecordingHandler:
 
     async def start_runtime_playback(self, song_id):
         self.playback_ids.append(song_id)
+        self._last_runtime_playback = {'music_session_id': 'synthetic-session'}
         return self.playback_result
 
 
@@ -383,6 +384,12 @@ class RuntimeExecutionTests(unittest.TestCase):
         self.assertIn("song-old", handler.music_excluded)
         with self.assertRaises(ValueError):
             asyncio.run(adapter.confirm_external_completion(node.node_id, "analysis_finished"))
+        with self.assertRaises(ValueError):
+            asyncio.run(adapter.confirm_external_completion(node.node_id, "duration_elapsed"))
+        adapter.music_playback_receipt = lambda *_: {'state': 'paused'}
+        self.assertEqual(NodeExecutionStatus.WAITING_EXTERNAL, asyncio.run(adapter.poll_external_completion(node.node_id)).status)
+        adapter.music_playback_receipt = lambda *_: {'state': 'unknown'}
+        self.assertEqual(NodeExecutionStatus.WAITING_EXTERNAL, asyncio.run(adapter.poll_external_completion(node.node_id)).status)
 
         completed = asyncio.run(
             adapter.confirm_external_completion(node.node_id, "playback_finished")
@@ -390,6 +397,15 @@ class RuntimeExecutionTests(unittest.TestCase):
         self.assertEqual(NodeExecutionStatus.SUCCEEDED, completed.status)
         self.assertEqual("playback_finished", completed.completion_signal)
         self.assertEqual(2, len(self.store.list_decisions(run.run_id, DecisionPhase.NODE_EXECUTION)))
+
+    def test_music_terminal_receipt_is_failure_not_completion(self):
+        _, _, node = self._make_running_node(EventType.LISTEN_MUSIC)
+        adapter = NodeExecutionAdapter(self.store, RecordingFactory(), music_playback_enabled=lambda: True,
+            music_playback_receipt=lambda *_: {'state': 'song_mismatch'})
+        asyncio.run(adapter.execute(node.node_id))
+        result = asyncio.run(adapter.poll_external_completion(node.node_id))
+        self.assertEqual(NodeExecutionStatus.FAILED, result.status)
+        self.assertEqual('playback_song_mismatch', result.error)
 
     def test_music_setting_disables_only_real_playback(self):
         _, _, setting_false_node = self._make_running_node(EventType.LISTEN_MUSIC)
