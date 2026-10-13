@@ -471,11 +471,12 @@ class HybridSocialFeedStore:
                     return {'id': comment_id, 'moment_id': moment_id, 'status': 'deleted'}
         return await self.private.delete_comment(moment_id, comment_id, actor)
 
-    async def toggle_like(self, moment_id: str, author: str):
+    async def toggle_like(self, moment_id: str, author: str, *, liked: bool | None = None):
         await self.initialize()
         if self.public.get_moment(moment_id):
             try:
-                return self.public.toggle_like(author, moment_id)
+                return (self.public.toggle_like(author, moment_id) if liked is None
+                        else self.public.set_like(author, moment_id, liked))
             except PublicWallError as exc:
                 raise SocialFeedError(str(exc)) from exc
         archive = self._archive(moment_id)
@@ -485,13 +486,15 @@ class HybridSocialFeedStore:
                 row = db.execute('SELECT reactions_json FROM social_private_public_interactions WHERE moment_id=?', (moment_id,)).fetchone()
                 reactions = json.loads(row[0]) if row else []
                 existing = any(r['author'] == author for r in reactions)
-                reactions = [r for r in reactions if r['author'] != author]
-                if not existing:
+                active = not existing if liked is None else liked
+                if not active:
+                    reactions = [r for r in reactions if r['author'] != author]
+                if active and not existing:
                     reactions.append({'author': author, 'reaction': 'like', 'created_at': time.time()})
                 db.execute('UPDATE social_private_public_interactions SET reactions_json=? WHERE moment_id=?',
                            (json.dumps(reactions), moment_id))
-            return {'ok': True, 'active': not existing, 'moment_id': moment_id, 'author': author}
-        return await self.private.toggle_like(moment_id, author)
+            return {'ok': True, 'active': active, 'moment_id': moment_id, 'author': author}
+        return await self.private.toggle_like(moment_id, author, liked=liked)
 
     async def ensure_like(self, moment_id: str, author: str, *, source_key: str | None = None):
         await self.initialize()

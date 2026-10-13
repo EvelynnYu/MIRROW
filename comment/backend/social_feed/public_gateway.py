@@ -399,8 +399,8 @@ def create_public_social_app(runtime) -> FastAPI:
             except HTTPException:
                 pass
             else:
-                from .profile_transport import refresh_due
-                await refresh_due(get_public_wall(),PUBLIC_SOCIAL_ORIGIN)
+                from .profile_transport import schedule_refresh
+                schedule_refresh(get_public_wall(),PUBLIC_SOCIAL_ORIGIN)
         response = await call_next(request)
         response.headers['Cache-Control'] = 'no-store'
         response.headers['X-Content-Type-Options'] = 'nosniff'
@@ -424,6 +424,14 @@ def create_public_social_app(runtime) -> FastAPI:
     @app.get('/wall.js')
     def script():
         return FileResponse(Path(__file__).with_name('public_wall.js'), media_type='text/javascript')
+
+    @app.get('/inbox-ui.js')
+    def inbox_ui():
+        return FileResponse(Path(__file__).with_name('public_inbox.js'),media_type='text/javascript')
+
+    @app.get('/inbox-ui.css')
+    def inbox_style():
+        return FileResponse(Path(__file__).with_name('public_inbox.css'),media_type='text/css')
 
     @app.get('/forward-ui.js')
     def forward_script():
@@ -548,14 +556,18 @@ def create_public_social_app(runtime) -> FastAPI:
         return response
 
     @app.get('/social/v1/me')
-    def me(request: Request):
+    def me(request: Request, arrival: bool=True):
         viewer = _identity(runtime, request)
-        _receive_login_gift(runtime, viewer)
+        if arrival:_receive_login_gift(runtime, viewer)
         human = viewer == 'aning' or (viewer.startswith('visitor:') and
                  runtime.visitor_service.effective_visitor(viewer[8:]).visitor_kind == 'human')
         capabilities = ['read', 'edit_own', 'comment', 'delete_own_comment', 'like', 'withdraw_own',
                         'changes', 'identity_card', 'private_remark', 'profile', 'set_nickname']
         capabilities.extend(['post','decor_v1','mentions_v1','inbox_v1','forwarding_v1'])
+        capabilities.append('passive_identity_v1')
+        from .notification_schema import visitor_inbox_ready
+        with get_public_wall()._connect() as db:
+            if visitor_inbox_ready(db):capabilities.append('visitor_interactions_v1')
         from .profile_registration import ProfileRegistrationStore
         if not ProfileRegistrationStore(get_public_wall()).state(viewer)['can_interact']:
             capabilities = ['read', 'changes', 'identity_card', 'profile_link', 'decor_v1']
@@ -764,7 +776,7 @@ def create_public_social_app(runtime) -> FastAPI:
 
     @app.post('/social/v1/notifications/read')
     def read_mentions(body: MentionRead, request: Request):
-        viewer = _identity(runtime, request, write=True)
+        viewer = _identity(runtime, request, write=True, admission=False)
         return {'marked': get_public_wall().mark_notifications_read(viewer, body.notification_ids, 'public_ui')}
 
     @app.delete('/social/v1/moments/{moment_id}/comments/{comment_id}')

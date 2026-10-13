@@ -87,6 +87,25 @@ async def refresh(wall, actor, home_origin, client=None):
 
 
 _locks=weakref.WeakKeyDictionary()
+_pending=weakref.WeakKeyDictionary()
+
+
+def schedule_refresh(wall, home_origin):
+    """Coalesce existing due refreshes off the authenticated page's critical path."""
+    loop=asyncio.get_running_loop()
+    pending=_pending.setdefault(loop,{})
+    key=str(wall.path)
+    task=pending.get(key)
+    if task and not task.done():return
+    async def run():
+        try:
+            await refresh_due(wall,home_origin)
+        except Exception:
+            # Serving the last verified profile is independent of refresh availability.
+            pass
+        finally:
+            pending.pop(key,None)
+    pending[key]=loop.create_task(run())
 
 
 async def refresh_due(wall, home_origin):

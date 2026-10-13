@@ -11,6 +11,8 @@ import {socialViewKey} from '../social/viewState';
 import {useSocialView,useSocialReadingPlace} from '../social/useSocialView';
 import SocialMentions from '../components/SocialMentions';
 import {SocialForwardCard,SocialForwardDialog,type Forward} from '../components/SocialForward';
+import {readEvidence} from '../social/visibleReads';
+import {beginSocialWrite,completeSocialWrite} from '../social/writeAttempt';
 
 export type SocialSite = {
   id: string;
@@ -200,41 +202,51 @@ export default function SocialRemoteFeed({ site, sites, onSwitch, onBack }: {
 
   const post = async () => {
     const content = draft.trim(); if (!content || busy) return;
+    const payload={content,...(draftMentions.length?{mention_actor_ids:draftMentions}:{})};
+    const scope=`${base}/moments`,writeId=beginSocialWrite(scope,payload);
+    let committed=false;
     setBusy(true); setError(''); setStatus('');
     try {
-      await request('/moments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content, ...(draftMentions.length?{mention_actor_ids:draftMentions}:{}) }) });
+      await request('/moments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({...payload,request_id:writeId}) });
+      committed=true;completeSocialWrite(scope,writeId);
       setDraft(''); setDraftMentions([]); await load(); setStatus(`已发布在${site.name}。`);
-    } catch (err) { setError(err instanceof Error ? err.message : '发布结果未确认，请刷新核对后再试'); }
+    } catch (err) { setError(committed?'已发布，但动态刷新失败，请刷新查看。':err instanceof Error ? err.message : '发布结果未确认，请刷新核对后再试'); }
     finally { setBusy(false); }
   };
 
   const comment = async (item: Moment) => {
     const content = comments[item.id]?.trim(); if (!content || busy) return;
+    const payload={content,reply_to_id:replyTo[item.id]||null,...(commentMentions[item.id]?.length?{mention_actor_ids:commentMentions[item.id]}:{})};
+    const scope=`${base}/moments/${encodeURIComponent(item.id)}/comments`,writeId=beginSocialWrite(scope,payload);
+    let committed=false;
     setBusy(true); setError(''); setStatus('');
     try {
       await request(`/moments/${encodeURIComponent(item.id)}/comments`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, reply_to_id: replyTo[item.id] || null, ...(commentMentions[item.id]?.length?{mention_actor_ids:commentMentions[item.id]}:{}) }),
+        body: JSON.stringify({...payload,request_id:writeId}),
       });
+      committed=true;completeSocialWrite(scope,writeId);
       setComments(current => ({ ...current, [item.id]: '' }));
       setCommentMentions(current => ({ ...current, [item.id]: [] }));
       setReplyTo(current => ({ ...current, [item.id]: '' }));
       const [refreshed] = await hydrate([await request(`/moments/${encodeURIComponent(item.id)}`) as Moment]);
       setItems(current => current.map(row => row.id === item.id ? refreshed : row));
       setStatus(`评论已发到${site.name}。`);
-    } catch (err) { setError(err instanceof Error ? err.message : '评论结果未确认，请刷新核对后再试'); }
+    } catch (err) { setError(committed?'评论已发出，但动态刷新失败，请刷新查看。':err instanceof Error ? err.message : '评论结果未确认，请刷新核对后再试'); }
     finally { setBusy(false); }
   };
 
   const like = async (item: Moment) => {
     if (busy) return;
+    let committed=false;
     setBusy(true); setError(''); setStatus('');
     try {
-      await request(`/moments/${encodeURIComponent(item.id)}/like`, { method: 'POST' });
+      await request(`/moments/${encodeURIComponent(item.id)}/like`, { method: 'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({liked:!item.reactions.some(r=>r.author===actorId)}) });
+      committed=true;
       const [refreshed] = await hydrate([await request(`/moments/${encodeURIComponent(item.id)}`) as Moment]);
       setItems(current => current.map(row => row.id === item.id ? refreshed : row));
       setStatus('互动已更新。');
-    } catch (err) { setError(err instanceof Error ? err.message : '点赞结果未确认，请刷新核对后再试'); }
+    } catch (err) { setError(committed?'点赞状态已更新，但动态刷新失败，请刷新查看。':err instanceof Error ? err.message : '点赞结果未确认，请刷新核对后再试'); }
     finally { setBusy(false); }
   };
 
@@ -280,12 +292,12 @@ export default function SocialRemoteFeed({ site, sites, onSwitch, onBack }: {
         <header className="social-feed-card-head"><RemoteSocialAvatar base={base} origin={site.origin} actor={item.author} avatar={item.people?.[item.author]?.avatar} name={name(item,item.author)} onClick={() => setPersonSubject(item.author)} /><strong className="social-feed-author">{name(item, item.author)}</strong><time className="social-feed-time" title={new Date(item.created_at*1000).toLocaleString('zh-CN')}>{when(item.created_at)}</time></header>
         {transferReady && !item.migrated && (item.author === actorId || item.author === aiActorId) &&
           <button type="button" disabled={busy} onClick={() => void migrate(item.id, item.author === aiActorId ? 'ai' : 'human')}>迁回本家</button>}
-        <div className="social-feed-content">{item.content}</div>{item.mention_actor_ids?.length?<div className="social-mention-chips">{item.mention_actor_ids.map(id=>item.people?.[id]?.name&&<button type="button" className="social-mention-chip" key={id} onClick={()=>setPersonSubject(id)}>@{item.people[id].name}</button>)}</div>:null}
+        <div className="social-feed-content" data-social-read={readEvidence(site.id,item.id,'content',{created_at:item.created_at})}>{item.content}</div>{item.mention_actor_ids?.length?<div className="social-mention-chips">{item.mention_actor_ids.map(id=>item.people?.[id]?.name&&<button type="button" className="social-mention-chip" key={id} onClick={()=>setPersonSubject(id)}>@{item.people[id].name}</button>)}</div>:null}
         <SocialForwardCard forward={item.forward} name={id=>name(item,id)} base={base}/>
         {!item.migrated && <>
         <div className="social-feed-actions"><button type="button" className={`social-feed-action ${item.reactions.some(row => row.author === actorId) ? 'active' : ''}`} disabled={busy} onClick={() => void like(item)}>{item.reactions.some(row => row.author === actorId) ? '♥ 已赞' : '♡ 点赞'} {item.reactions.length || ''}</button><button type="button" className="social-feed-action" onClick={() => document.getElementById(`remote-comment-${item.id}`)?.focus()}>◌ {item.comments.length || ''} 条评论</button>{!item.forward&&<button type="button" className="social-feed-action social-feed-action-forward" disabled={busy} onClick={()=>setForwardMoment(item.id)}>↗ 转发</button>}</div>
-        {item.reactions.length > 0 && <div className="social-feed-liked-by" aria-label="点赞的人"><span aria-hidden="true">♥</span>{item.reactions.map(row => name(item, row.author)).join('、')}</div>}
-        {item.comments.length > 0 && <div className="social-feed-comments">{(expandedComments[item.id]?item.comments:item.comments.slice(-3)).map(row => <div className="social-feed-comment" key={row.id}>
+        {item.reactions.length > 0 && <div className="social-feed-liked-by" data-social-read={readEvidence(site.id,item.id,'likes',{actors:item.reactions.map(r=>r.author)})} aria-label="点赞的人"><span aria-hidden="true">♥</span>{item.reactions.map(row => name(item, row.author)).join('、')}</div>}
+        {item.comments.length > 0 && <div className="social-feed-comments">{(expandedComments[item.id]?item.comments:item.comments.slice(-3)).map(row => <div className="social-feed-comment" key={row.id} data-social-read={readEvidence(site.id,item.id,'comment',{comment_id:row.id})}>
           <RemoteSocialAvatar base={base} origin={site.origin} actor={row.author} avatar={item.people?.[row.author]?.avatar} name={name(item,row.author)} className="social-feed-comment-avatar" onClick={() => setPersonSubject(row.author)} />
           <div className="social-feed-comment-body"><div className="social-feed-comment-meta"><strong>{name(item, row.author)}</strong>{row.reply_to_id && <span> 回复 {name(item, item.comments.find(parent => parent.id === row.reply_to_id)?.author || '')}</span>}<time>{when(row.created_at)}</time></div><p className="social-feed-comment-text">{row.content}</p>{row.mention_actor_ids?.length?<div className="social-mention-chips">{row.mention_actor_ids.map(id=>item.people?.[id]?.name&&<button type="button" className="social-mention-chip" key={id} onClick={()=>setPersonSubject(id)}>@{item.people[id].name}</button>)}</div>:null}<div className="social-feed-comment-tools"><button type="button" onClick={() => {setReplyTo(current => ({ ...current, [item.id]: row.id })); document.getElementById(`remote-comment-${item.id}`)?.focus();}}>回复</button>{(row.can_delete ?? row.author === actorId) && <button type="button" disabled={busy} onClick={() => void removeComment(item,row)}>删除</button>}</div></div>
         </div>)}</div>}

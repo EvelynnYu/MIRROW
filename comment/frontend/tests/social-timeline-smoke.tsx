@@ -9,6 +9,9 @@ import decorStyle from '../../backend/social_feed/decor_ui.css?raw';
 import musicEditorScript from '../../backend/social_feed/decor_music_ui.js?raw';
 import publicWallHTML from '../../backend/social_feed/public_wall.html?raw';
 import '../src/desktop.css';
+import {getApiBase} from '../src/config';
+import {timelineSnapshotKey} from '../src/social/prewarm';
+import {saveTimelineSnapshot} from '../src/social/timelineSnapshot';
 
 // Exercise the real shared runtime without loading a script/style from the
 // production backend. Both resources and all domain requests stay isolated.
@@ -55,6 +58,7 @@ const items:TimelineMoment[]=[
   {id:'same-id',author:'visitor:friend',content:'演示公开动态：可用于测试点赞和评论。',visibility:'public',created_at:1790900000,comments:[{id:'own-comment',author:'visitor:self',content:'干得漂亮！',created_at:1790900020},{id:'friend-comment',author:'visitor:friend',content:'谢谢，来坐坐。',created_at:1790900030}],reactions:[{author:'visitor:self'}],people:{'visitor:friend':{name:'演示朋友'},'visitor:self':{name:'站主'}},viewer_actor:'visitor:self',source:{site_id:'fixture',site_name:'演示家',origin:sites[0].origin,hosting_mode:'hosted'}}
 ];
 if(progressive)for(let i=0;i<15;i++)items.push({...items[i%2],id:'extra-'+i,content:`第 ${i+1} 条隔离阅读位置验收动态。`,created_at:1790899900-i*20,comments:[],reactions:[]});
+if(options.get('cache')==='old')saveTimelineSnapshot(timelineSnapshotKey(getApiBase(),'all',sites),{items:items.map(item=>({...item,content:'上次完整页面的旧正文'})),has_more:false,next_cursor:null,unavailable:[],omitted_sources:0});
 (window as any).__timelineCalls=[];
 window.fetch=async(input,init)=>{
   const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href);

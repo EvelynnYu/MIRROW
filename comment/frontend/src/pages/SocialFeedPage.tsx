@@ -12,13 +12,15 @@ import {socialViewKey} from '../social/viewState';
 import {useSocialView,useSocialReadingPlace} from '../social/useSocialView';
 import SocialMentions from '../components/SocialMentions';
 import {SocialForwardCard,SocialForwardDialog,type Forward} from '../components/SocialForward';
+import {cachedSocialSites,readSocialSites} from '../social/prewarm';
+import {readEvidence} from '../social/visibleReads';
+import {beginSocialWrite,completeSocialWrite} from '../social/writeAttempt';
 
 type Comment = { id:string; author:string; content:string; reply_to_id?:string|null; created_at:number; can_delete?:boolean; mention_actor_ids?:string[] };
 type Reaction = { author:string; reaction:'like'; created_at:number };
 type Visibility = 'private'|'public';
 type PublicPerson = { name:string; avatar:string };
 type Moment = { id:string; author:string; content:string; visibility:Visibility; created_at:number; revision?:number; comments:Comment[]; reactions:Reaction[]; people?:Record<string,PublicPerson>; mention_actor_ids?:string[]; forward?:Forward };
-type Notice = { id:string; actor:string; actor_name?:string; kind:'moment'|'comment'|'like'; moment_id:string; moment_content?:string|null; comment_content?:string|null };
 type FeedResponse = { items?:Moment[]; next_cursor?:string|null; has_more?:boolean };
 
 const today = () => {
@@ -30,7 +32,6 @@ const today = () => {
 const who = (author:string) => author === 'k' ? 'AI' : author === 'aning' ? '站主' : '好友';
 const named = (moment:Moment, author:string) => moment.people?.[author]?.name || who(author);
 const avatarFallback = (author:string) => author === 'k' ? 'AI' : author === 'aning' ? '主' : '友';
-const kindText = (kind:string) => kind === 'moment' ? '发了新动态' : kind === 'comment' ? '留下了新评论' : '点了赞';
 const formatTime = (timestamp:number) => new Intl.DateTimeFormat('zh-CN', { timeZone:'Asia/Shanghai', hour:'2-digit', minute:'2-digit' }).format(new Date(timestamp * 1000));
 const formatDay = (timestamp:number) => new Intl.DateTimeFormat('zh-CN', { timeZone:'Asia/Shanghai', year:'numeric', month:'long', day:'numeric', weekday:'short' }).format(new Date(timestamp * 1000));
 
@@ -52,8 +53,13 @@ export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
   const [siteId, setSiteId] = useSocialView(view('site'),ALL_SOCIAL_SITES);
   const [visibilityFilter, setVisibilityFilter] = useSocialView<VisibilityFilter>(view('filter'),'all');
   const [shelfOpen, setShelfOpen] = useSocialView(view('shelf'),false);
-  const [sites, setSites] = useState<SocialSite[]>([]);
-  const [sitesReady,setSitesReady]=useState(false);
+  const [sites, setSites] = useState<SocialSite[]>(()=>cachedSocialSites(api)||[]);
+  const [sitesReady,setSitesReady]=useState(()=>cachedSocialSites(api)!==undefined);
+  useEffect(()=>{
+    const navigate=(event:Event)=>{const siteId=(event as CustomEvent<{siteId:string}>).detail?.siteId;if(typeof siteId==='string')setSiteId(siteId);};
+    window.addEventListener('social-feed-open',navigate);
+    return()=>window.removeEventListener('social-feed-open',navigate);
+  },[setSiteId]);
   const [items, setItems] = useState<Moment[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
@@ -68,8 +74,6 @@ export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
   const [draftMentions,setDraftMentions]=useSocialView<string[]>(view(`draft-mentions:${visibility}`),[]);
   const [publishing, setPublishing] = useState(false);
   const [pending, setPending] = useState<Record<string, boolean>>({});
-  const [notices, setNotices] = useState<Notice[]>([]);
-  const [noticeVisible, setNoticeVisible] = useState(true);
   const [commentDrafts, setCommentDrafts] = useSocialView<Record<string,string>>(view('comments'),{});
   const [expandedComments,setExpandedComments]=useSocialView<Record<string,boolean>>(view('expanded-comments'),{});
   const [replyTo, setReplyTo] = useSocialView<Record<string,Comment|undefined>>(view('replies'),{});
@@ -92,9 +96,8 @@ export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
 
   useEffect(() => {
     let alive = true;
-    fetch(`${api}/api/social-sites`, { headers: { 'X-MIRROW-Lounge-Admin': '1' }, cache: 'no-store' })
-      .then(response => response.ok ? response.json() : Promise.reject(new Error('共域站点列表不可用')))
-      .then(payload => { if (alive) setSites(payload.sites || []); })
+    readSocialSites(api)
+      .then(rows => { if (alive) setSites(rows); })
       .catch(() => { if (alive) setSites([]); })
       .finally(()=>{if(alive)setSitesReady(true);});
     return () => { alive = false; };
@@ -201,25 +204,6 @@ export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
     }
   }, [fetchFeedPage, hasMore, loading, loadingMore, nextCursor]);
 
-  const loadNotifications = useCallback(async () => {
-    try {
-      const response = await fetch(`${api}/api/social-feed/notifications`);
-      if (!response.ok) throw new Error('共域提醒暂时不可用');
-      const payload = await response.json() as { items?:Notice[] };
-      const unread = payload.items || [];
-      // Render the unread snapshot before marking those explicit IDs read.
-      setNotices(unread);
-      setNoticeVisible(unread.length > 0);
-      if (unread.length) {
-        await fetch(`${api}/api/social-feed/notifications/mark-read`, {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({ notification_ids: unread.map(item => item.id) }),
-        });
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '提醒加载失败');
-    }
-  }, [api]);
 
   const place=useSocialReadingPlace(view('place:'+visibilityFilter),!loading&&!loadingMore&&completedFilter===visibilityFilter,items,hasMore,()=>void loadMore(),siteId==='');
   useEffect(()=>{
@@ -229,10 +213,9 @@ export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
   useEffect(() => {
     if(siteId)return;
     void reload();
-    void loadNotifications();
     void loadAvatarSettings();
     return () => { feedRequestRef.current += 1; };
-  }, [loadAvatarSettings, loadNotifications, reload,siteId]);
+  }, [loadAvatarSettings, reload,siteId]);
 
   useEffect(() => {
     const node = feedEndRef.current;
@@ -250,7 +233,10 @@ export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
   };
 
   const publish = async () => {
-    const content = draft.trim(); if (!content) return;
+    const content = draft.trim(); if (!content || publishing) return;
+    const payload = {content, visibility, ...(draftMentions.length?{mention_actor_ids:draftMentions}:{})};
+    const scope = `${api}/api/social-feed/moments`;
+    const writeId = beginSocialWrite(scope,payload);
     const requestId = ++publishRequestRef.current;
     const controller = new AbortController();
     publishAbortRef.current = controller;
@@ -259,10 +245,11 @@ export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
     try {
       const response = await fetch(`${api}/api/social-feed/moments`, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({content, visibility, ...(draftMentions.length?{mention_actor_ids:draftMentions}:{})}), signal: controller.signal,
+        body:JSON.stringify({...payload,request_id:writeId}), signal: controller.signal,
       });
       if (!response.ok) throw new Error('发布失败');
       const created = await response.json() as Moment;
+      completeSocialWrite(scope,writeId);
       if (requestId !== publishRequestRef.current) return;
       setItems(current => [created, ...current.filter(item => item.id !== created.id)]);
       setDraft(''); setDraftMentions([]); setComposeOpen(false); setFeedback('已发表，发布时间以共域记录为准。');
@@ -302,15 +289,19 @@ export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
   const comment = async (momentId:string) => {
     const content = (commentDrafts[momentId] || '').trim(); if (!content || isPending(momentId, 'comment')) return;
     const reply = replyTo[momentId];
+    const payload = {content, reply_to_id:reply?.id || null, ...(commentMentions[momentId]?.length?{mention_actor_ids:commentMentions[momentId]}:{})};
+    const scope = `${api}/api/social-feed/moments/${encodeURIComponent(momentId)}/comments`;
+    const writeId = beginSocialWrite(scope,payload);
     const temporary:Comment = { id:`pending-${Date.now()}`, author:'aning', content, reply_to_id:reply?.id || null, created_at:Date.now() / 1000 };
     setPendingAction(momentId, 'comment', true);
     setItems(current => current.map(item => item.id === momentId ? { ...item, comments:[...item.comments, temporary] } : item));
     try {
       const response = await fetch(`${api}/api/social-feed/moments/${encodeURIComponent(momentId)}/comments`, {
-        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ content, reply_to_id: reply?.id || null, ...(commentMentions[momentId]?.length?{mention_actor_ids:commentMentions[momentId]}:{}) }),
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({...payload,request_id:writeId}),
       });
       if (!response.ok) throw new Error('评论失败');
       const created = await response.json() as Comment;
+      completeSocialWrite(scope,writeId);
       setItems(current => current.map(item => item.id === momentId ? { ...item, comments:item.comments.map(row => row.id === temporary.id ? created : row) } : item));
       setCommentDrafts(current => ({...current, [momentId]:''}));
       setCommentMentions(current => ({...current, [momentId]:[]}));
@@ -357,7 +348,7 @@ export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
       return { ...item, reactions };
     }));
     try {
-      const response = await fetch(`${api}/api/social-feed/moments/${encodeURIComponent(momentId)}/like`, {method:'POST'});
+      const response = await fetch(`${api}/api/social-feed/moments/${encodeURIComponent(momentId)}/like`, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({liked:!liked})});
       if (!response.ok) throw new Error('点赞失败');
       const result = await response.json() as { active?:boolean };
       if (typeof result.active === 'boolean') {
@@ -444,19 +435,14 @@ export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
     } finally { setPendingAction(moment.id, 'delete', false); }
   };
 
-  const noticeRows = useMemo(() => notices.map(notice => {
-    const detail = notice.kind === 'comment' ? notice.comment_content : notice.kind === 'moment' ? notice.moment_content : '';
-    const suffix = detail ? `：“${String(detail).slice(0, 80)}”` : '';
-    return `${notice.actor_name || who(notice.actor)}${kindText(notice.kind)}${suffix}`;
-  }), [notices]);
   const filteredItems=useMemo(()=>items.filter(m=>visibilityFilter==='all'||m.visibility===visibilityFilter),[items,visibilityFilter]);
   const rowsWithDay = useMemo(() => filteredItems.map((moment, index) => ({
     moment,
     showDay: index === 0 || formatDay(moment.created_at) !== formatDay(filteredItems[index - 1].created_at),
   })), [filteredItems]);
 
-  if(siteId===ALL_SOCIAL_SITES)return <SocialTimelinePage sites={sites} onSwitch={setSiteId} onBack={onBack}/>;
   if(siteId&&!sitesReady)return <div className="social-feed-page"><p role="status">正在核对已注册共域…</p></div>;
+  if(siteId===ALL_SOCIAL_SITES)return <SocialTimelinePage sites={sites} onSwitch={setSiteId} onBack={onBack}/>;
   const selectedSite = sites.find(site => site.id === siteId && site.enabled && site.has_human_key);
   if (selectedSite) return <SocialRemoteFeed key={selectedSite.id} site={selectedSite} sites={sites} onSwitch={setSiteId} onBack={onBack} />;
 
@@ -476,11 +462,6 @@ export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
       <div className="social-feed-public-entrance">
         {canOpenOwnerWall && <button type="button" className="social-feed-public-link" onClick={() => void openPublicWall()} disabled={openingPublicWall}>{openingPublicWall ? '正在打开共享墙…' : '以站主身份查看共享墙 ↗'}</button>}
       </div>
-      {noticeVisible && noticeRows.length > 0 && <section className="social-feed-notice" aria-label="共域新动态">
-        <div className="social-feed-notice-icon" aria-hidden="true">💌</div>
-        <div className="social-feed-notice-copy"><strong>有新动静</strong><div className="social-feed-notice-list">{noticeRows.map((row, index) => <div key={`${row}-${index}`}>{row}</div>)}</div></div>
-        <button type="button" className="social-feed-notice-close" onClick={() => setNoticeVisible(false)} aria-label="收起新动态提醒">×</button>
-      </section>}
       {error && <div className="social-feed-error" role="alert">{error}</div>}
       {feedback && <div className="social-feed-feedback" role="status">✓ {feedback}</div>}
       {place.notice&&<p role="status">{place.notice}</p>}
@@ -491,7 +472,7 @@ export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
           {showDay && <div className="social-feed-day-separator"><span>{formatDay(moment.created_at)}</span></div>}
           <article data-social-post-author={moment.author} className={`social-feed-card social-feed-card-${moment.author === 'k' || moment.author === 'aning' ? moment.author : 'friend'}`}>
             <div className="social-feed-card-head"><FeedAvatar author={moment.author} onClick={moment.author === 'k' || moment.author === 'aning' ? () => setAvatarSubject(moment.author as 'k'|'aning') : () => setPersonSubject(moment.author)} value={moment.author === 'k' ? socialFeedAvatar : moment.author === 'aning' ? userAvatar : moment.people?.[moment.author]?.avatar || ''} /><span className="social-feed-author">{named(moment, moment.author)}</span>{moment.author === 'k' || moment.author === 'aning' ? <select className="social-feed-visibility-control" value={moment.visibility} disabled={visibilityPending} onChange={e => void changeVisibility(moment.id, e.target.value as Visibility)} aria-label={`${named(moment, moment.author)}共域可见性`} title={moment.visibility==='public'?'可与朋友节点分享':'仅站主与 AI 可见'}><option value="private">🔒 私密</option><option value="public">🌐 公开</option></select> : <span className="social-feed-visibility-control">🌐 公开</span>}<time className="social-feed-time">{formatTime(moment.created_at)}</time></div>
-            <div className="social-feed-content">{moment.content}</div>
+            <div className="social-feed-content" data-social-read={readEvidence('',moment.id,'content',{created_at:moment.created_at})}>{moment.content}</div>
             <SocialForwardCard forward={moment.forward} name={id=>named(moment,id)}/>
             {moment.mention_actor_ids?.length? <div className="social-mention-chips">{moment.mention_actor_ids.map(id=>moment.people?.[id]?.name&&<button type="button" className="social-mention-chip" key={id} onClick={()=>setPersonSubject(id)}>@{moment.people[id].name}</button>)}</div>:null}
             <div className="social-feed-actions" role="group" aria-label="共域互动">
@@ -503,10 +484,10 @@ export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
               {moment.author!=='k' && <button className="social-feed-action social-feed-delete" disabled={isPending(moment.id, 'delete')} onClick={() => void removeMoment(moment)}><span aria-hidden="true">⌫</span><span>{isPending(moment.id, 'delete') ? '删除中…' : moment.author === 'aning' ? '删除' : '移除'}</span></button>}
               </div></details>}
             </div>
-            {moment.reactions.length > 0 && <div className="social-feed-liked-by" aria-label="点赞的人"><span aria-hidden="true">♥</span>{moment.reactions.map(reaction=>named(moment, reaction.author)).join('、')}</div>}
+            {moment.reactions.length > 0 && <div className="social-feed-liked-by" data-social-read={readEvidence('',moment.id,'likes',{actors:moment.reactions.map(r=>r.author)})} aria-label="点赞的人"><span aria-hidden="true">♥</span>{moment.reactions.map(reaction=>named(moment, reaction.author)).join('、')}</div>}
             {moment.comments.length > 0 && <div className="social-feed-comments">{(expandedComments[moment.id]?moment.comments:moment.comments.slice(-3)).map(commentRow => {
               const parent = commentRow.reply_to_id ? moment.comments.find(row=>row.id===commentRow.reply_to_id) : undefined;
-              return <div className={`social-feed-comment ${commentRow.id.startsWith('pending-') ? 'pending' : ''}`} key={commentRow.id}>
+              return <div className={`social-feed-comment ${commentRow.id.startsWith('pending-') ? 'pending' : ''}`} key={commentRow.id} data-social-read={commentRow.id.startsWith('pending-')?undefined:readEvidence('',moment.id,'comment',{comment_id:commentRow.id})}>
                 <FeedAvatar author={commentRow.author} onClick={commentRow.author === 'k' || commentRow.author === 'aning' ? () => setAvatarSubject(commentRow.author as 'k'|'aning') : () => setPersonSubject(commentRow.author)} value={commentRow.author === 'k' ? socialFeedAvatar : commentRow.author === 'aning' ? userAvatar : moment.people?.[commentRow.author]?.avatar || ''} className="social-feed-comment-avatar" />
                 <div className="social-feed-comment-body"><div className="social-feed-comment-meta"><strong>{named(moment, commentRow.author)}</strong>{parent&&<span>回复 {named(moment, parent.author)}</span>}<time>{formatTime(commentRow.created_at)}</time></div><p className="social-feed-comment-text">{commentRow.content}</p>{commentRow.mention_actor_ids?.length?<div className="social-mention-chips">{commentRow.mention_actor_ids.map(id=>moment.people?.[id]?.name&&<button type="button" className="social-mention-chip" key={id} onClick={()=>setPersonSubject(id)}>@{moment.people[id].name}</button>)}</div>:null}<div className="social-feed-comment-tools"><button type="button" onClick={() => { setReplyTo(current => ({...current,[moment.id]:commentRow})); document.getElementById(`comment-${moment.id}`)?.focus(); }}>回复</button>{!commentRow.id.startsWith('pending-') && commentRow.can_delete !== false && <button type="button" disabled={isPending(moment.id, `comment-delete:${commentRow.id}`)} onClick={() => void removeComment(moment.id, commentRow.id)}>{isPending(moment.id, `comment-delete:${commentRow.id}`) ? '删除中…' : '删除'}</button>}</div></div>
               </div>;

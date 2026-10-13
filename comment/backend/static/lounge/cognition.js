@@ -73,7 +73,16 @@
     syncPrimary();
     automaticNote = !value.relationship_context || value.relationship_context === defaultNote();
     if (automaticNote) $('cognitionNote').value = defaultNote();
-    $('cognitionStatus').textContent = '这里只建立本地认知关联，不改变对方身份或权限。';
+    const recognition = value.recognition;
+    const statuses = {unbound:'这条连接尚未绑定人物，交流原话暂不进入该人物的认知更新。',
+      missing_entity:'原绑定实体已不存在，请核对后重新选择；不会自动改绑同名人物。',
+      conflict:'已确认关联的两侧连接绑定了不同人物，请核对双方绑定。',
+      forbidden:'原绑定不适用于外部连接，请重新核对人物。', invalid:'原绑定格式无效，请重新选择人物。'};
+    $('cognitionStatus').textContent = recognition?.link_status === 'unavailable'
+      ? '关联连接暂未核验；当前有效的直接绑定仍可使用。'
+      : statuses[recognition?.status] || (recognition && recognition.binding_source !== target
+        ? '人物身份沿用已确认的关联连接；本连接的关系备注仍独立保留。'
+        : '这里只建立本地认知关联，不改变对方身份或权限。');
   }
   function showRegistrationMatches(matches, currentBinding) {
     const panel = $('cognitionCandidates');

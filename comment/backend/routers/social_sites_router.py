@@ -27,6 +27,10 @@ from social_feed.transfer_runner import move_hosted_post
 
 router = APIRouter(prefix='/api/social-sites', tags=['已注册的共域'],
                    dependencies=[Depends(local_ui)])
+from routers.social_inbox_router import router as inbox_router
+# Registered with this domain router, not with the application orchestrator.
+# APIRouter's prefix is applied during include, so expose under social-sites/inbox.
+router.include_router(inbox_router)
 
 
 class SiteInput(BaseModel):
@@ -44,6 +48,7 @@ class RemotePost(BaseModel):
     content: str = Field(min_length=1, max_length=1200)
     mention_actor_ids: list[str] = Field(default_factory=list, max_length=8)
     forward_ref: dict | None = None
+    request_id: str | None = Field(default=None, min_length=8, max_length=80, pattern=r'^[A-Za-z0-9_-]+$')
 
 
 class RemoteComment(BaseModel):
@@ -51,6 +56,12 @@ class RemoteComment(BaseModel):
     content: str = Field(min_length=1, max_length=600)
     reply_to_id: str | None = None
     mention_actor_ids: list[str] = Field(default_factory=list, max_length=8)
+    request_id: str | None = Field(default=None, min_length=8, max_length=80, pattern=r'^[A-Za-z0-9_-]+$')
+
+
+class RemoteLike(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    liked: bool
 
 
 class InboxRead(BaseModel):
@@ -398,6 +409,8 @@ async def cancel_migration(site_id: str, transfer_id: str):
 @router.post('/{site_id}/moments')
 async def post_moment(site_id: str, body: RemotePost):
     payload = {'content': body.content}
+    if body.request_id:
+        payload['request_id'] = body.request_id
     if body.mention_actor_ids:
         payload['mention_actor_ids'] = body.mention_actor_ids
     if body.forward_ref is not None:
@@ -408,7 +421,7 @@ async def post_moment(site_id: str, body: RemotePost):
 @router.post('/{site_id}/moments/{moment_id}/comments')
 async def add_comment(site_id: str, moment_id: str, body: RemoteComment):
     return await _remote(site_id, 'POST', '/social/v1/moments/' + quote(moment_id, safe='') + '/comments',
-                         payload=body.model_dump(exclude={'mention_actor_ids'}) | (
+                         payload=body.model_dump(exclude={'mention_actor_ids'} | ({'request_id'} if body.request_id is None else set())) | (
                              {'mention_actor_ids': body.mention_actor_ids} if body.mention_actor_ids else {}))
 
 
@@ -430,6 +443,12 @@ async def read_mentions(site_id: str, body: InboxRead):
 @router.post('/{site_id}/moments/{moment_id}/like')
 async def like(site_id: str, moment_id: str):
     return await _remote(site_id, 'POST', '/social/v1/moments/' + quote(moment_id, safe='') + '/like')
+
+
+@router.put('/{site_id}/moments/{moment_id}/like')
+async def set_like(site_id: str, moment_id: str, body: RemoteLike):
+    return await _remote(site_id, 'PUT', '/social/v1/moments/' + quote(moment_id, safe='') + '/like',
+                         payload=body.model_dump())
 
 
 @router.delete('/{site_id}/moments/{moment_id}/comments/{comment_id}')

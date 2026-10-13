@@ -213,8 +213,10 @@ async def test_chat_review_forwards_filters_and_rejects_global_writes():
     tool = ManageSocialFeedTool()
     tool.set_dependencies(run_visit=run)
     await tool._review({'session_id': 'isolated', 'read_scope': 'all', 'visibility_filter': 'public'})
-    assert calls[-1]['initial_request'] == {'kind': 'all', 'visibility_filter': 'public'}
+    assert calls[-1]['initial_request'] == {'kind': 'all', 'visibility_filter': 'public', 'opening': True}
     await tool._review({'session_id': 'isolated'})
+    assert calls[-1]['initial_request'] == {'kind': 'all', 'visibility_filter': 'all', 'opening': True}
+    await tool._review({'session_id': 'isolated', 'read_scope': 'current'})
     assert 'initial_request' not in calls[-1]
     assert (await tool._review({'read_scope': 'invalid'}))['status'] == 'invalid_request'
     assert (await tool._direct({'read_scope': 'all'}, 'post'))['error'] == 'all_scope_is_read_only'

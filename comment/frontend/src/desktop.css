@@ -22,13 +22,6 @@
     font-size: 15px; line-height: 1.6;
     background: var(--bg-primary); color: var(--text-primary);
   }
-  .app[data-platform="pc"].night-mode {
-    --bg-primary: #fff6f6; --bg-secondary: #f7e7e9;
-    --bg-sidebar: #f1dfe2; --text-primary: #402a31;
-    --text-secondary: #70545d; --border-color: #dbc3c9;
-    --accent: #9d4f60; --accent-hover: #7f3c4b;
-    --user-bg: #efd9df; --assistant-bg: #fffafa;
-  }
   .app[data-platform="pc"] .header:not(.harem-header) {
     flex-shrink: 0; min-height: 78px; padding: 16px 26px;
     gap: 18px; background: var(--bg-primary);
@@ -104,6 +97,7 @@
   }
   .app[data-platform="pc"] .message { margin-bottom: 24px; }
   .app[data-platform="pc"] .message-avatar { width: 36px; height: 36px; border-radius: 13px; }
+  .app[data-platform="pc"] .message-avatar-anchor { width: 36px; height: 36px; flex-basis: 36px; }
   .app[data-platform="pc"] .message-group-content { max-width: 82%; }
   .app[data-platform="pc"] .message-header { font-size: 11px; margin-bottom: 8px; color: var(--text-secondary); }
   .app[data-platform="pc"] .message-bubble {

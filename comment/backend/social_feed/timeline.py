@@ -50,11 +50,12 @@ class SocialTimeline:
         from .remote_client import RemoteSocialClient
         client = RemoteSocialClient()
         kind = 'human' if self.actor == 'aning' else 'ai'
-        me = await client.request(site, kind, 'GET', '/social/v1/me')
+        me, page = await asyncio.gather(
+            client.request(site, kind, 'GET', '/social/v1/me',params={'arrival':'false'}),
+            client.request(site, kind, 'GET', '/social/v1/moments', params=params))
         if (not (me.get('actor') or {}).get('actor_id')
                 or me.get('can_manage_avatar') is not (kind == 'human')):
             raise TimelineError('timeline_identity_unavailable')
-        page = await client.request(site, kind, 'GET', '/social/v1/moments', params=params)
         return {**page, 'viewer_actor': me['actor']['actor_id']}
 
     async def read(self, *, limit=30, visibility='all', cursor=None):

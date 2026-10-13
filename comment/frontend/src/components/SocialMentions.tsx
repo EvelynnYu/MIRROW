@@ -28,7 +28,7 @@ export default function SocialMentions({endpoint, selected, onChange, disabled=f
         if(!response.ok)throw new Error(response.status===404?'unsupported':'unavailable');
         const payload=await response.json() as {items?:MentionPerson[];capability?:string};
         if(current!==sequence.current)return;
-        if(payload.capability!=='mentions_v1')throw new Error('unsupported');
+        if(payload.capability && payload.capability!=='mentions_v1')throw new Error('unsupported');
         const rows=(payload.items||[]).filter(row=>row.actor_id);
         rows.forEach(row=>cache.current.set(row.actor_id,row)); setItems(rows); setSupported(true);
       } catch(error) {

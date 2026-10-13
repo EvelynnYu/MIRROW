@@ -715,7 +715,7 @@ class SocialFeedStore:
             await db.commit()
         return {"id": comment_id, "moment_id": moment_id, "status": "deleted"}
 
-    async def toggle_like(self, moment_id: str, author: str) -> dict[str, Any]:
+    async def toggle_like(self, moment_id: str, author: str, *, liked: bool | None = None) -> dict[str, Any]:
         await self.initialize()
         author = self._author(author)
         now = time.time()
@@ -736,19 +736,18 @@ class SocialFeedStore:
                 (moment_id, author),
             )).fetchone()
             notification_id = None
-            if existing:
+            active = not bool(existing) if liked is None else liked
+            if existing and not active:
                 await db.execute(
                     "DELETE FROM social_reactions WHERE moment_id=? AND author=?",
                     (moment_id, author),
                 )
-                active = False
-            else:
+            elif not existing and active:
                 await db.execute(
                     "INSERT INTO social_reactions (moment_id, author, reaction, created_at) "
                     "VALUES (?, ?, 'like', ?)",
                     (moment_id, author, now),
                 )
-                active = True
                 recipient = str(moment["author"])
                 if recipient != author:
                     notification_id = await self._insert_notification(

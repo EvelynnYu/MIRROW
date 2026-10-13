@@ -8,6 +8,7 @@ IDs/receipts (not a second copy of the wall) in Wander state.
 from __future__ import annotations
 
 import hashlib
+import asyncio
 import inspect
 import json
 import httpx
@@ -121,10 +122,23 @@ class SocialCircleVisit:
             from social_feed.timeline import SocialTimeline
             from social_feed.remote_sites import get_remote_site_store
             timeline = SocialTimeline(self._store(), get_remote_site_store().list(), actor='k')
-            page = await timeline.read(limit=10,visibility=visibility_filter,cursor=request.get('cursor'))
+            related={}
+            if request.get('opening'):
+                from social_feed.human_inbox import collect
+                page,related=await asyncio.gather(
+                    timeline.read(limit=10,visibility=visibility_filter,cursor=request.get('cursor')),
+                    collect(self._store(),get_remote_site_store().list(),actor='k',limit=10,with_heads=False))
+            else:
+                page = await timeline.read(limit=10,visibility=visibility_filter,cursor=request.get('cursor'))
+            # This is an index, not a claim that every referenced body was read.
+            references=[{key:row.get(key) for key in ('site_id','site_name','id','actor','actor_name',
+                        'kind','moment_id','comment_id','created_at')} for row in related.get('items',[])[:10]]
             return page['items'], [], {'kind':'all','visibility_filter':visibility_filter,
                 'next_cursor':page['next_cursor'] or '', 'unavailable':page['unavailable'],
-                'omitted_sources':page['omitted_sources'], 'read_only':True}
+                'omitted_sources':page['omitted_sources'], 'read_only':True,
+                **({'related_unread':references,'more_related_unread':len(related.get('items',[]))>10,
+                     'inbox_unavailable':related.get('unavailable',[]),
+                     'unread_evidence':'索引尚未消费正文；进入来源域未读节点才能读取并确认已读'} if request.get('opening') else {})}
         if site and visibility_filter == 'private':
             return [], [], {'kind':kind,'visibility_filter':'private','unavailable':True,
                             'reason':'remote_public_only'}
@@ -224,7 +238,8 @@ class SocialCircleVisit:
         else:
             from context_builder.builder import ContextBuilder
             built = await ContextBuilder.build('WANDER_ACTIVITY', **kwargs)
-        from context_builder.assembly import assemble_context_text
+        from context_builder.assembly import assemble_context_text, assemble_context_result
+        from context_builder.channel_projection import backend_turn
         # Builder separates identity, history, dynamic facts and turn material.
         # This single-system consumer must preserve every zone, just like the
         # other Wander decision adapters; system_content is only the prefix.
@@ -264,7 +279,7 @@ class SocialCircleVisit:
                 '想操作时 next.kind=switch，site_id 必须选当前列表中的来源域（本家为空），'
                 '可同时填该域当前可见的 moment_id；下一节点读取原帖后在那一家一次执行至多五项动作。'
                 '也可 next.kind=all 继续读更早十条，或 exit。合并浏览不会自动进入各家空间、领取礼物或消费远端未读。')
-        return [{'role': 'system', 'content': system}, {'role': 'user', 'content': instruction}]
+        return assemble_context_result(built) + [backend_turn(instruction)]
 
     async def _call(self, messages: list[dict]) -> dict | None:
         result = self.call_llm(messages)

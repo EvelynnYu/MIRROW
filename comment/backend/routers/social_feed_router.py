@@ -44,6 +44,7 @@ class MomentCreate(BaseModel):
     visibility: Literal["private", "public"] = "private"
     mention_actor_ids: list[str] = Field(default_factory=list, max_length=8)
     forward_ref: dict | None = None
+    request_id: str | None = Field(default=None, min_length=8, max_length=80, pattern=r'^[A-Za-z0-9_-]+$')
 
 
 class CommentCreate(BaseModel):
@@ -52,6 +53,12 @@ class CommentCreate(BaseModel):
     content: str = Field(min_length=1, max_length=600)
     reply_to_id: Optional[str] = None
     mention_actor_ids: list[str] = Field(default_factory=list, max_length=8)
+    request_id: str | None = Field(default=None, min_length=8, max_length=80, pattern=r'^[A-Za-z0-9_-]+$')
+
+
+class LikeUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    liked: bool
 
 
 class MomentEdit(BaseModel):
@@ -251,7 +258,8 @@ async def create_moment(body: MomentCreate):
     try:
         result = await get_social_feed_store().create_moment(
             "aning", body.content, visibility=body.visibility, mention_actor_ids=body.mention_actor_ids,
-            forward_ref=body.forward_ref
+            forward_ref=body.forward_ref,
+            source_key=f'ui:aning:post:{body.request_id}' if body.request_id else None,
         )
         return result
     except SocialFeedError as exc:
@@ -309,7 +317,8 @@ async def set_moment_visibility(moment_id: str, body: VisibilityUpdate):
 async def add_comment(moment_id: str, body: CommentCreate):
     try:
         return await get_social_feed_store().add_comment(
-            moment_id, "aning", body.content, reply_to_id=body.reply_to_id, mention_actor_ids=body.mention_actor_ids
+            moment_id, "aning", body.content, reply_to_id=body.reply_to_id, mention_actor_ids=body.mention_actor_ids,
+            source_key=f'ui:aning:comment:{moment_id}:{body.request_id}' if body.request_id else None,
         )
     except SocialFeedError as exc:
         raise _domain_error(exc) from exc
@@ -328,6 +337,14 @@ async def delete_comment(moment_id: str, comment_id: str):
 async def toggle_like(moment_id: str):
     try:
         return await get_social_feed_store().toggle_like(moment_id, "aning")
+    except SocialFeedError as exc:
+        raise _domain_error(exc) from exc
+
+
+@router.put('/moments/{moment_id}/like')
+async def set_like(moment_id: str, body: LikeUpdate):
+    try:
+        return await get_social_feed_store().toggle_like(moment_id, 'aning', liked=body.liked)
     except SocialFeedError as exc:
         raise _domain_error(exc) from exc
 

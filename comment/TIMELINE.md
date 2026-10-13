@@ -28,7 +28,7 @@
 
 新增 `GET /api/social-sites/timeline/stream`，本机准入与 JSON 接口相同，只供内站人类页面使用，不映射到公开隧道。NDJSON 顺序为 begin、各源 source、complete；只有 complete.page 有权威全局页和 next_cursor。source 不表示活动完成、已读或赠礼，不能直接拿来驱动机行动。前端没有 stream 接口时只在 404/405 回退原 JSON，不因认证失败或中途断流自动重试。
 
-首入先显示一个快源的最多五条只读预览。其余源读取完成后提示「显示完整时间线」，不自动顶走正在阅读的内容；完整页确认后才开放预览卡互动和分页。显式刷新、加载更早、返回恢复都以最终完整页为准。离开／筛选切换中止旧请求，不混用游标。
+首入直接进入实际主页，source 仅更新读取进度；complete.page 自动显示，不再显示独立五条预览或要求点击“进入主页”。同一运行会话返回时可暂示同域同筛选的上一完整页；更新确认前只读。预热与正式进入共用请求，缓存只在内存，不持久化正文、凭据或读取权限；刷新/筛选变更按完整页重新校准，离开中止旧消费，不混用游标。
 
 配套 `frontend/src/social/{viewState,useSocialView,timelineStream}.ts` 必须全部复制。易失现场以宿主后端、人类、视图／来源域隔离，不写 localStorage/sessionStorage；只保留筛选、未发送草稿、展开状态及阅读锚点，动态和授权重新读取。恢复最多额外读取八页；锚点已移除或超出范围时提示且允许手动继续。不自动重发任何草稿。
 
@@ -38,7 +38,7 @@ AI 的主工具、漫想和主动邀请都继续调用 read() 等待 complete；
 
 主聊天工具 `manage_social_feed(action=review)` 新增 read_scope=current/all 和 visibility_filter=all/public/private。read_scope=all 是跨域候选浏览节点，每页全局十条，actions 留空；AI 可选择 next.kind=switch，附合法 site_id 与所见 moment_id。下一节点重新读取那一家原帖，之后在**一家**最多批量执行五项动作。合并浏览不提供无来源写入；直接写操作必须明确单域 site_id，本家默认空。
 
-自主活动沿用 `SocialCircleVisit`：默认先读本家相关未读，后续 next.kind=all 可合并浏览；latest/search/switch/exit 仍保留。visibility_filter 是读取筛选，visibility 是发布／修改可见性，两者不能混用。远端仅公开、不能以远端 latest 假报未读。
+自主活动沿用 `SocialCircleVisit`：默认首节点合并全域候选并带相关未读索引；候选不等于逐条阅读完毕，实际内容交给机后才消费对应的机未读。后续 next.kind=all 可继续合并浏览；latest/search/switch/exit 仍保留。visibility_filter 是读取筛选，visibility 是发布／修改可见性，两者不能混用。远端仅公开、不能以远端 latest 假报未读。
 
 **宿主必须接活动首节点参数**：给 run_visit 回调增加可选 initial_request，按本家活动存储方式绑定到本次 run 的首个节点，再传给 `visit_step(request=...)`。其后仅使用上一节点的 next_request，不把首节点参数覆盖每一轮。MIRROW 对应 manager.browse_social_from_chat → runtime_runner.execute_chat_social → 首节点 source_payload.social_initial_request → node_execution_adapter。本包只带领域实现参考，不覆盖宿主完整调度器，部署 Agent 必须自行适配并测试初始 all/public 能抵达首节点。未接多节点运行时时新筛选请求返回 runtime_unavailable，不可悄悄退回默认本家读取。
 

@@ -11,7 +11,7 @@ async function check(failure) {
     return nodes.get(id);
   }
   let message='';
-  const context = { $:node, actor:'', busy:false, stopProfiles:null, stopDecor:null,
+  const context = { $:node, actor:'', busy:false, stopProfiles:null, stopDecor:null,stopInbox:null,
     readyEpoch:0,feedEpoch:0,wallState:{clear(){}},canForward:false,
     publishMentions:{clear(){}},URLSearchParams,location:{search:''},
     loadMentionNotices:async()=>{},

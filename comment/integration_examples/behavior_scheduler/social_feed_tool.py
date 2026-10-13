@@ -44,16 +44,16 @@ class ManageSocialFeedTool(BaseTool):
         "read_scope=all 可合并浏览已注册域，visibility_filter 筛选全部/公开/本家私密；每节点仍只在一家操作。"
         "或直接发帖、评论、点赞、引用转发公开原帖、删除、改 AI 自己帖子的可见性或共友圈网名；forward 的 source_site_id 是来源、site_id 是目的，content 是本人附言，跨家不复制原文；public 朋友可见可互动，private 仅站主和 AI 本地可见可互动；结果不回注模型"
     )
-    pro_guide = ("MIRROW·Comment（共域，旧称朋友圈）。action：review(从本家相关未读开始，可逐节点搜索真实帖子、切到已注册的别家共域，每节点只操作一家) / post / comment / like / forward / delete / set_visibility / nickname。"
-                 "forward 将 source_site_id（缺省本家）中已读的公开 moment_id 引用到 site_id（缺省本家），content 是本人附言；原文仍在原站，跨家引用需在来源域登录查看，私密与转发帖不支持再转发。"
-                 "delete 与 set_visibility 只限 AI 自己在本家的真实帖子；comment/like/delete/set_visibility 的 moment_id 必须是已读快照中的真实帖子 ID，不能由正文猜造；不知道 ID 就先 review 并搜索。"
-                 "site_id 可填已注册共域 ID 或精确站名；别家只可发 public，帖子及互动由该家主人管理。"
-                 "review 支持 read_scope=current/all 和 visibility_filter=all/public/private；进入后 next.kind=latest 的 read_scope=home/all/current，省略默认全域十条。all 合并每页十条，仅使用 AI 的远端 Key，先选来源再到单域节点操作；支持 inbox_v1 的远端读取真实未读，旧域才从最新开始。"
-                 "本家 post 的 visibility=public 表示有访问权的朋友可见可评论点赞，private 表示仅站主和 AI 本地可见可互动，朋友家不可见；缺失按 private。结果只进挂载条，不触发第二轮。")
+    pro_guide = ("MIRROW·Comment（共域，旧称朋友圈）可阅读搜索、发帖、评论、点赞、转发、删帖、调整可见范围或昵称。"
+                 "默认看全域最新十条及相关未读，也可指定本家或已注册站名、公开或本家私密范围；每页十条，选定来源后每个节点操作一家。"
+                 "评论、点赞、转发或维护帖子引用已读快照中的真实标识，未知时先查询。转发限已读公开原帖并附本人留言，"
+                 "原文仍在来源站，跨家引用需在来源域登录查看；私密与转发帖不再转发。删除和修改可见范围限 AI 在本家的本人帖子。"
+                 "本家公开表示有访问权的朋友可见可互动，私密仅站主与 AI 本地可见，未指定默认私密；别家只发公开帖并由该家主人管理。"
+                 "阅读和维护结果通过真实挂载条呈现，不因回执再开一轮；自然交流中的帖子、评论、点赞以实际执行记录为准。")
     parameters_schema = {
         "type": "object",
         "properties": {
-            "read_scope": {"type":"string","enum":["current","all"],"description":"review 读取范围，current 缺省从本家未读开始，all 为已注册且有 AI Key 的域合并最新十条；仅浏览，实际操作需单域节点"},
+            "read_scope": {"type":"string","enum":["current","all"],"description":"review 未指定站点时默认全域最新十条和相关未读索引；current 明确读取本家/指定域未读。all 仅浏览，实际操作需单域节点"},
             "visibility_filter": {"type":"string","enum":["all","public","private"],"description":"review 阅读筛选，私密只读本家；与写入的 visibility 不同"},
             "action": {
                 "type": "string",
@@ -96,7 +96,7 @@ class ManageSocialFeedTool(BaseTool):
             },
             "site_id": {
                 "type": "string",
-                "description": "可选已注册共域 ID 或精确站名；review 可从指定家的最新动态起步，省略从本家未读起步；read_scope=all 时合并浏览。直接写入省略表示本家。",
+                "description": "可选已注册共域 ID 或精确站名；review 指定一家从该家相关未读起步，省略默认全域最新十条。直接写入省略表示本家。",
             },
         },
         "required": ["action"],
@@ -275,13 +275,13 @@ class ManageSocialFeedTool(BaseTool):
         request_session, request_message, request_turn = get_request_identity()
         session_id = str(request_session or parameters.get("session_id") or "")
         run_visit = getattr(self, "run_visit", None)
-        read_scope = str(parameters.get('read_scope') or 'current')
+        read_scope = str(parameters.get('read_scope') or ('current' if parameters.get('site_id') else 'all'))
         visibility_filter = str(parameters.get('visibility_filter') or 'all')
         if read_scope not in {'current','all'} or visibility_filter not in {'all','public','private'}:
             return {'status':'invalid_request','error':'invalid_social_read_filter'}
         initial = None
         if read_scope=='all':
-            initial = {'kind':'all','visibility_filter':visibility_filter}
+            initial = {'kind':'all','visibility_filter':visibility_filter,'opening':True}
         elif parameters.get('site_id'):
             from social_feed.remote_sites import get_remote_site_store
             wanted = str(parameters['site_id']).strip()

@@ -114,7 +114,7 @@ class PublicWall:
                     ON wall_moderation_actions(moment_id, created_at);
                 CREATE TABLE IF NOT EXISTS wall_notifications (
                     id TEXT PRIMARY KEY,
-                    recipient TEXT NOT NULL CHECK (recipient IN ('aning','k')),
+                    recipient TEXT NOT NULL CHECK (recipient IN ('aning','k') OR recipient GLOB 'visitor:*'),
                     actor TEXT NOT NULL,
                     kind TEXT NOT NULL CHECK (kind IN ('moment','comment','like')),
                     moment_id TEXT NOT NULL REFERENCES wall_moments(id) ON DELETE CASCADE,
@@ -501,8 +501,13 @@ class PublicWall:
     @staticmethod
     def _notify(db: sqlite3.Connection, recipient: str, actor: str, kind: str,
                 moment_id: str, comment_id: str | None, now: float) -> None:
-        if recipient not in {'aning', 'k'} or recipient == actor:
+        if recipient == actor:
             return
+        PublicWall._actor(recipient)
+        if recipient.startswith('visitor:'):
+            from .notification_schema import visitor_inbox_ready
+            if not visitor_inbox_ready(db):
+                return  # Old deployments retain old behavior until the explicit migration.
         db.execute('INSERT INTO wall_notifications(id,recipient,actor,kind,moment_id,comment_id,created_at) '
                    'VALUES(?,?,?,?,?,?,?)', ('wn_' + uuid.uuid4().hex, recipient, actor, kind,
                                               moment_id, comment_id, now))
@@ -719,6 +724,7 @@ class PublicWall:
             # Replies remain in the conversation, but ON DELETE SET NULL severs
             # their pointer to the removed text. Pending alerts no longer quote it.
             db.execute('DELETE FROM wall_notifications WHERE comment_id=?', (comment_id,))
+            db.execute('DELETE FROM wall_mention_notifications WHERE comment_id=?', (comment_id,))
             db.execute('DELETE FROM wall_comments WHERE id=?', (comment_id,))
             db.execute('INSERT INTO wall_changes(moment_id,kind,created_at) VALUES(?,?,?)',
                        (moment_id, 'upsert', now))
@@ -738,6 +744,7 @@ class PublicWall:
             existing = db.execute('SELECT 1 FROM wall_likes WHERE moment_id=? AND actor=?', (moment_id, actor)).fetchone()
             if existing:
                 db.execute('DELETE FROM wall_likes WHERE moment_id=? AND actor=?', (moment_id, actor))
+                db.execute("DELETE FROM wall_notifications WHERE moment_id=? AND actor=? AND kind='like' AND read_at IS NULL",(moment_id,actor))
             else:
                 db.execute('INSERT INTO wall_likes(moment_id,actor,created_at) VALUES(?,?,?)', (moment_id, actor, now))
                 moment = db.execute('SELECT author FROM wall_moments WHERE id=?', (moment_id,)).fetchone()
@@ -794,6 +801,7 @@ class PublicWall:
             else:
                 changed = db.execute('DELETE FROM wall_likes WHERE moment_id=? AND actor=?',
                                      (moment_id, actor)).rowcount == 1
+                db.execute("DELETE FROM wall_notifications WHERE moment_id=? AND actor=? AND kind='like' AND read_at IS NULL",(moment_id,actor))
             if changed:
                 db.execute('INSERT INTO wall_changes(moment_id,kind,created_at) VALUES(?,?,?)', (moment_id, 'upsert', now))
                 if liked:

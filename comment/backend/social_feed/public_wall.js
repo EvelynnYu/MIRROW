@@ -17,6 +17,7 @@ let canInteract = true;
 let canForward = false;
 let stopDecor = null;
 let stopProfiles = null;
+let stopInbox = null;
 let readyEpoch = 0, feedEpoch = 0;
 const wallState = window.MirrowWallState;
 const profileLinkSlot = document.createElement('div');
@@ -222,6 +223,7 @@ async function updateMoment(id) {
 }
 function renderComment(item, comment, setReply) {
   const row = el('div', 'comment'), body = el('div', 'comment-body'), header = el('div', 'row');
+  row.dataset.commentId=comment.id;
   header.append(nameNode(item, comment.author, 'strong'));
   const parent = item.comments.find(other => other.id === comment.reply_to_id);
   if (parent) header.append(nameNode(item, parent.author, 'span', 'comment-target', '回复 '));
@@ -376,34 +378,16 @@ function render(item, detail = false) {
   return card;
 }
 async function openDetail(id) {
+  const viewingActor=actor;
   detailId = id;
   $('detail-status').textContent = '';
   $('detail-moment').replaceChildren(el('p', 'muted', '正在加载动态……'));
   if (!$('detail').open) $('detail').showModal();
   try {
     const item = await api('/moments/' + encodeURIComponent(id));
-    if (detailId === id && $('detail').open) $('detail-moment').replaceChildren(render(item, true));
-  } catch (error) { $('detail-moment').replaceChildren(el('p', 'error', error.message)); }
-}
-async function loadMentionNotices() {
-  const slot = $('mention-notices');
-  const viewingActor = actor;
-  try {
-    const payload = await api('/notifications');
-    if (actor !== viewingActor) return;
-    const notices = (payload.items || []).filter(row => row.kind === 'mention');
-    if (!notices.length) { slot.replaceChildren(); slot.classList.add('hidden'); return; }
-    const read = [];
-    slot.replaceChildren(el('strong', '', '有人艾特了你'));
-    for (const notice of notices) {
-      // The quoted server projection is rendered before this explicit read receipt.
-      const text = `${notice.actor_name || '朋友'} 在${notice.comment_id ? '评论' : '动态'}里艾特了你：${notice.comment_content || notice.moment_content || ''}`;
-      const link = button(text, () => void openDetail(notice.moment_id), 'mention-link');
-      slot.append(el('div', '', ''), link); read.push(notice.id);
-    }
-    slot.classList.remove('hidden');
-    await api('/notifications/read', 'POST', {notification_ids:read});
-  } catch (error) { /* Notification capability is optional and never blocks the wall. */ }
+    if (actor===viewingActor && detailId === id && $('detail').open) { $('detail-moment').replaceChildren(render(item, true)); return true; }
+    return false;
+  } catch (error) { if(actor===viewingActor) $('detail-moment').replaceChildren(el('p', 'error', error.message)); return false; }
 }
 async function load(reset = false) {
   if (busy) return;
@@ -441,6 +425,7 @@ async function ready(openAfterRegistration = false) {
   const epoch=++readyEpoch;
   const current=()=>epoch===readyEpoch;
   stopProfiles?.(); stopProfiles = null;
+  stopInbox?.(); stopInbox = null;
   let authenticated = false;
   const failures = [];
   const optional = async (label, action) => {
@@ -497,7 +482,7 @@ async function ready(openAfterRegistration = false) {
       const focus=new URLSearchParams(location.search).get('moment');
       if(focus&&focus.length<=200){history.replaceState(null,'',location.pathname+location.hash);void openDetail(focus);}
     }
-    if (current()) void loadMentionNotices();
+    if(current()) stopInbox=window.MirrowInbox?.mount({api,actor,currentActor:()=>actor,openDetail})||null;
     const cleanup=await decor;
     if(!current()){cleanup?.();return false;}
     stopDecor=cleanup;
@@ -649,6 +634,7 @@ $('logout').onclick = async () => {
   readyEpoch++;feedEpoch++;
   try { await api('/logout', 'POST'); }
   finally {
+    stopInbox?.(); stopInbox = null;
     stopDecor?.(); stopDecor = null;
     stopProfiles?.(); stopProfiles = null;
     actor = ''; detailId = null; personTarget = null; personOverrides.clear();

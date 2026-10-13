@@ -7,11 +7,12 @@ export default function SocialSiteSwitcher({ sites, current = '', onSwitch, comp
   sites: SocialSite[]; current?: string; onSwitch: (id: string) => void; compact?:boolean;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const host = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const title = current==='__all__'?'所有已注册域':sites.find(site => site.id === current)?.name || '本家';
   const close = () => { dialog.current?.close(); setOpen(false); };
   const select = (id: string) => { close(); onSwitch(id); };
-  return <div className={`social-site-switcher ${compact?'compact':''}`}>
+  return <div ref={host} className={`social-site-switcher ${compact?'compact':''}`}>
     <button type="button" onClick={() => { setOpen(true); requestAnimationFrame(() => dialog.current?.showModal()); }} aria-haspopup="dialog">
       <span className="social-site-mark" aria-hidden="true">⌂</span><span><small>当前共域</small><strong>{title}</strong></span><span className="social-site-switch-hint">换一家 ›</span>
     </button>
@@ -23,6 +24,6 @@ export default function SocialSiteSwitcher({ sites, current = '', onSwitch, comp
         <strong>{site.name}</strong><small>{!site.enabled ? '暂未启用' : !site.has_human_key ? '尚未配置我的 Key' : site.id === current ? '正在这里' : '可前往这家'}</small>
       </button>)}
       {!sites.length && <p>在「点赞之交 → 已注册的共域」添加朋友家。</p>}
-    </dialog>, document.body)}
+    </dialog>, host.current?.closest('.md-domain, .app') || document.body)}
   </div>;
 }

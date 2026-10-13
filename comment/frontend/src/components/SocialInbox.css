@@ -1,0 +1,22 @@
+.social-inbox-bell{position:relative;display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:1px solid var(--border-color,#e0d5cf);border-radius:50%;background:transparent;color:var(--text-primary,#443e43);cursor:pointer;font:22px system-ui,sans-serif;flex:none}
+.social-inbox-bell small{position:absolute;right:-5px;top:-5px;padding:1px 4px;min-width:13px;border-radius:12px;background:#ad7395;color:white;font:10px/16px system-ui,sans-serif}.social-inbox-bell i{position:absolute;right:0;top:0;width:7px;height:7px;border-radius:50%;background:#ad7395}
+.social-inbox-dialog{box-sizing:border-box;width:min(680px,calc(100vw - 24px));max-height:88dvh;padding:20px;border:1px solid var(--border-color,#d7c9c1);border-radius:22px;background:var(--bg-primary,#fffaf6);color:var(--text-primary,#443e43);font:14px/1.6 system-ui,sans-serif;overflow-y:auto}.social-inbox-dialog::backdrop{background:#16132288}
+.social-inbox-dialog>header{display:flex;gap:12px;justify-content:space-between;align-items:center;position:sticky;top:-20px;background:inherit;padding:10px 0;z-index:2}.social-inbox-dialog h2{margin:0;font-size:18px}.social-inbox-dialog small{font-size:11px;opacity:.7}.social-inbox-dialog>header button{min-width:40px;font-size:24px;border:0;background:transparent;color:inherit}
+.social-inbox-row{display:grid;gap:4px;box-sizing:border-box;width:100%;text-align:left;padding:14px 10px;border:0;border-bottom:1px solid var(--border-color,#ead9d1);background:transparent;color:inherit;cursor:pointer;font:inherit}.social-inbox-row strong{font-size:14px;font-weight:600}.social-inbox-row span{font-size:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;opacity:.75}
+.social-inbox-tools{display:flex;justify-content:flex-end;gap:8px;margin:10px 0}.social-inbox-tools button,.social-inbox-back,.social-inbox-new{padding:7px 10px;border:1px solid var(--border-color,#ead9d1);border-radius:10px;background:transparent;color:inherit;font:12px system-ui,sans-serif;cursor:pointer}.social-inbox-muted{font-size:12px;opacity:.7}.social-inbox-toast{position:fixed;z-index:1700;top:80px;right:20px;padding:12px 18px;border:1px solid #ad7395;border-radius:16px;background:var(--bg-primary,#fffaf6);color:var(--text-primary,#443e43);box-shadow:0 8px 30px #24192722;font:13px system-ui,sans-serif;cursor:pointer}.social-inbox-gift{text-align:center;white-space:pre-wrap}.social-inbox-gift img{max-width:240px;width:70%;height:auto}.social-inbox-dialog [data-comment-id]{scroll-margin-top:90px}.social-inbox-dialog .social-feed-card{margin:12px 0}.social-inbox-dialog .social-feed-comment-box{font-size:14px}
+@media(max-width:560px){.social-inbox-dialog{padding:14px;max-height:92dvh}.social-inbox-dialog>header{top:-14px}.social-inbox-bell{width:30px;height:30px;font-size:20px}.social-inbox-toast{top:70px;left:18px;right:18px;text-align:center}}
+.social-inbox-dialog{--social-accent:#ad7395;--social-aning:#a76572;--social-k:#7d6b91}
+.social-inbox-dialog .social-feed-card{background:var(--bg-secondary,#f7f0ea);color:var(--text-primary,#443e43);border-color:var(--border-color,#ead9d1)}
+.social-inbox-dialog .social-feed-comment-text{color:var(--text-primary,#443e43)}
+.social-inbox-dialog .social-feed-comments{background:var(--bg-secondary,#f7f0ea);color:var(--text-primary,#443e43)}
+.social-inbox-dialog .social-feed-comment-meta strong{color:var(--text-primary,#443e43)}
+.social-inbox-dialog .social-feed-action,.social-inbox-dialog .social-feed-comment-box{background:var(--bg-secondary,#f7f0ea);color:var(--text-secondary,#70626a);border-color:var(--border-color,#ead9d1)}
+.social-inbox-dialog{margin:auto;overflow-x:hidden;text-align:left}
+.social-inbox-dialog>header>div{min-width:0;flex:1}
+.social-inbox-dialog>header button{flex:0 0 40px;height:40px;padding:0}
+.social-inbox-tools{flex-wrap:wrap}
+.social-inbox-tools button{min-height:36px;white-space:normal}
+.social-inbox-row{height:auto;min-width:0;grid-template-columns:minmax(0,1fr);white-space:normal;line-height:1.5}
+.social-inbox-row>*{min-width:0;overflow-wrap:anywhere}
+.social-inbox-row small{font-size:11px;line-height:1.5}
+.social-inbox-new{display:block;width:100%;text-align:left;white-space:normal;line-height:1.5}

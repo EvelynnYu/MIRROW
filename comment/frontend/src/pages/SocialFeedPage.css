@@ -251,7 +251,7 @@
 .night-mode .social-feed-comment-meta,
 .night-mode .social-feed-action,
 .night-mode .social-feed-loading-more,
-.night-mode .social-feed-end { color: #8a626c; }
+.night-mode .social-feed-end { color: var(--text-secondary); }
 .social-timeline-ready {
   position: absolute; bottom: 24px; left: 20px; right: 96px; z-index: 4;
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
