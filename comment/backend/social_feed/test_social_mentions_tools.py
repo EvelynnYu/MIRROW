@@ -60,8 +60,8 @@ class ActionStore:
 async def test_main_tool_forwards_only_stable_mention_ids():
     store = ActionStore()
     tool = ManageSocialFeedTool(store=store)
-    result = await tool._direct({'content':'hello','visibility':'private','mention_actor_ids':['aning']}, 'post')
-    assert result['status'] == 'success' and store.payload['mention_actor_ids'] == ['aning']
+    result = await tool._direct({'content':'hello','visibility':'private','mention_actor_ids':['human']}, 'post')
+    assert result['status'] == 'success' and store.payload['mention_actor_ids'] == ['human']
     invalid = await tool._direct({'content':'hello','mention_actor_ids':['@站主']}, 'post')
     assert invalid['status'] == 'invalid_mentions'
 

@@ -115,7 +115,7 @@ class Remark(BaseModel):
 class TransferPrepare(BaseModel):
     model_config = ConfigDict(extra='forbid')
     destination_origin: str = Field(min_length=12, max_length=300)
-    target_actor: str = Field(pattern=r'^(aning|k)$')
+    target_actor: str = Field(pattern=r'^(human|k)$')
 
 
 class TransferCommit(BaseModel):
@@ -175,7 +175,7 @@ def _identity(runtime, request: Request, *, write: bool = False, admission: bool
             raise HTTPException(401, 'login_required')
         visitor_id, key_id = result
     if visitor_id == '__owner__' and key_id == '__owner__' and not auth:
-        return 'aning'
+        return 'human'
     with runtime.database.connection() as db:
         row = db.execute('SELECT 1 FROM visitor_keys k JOIN visitors v ON v.id=k.visitor_id '
                          "WHERE k.id=? AND k.visitor_id=? AND k.revoked_at IS NULL AND v.status IN ('active','suspended')",
@@ -230,12 +230,12 @@ def _display(runtime, actor: str, *, viewer: str) -> dict:
     saved = wall.profile(actor)
     from .profile_registration import ProfileRegistrationStore
     registration = ProfileRegistrationStore(wall).state(actor)
-    home_viewer = viewer in {'aning', 'k'}
+    home_viewer = viewer in {'human', 'k'}
     nickname = saved['nickname'] or (wall.registered_name(actor[8:]) if home_viewer and actor.startswith('visitor:') else '') or (
-        '站主' if actor == 'aning' else 'AI' if actor == 'k' else '未设置网名')
+        '站主' if actor == 'human' else 'AI' if actor == 'k' else '未设置网名')
     cognition_name = _cognition_name(actor) if home_viewer else ''
     default = _home_remark(runtime, actor) if home_viewer else ''
-    remark = '' if actor == viewer or (home_viewer and actor in {'aning', 'k'}) else (
+    remark = '' if actor == viewer or (home_viewer and actor in {'human', 'k'}) else (
         cognition_name or wall.remark(viewer, actor, home_default=default))
     label = nickname + (f'（{remark}）' if remark and remark != nickname else '')
     avatar = saved['avatar']
@@ -262,8 +262,8 @@ def _display(runtime, actor: str, *, viewer: str) -> dict:
 
 def _managed_profiles(runtime, viewer: str) -> list[str]:
     """A human manages its own wall identity and linked AIs; the local AI belongs to the local human."""
-    if viewer == 'aning':
-        return ['aning', 'k']
+    if viewer == 'human':
+        return ['human', 'k']
     if not viewer.startswith('visitor:'):
         return [viewer]
     visitor_id = viewer[8:]
@@ -287,7 +287,7 @@ def _managed_profiles(runtime, viewer: str) -> list[str]:
 def _check_profile_target(runtime, viewer: str, subject: str, *, avatar: bool = False) -> None:
     if subject not in _managed_profiles(runtime, viewer):
         raise HTTPException(403, 'profile_not_managed')
-    if avatar and viewer not in {'aning'} and runtime.visitor_service.effective_visitor(viewer[8:]).visitor_kind != 'human':
+    if avatar and viewer not in {'human'} and runtime.visitor_service.effective_visitor(viewer[8:]).visitor_kind != 'human':
         raise HTTPException(403, 'avatar_managed_by_human')
 
 
@@ -306,7 +306,7 @@ def _decorate(runtime, item: dict | None, *, viewer: str) -> dict | None:
     item['people'] = {actor: _display(runtime, actor, viewer=viewer) for actor in actors}
     item['can_manage'] = not item.get('migrated') and get_public_wall().can_manage_moment(viewer, item['author'])
     item['hosting_mode'] = 'hosted' if item['author'].startswith('visitor:') else 'home'
-    item['can_moderate'] = not item.get('migrated') and viewer == 'aning' and item['hosting_mode'] == 'hosted'
+    item['can_moderate'] = not item.get('migrated') and viewer == 'human' and item['hosting_mode'] == 'hosted'
     for comment in item.get('comments', []):
         comment['can_delete'] = not item.get('migrated') and get_public_wall().can_delete_comment(viewer, comment['author'])
     return item
@@ -319,7 +319,7 @@ def _receive_login_gift(runtime, actor: str) -> None:
         from .decor_store import get_decor_store
         visitor = runtime.visitor_service.effective_visitor(actor[8:])
         get_decor_store().visit(actor, 'human' if visitor.visitor_kind == 'human' else 'ai',
-                               _display(runtime, actor, viewer='aning')['name'])
+                               _display(runtime, actor, viewer='human')['name'])
     except Exception as exc:
         # Authentication does not depend on decor; the next visit retries.
         logger.warning('social arrival gift pending: category=%s', type(exc).__name__)
@@ -539,7 +539,7 @@ def create_public_social_app(runtime) -> FastAPI:
         wall = get_public_wall()
         token, csrf = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
         wall.issue_session(token, csrf, '__owner__', '__owner__', time.time() + 86400)
-        response = JSONResponse({'ok': True, 'actor': _display(runtime, 'aning', viewer='aning')})
+        response = JSONResponse({'ok': True, 'actor': _display(runtime, 'human', viewer='human')})
         local = request.url.hostname in {'127.0.0.1', 'localhost'}
         response.set_cookie(_SESSION_COOKIE, token, max_age=86400, httponly=True, secure=not local, samesite='strict')
         response.set_cookie(_CSRF_COOKIE, csrf, max_age=86400, httponly=False, secure=not local, samesite='strict')
@@ -559,7 +559,7 @@ def create_public_social_app(runtime) -> FastAPI:
     def me(request: Request, arrival: bool=True):
         viewer = _identity(runtime, request)
         if arrival:_receive_login_gift(runtime, viewer)
-        human = viewer == 'aning' or (viewer.startswith('visitor:') and
+        human = viewer == 'human' or (viewer.startswith('visitor:') and
                  runtime.visitor_service.effective_visitor(viewer[8:]).visitor_kind == 'human')
         capabilities = ['read', 'edit_own', 'comment', 'delete_own_comment', 'like', 'withdraw_own',
                         'changes', 'identity_card', 'private_remark', 'profile', 'set_nickname']
@@ -636,7 +636,7 @@ def create_public_social_app(runtime) -> FastAPI:
     @app.put('/social/v1/people/{actor_id}/remark')
     def person_remark(actor_id: str, body: Remark, request: Request):
         viewer = _identity(runtime, request, write=True)
-        if viewer == 'aning' and _cognition_name(actor_id):
+        if viewer == 'human' and _cognition_name(actor_id):
             raise HTTPException(403, 'remark_locked_by_cognition')
         get_public_wall().set_remark(viewer, actor_id, body.remark)
         return {'person': _display(runtime, actor_id, viewer=viewer)}
@@ -751,7 +751,7 @@ def create_public_social_app(runtime) -> FastAPI:
     @app.delete('/social/v1/moments/{moment_id}')
     def withdraw(moment_id: str, request: Request):
         viewer = _identity(runtime, request, write=True)
-        return get_public_wall().withdraw(viewer, moment_id, owner_override=viewer == 'aning')
+        return get_public_wall().withdraw(viewer, moment_id, owner_override=viewer == 'human')
 
     @app.post('/social/v1/moments/{moment_id}/comments')
     def comment(moment_id: str, body: Comment, request: Request):

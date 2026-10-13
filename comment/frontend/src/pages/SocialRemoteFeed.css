@@ -1,4 +1,4 @@
-.social-remote-page { --social-accent: #9a6756; --social-k: #7d6b91; --social-aning: #a76572; height: 100dvh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-primary, #faf7f3); color: var(--text-primary, #463936); }
+.social-remote-page { --social-accent: #9a6756; --social-k: #7d6b91; --social-human: #a76572; height: 100dvh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-primary, #faf7f3); color: var(--text-primary, #463936); }
 .social-remote-author { display: inline-flex; align-items: center; gap: 10px; }
 .social-remote-avatar { display: inline-flex; flex: 0 0 auto; width: 36px; height: 36px; padding: 0; border: 0; overflow: hidden; border-radius: 50%; background: #f0dfd4; color: #76594c; align-items: center; justify-content: center; }
 .social-remote-avatar.social-feed-comment-avatar { width: 22px; height: 22px; font-size: 11px; }

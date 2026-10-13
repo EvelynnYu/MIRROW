@@ -36,15 +36,15 @@ def test_remarks_are_private_per_viewer_and_home_is_shared(tmp_path):
     wall = PublicWall(tmp_path / 'wall.db'); wall.initialize()
     wall.note_contact('v1')
     wall.note_contact('v2')
-    assert wall.remark('aning', 'visitor:v1', home_default='人丙') == '人丙'
+    assert wall.remark('human', 'visitor:v1', home_default='人丙') == '人丙'
     assert wall.remark('k', 'visitor:v1', home_default='人丙') == '人丙'
     assert wall.remark('visitor:v2', 'visitor:v1', home_default='人丙') == ''
     wall.set_remark('visitor:v2', 'visitor:v1', '朋友自己写的备注')
-    wall.set_remark('aning', 'visitor:v1', '站主的备注')
+    wall.set_remark('human', 'visitor:v1', '站主的备注')
     assert wall.remark('visitor:v2', 'visitor:v1') == '朋友自己写的备注'
     assert wall.remark('k', 'visitor:v1') == '站主的备注'
     assert wall.remark('visitor:v1', 'visitor:v2') == ''
-    wall.set_remark('aning', 'visitor:v1', '')
+    wall.set_remark('human', 'visitor:v1', '')
     assert wall.remark('k', 'visitor:v1', home_default='人丙') == ''
     with pytest.raises(PublicWallError, match='invalid_remark_target'):
         wall.set_remark('visitor:v1', 'visitor:v1', '不能给自己改备注')
@@ -52,7 +52,7 @@ def test_remarks_are_private_per_viewer_and_home_is_shared(tmp_path):
 
 def test_comment_author_or_owner_can_delete_without_erasing_replies(tmp_path):
     wall = PublicWall(tmp_path / 'wall.db'); wall.initialize()
-    moment = wall.create_moment('aning', '公开动态')
+    moment = wall.create_moment('human', '公开动态')
     typo = wall.add_comment('visitor:friend1', moment['id'], '错字', source_key='first-comment')
     reply = wall.add_comment('visitor:friend2', moment['id'], '我也回复了', typo['id'])
     with pytest.raises(PublicWallError, match='forbidden'):
@@ -64,14 +64,14 @@ def test_comment_author_or_owner_can_delete_without_erasing_replies(tmp_path):
     assert wall.add_comment('visitor:friend1', moment['id'], '错字', source_key='first-comment')['status'] == 'withdrawn'
     with pytest.raises(PublicWallError, match='comment_not_found'):
         wall.delete_comment('visitor:friend1', moment['id'], typo['id'])
-    wall.delete_comment('aning', moment['id'], reply['id'])
+    wall.delete_comment('human', moment['id'], reply['id'])
     assert wall.get_moment(moment['id'])['comments'] == []
     assert wall.changes()['items'][-1]['moment']['comments'] == []
 
 
 def test_guardian_comment_delete_uses_current_household(tmp_path):
     wall = PublicWall(tmp_path / 'wall.db'); wall.initialize()
-    post = wall.create_moment('aning', '临时测试动态')
+    post = wall.create_moment('human', '临时测试动态')
     ai = wall.add_comment('visitor:ai', post['id'], '机的错字')
     other = wall.add_comment('visitor:other', post['id'], '别家的评论')
     assert not wall.can_delete_comment('visitor:human', 'visitor:ai')
@@ -84,25 +84,25 @@ def test_guardian_comment_delete_uses_current_household(tmp_path):
     with pytest.raises(PublicWallError, match='forbidden'):
         wall.delete_comment('visitor:human', post['id'], other['id'])
     assert wall.delete_comment('visitor:human', post['id'], ai['id'])['status'] == 'deleted'
-    wall.delete_comment('aning', post['id'], other['id'])
+    wall.delete_comment('human', post['id'], other['id'])
 
 
 def test_local_comment_delete_routes_public_and_archived_interactions(feed):
-    post = run(feed.create_moment('aning', '公开动态', visibility='public'))
+    post = run(feed.create_moment('human', '公开动态', visibility='public'))
     visitor = run(feed.add_comment(post['id'], 'visitor:friend1', '访客评论'))
-    reply = run(feed.add_comment(post['id'], 'aning', '站主回复', reply_to_id=visitor['id']))
-    assert run(feed.delete_comment(post['id'], visitor['id'], 'aning'))['status'] == 'deleted'
+    reply = run(feed.add_comment(post['id'], 'human', '站主回复', reply_to_id=visitor['id']))
+    assert run(feed.delete_comment(post['id'], visitor['id'], 'human'))['status'] == 'deleted'
     assert feed.public.get_moment(post['id'])['comments'][0]['reply_to_id'] is None
 
     another = run(feed.add_comment(post['id'], 'visitor:friend1', '转私密前的评论'))
-    run(feed.set_moment_visibility(post['id'], 'aning', 'private'))
-    assert run(feed.delete_comment(post['id'], another['id'], 'aning'))['status'] == 'deleted'
+    run(feed.set_moment_visibility(post['id'], 'human', 'private'))
+    assert run(feed.delete_comment(post['id'], another['id'], 'human'))['status'] == 'deleted'
     remaining = run(feed.get_moment(post['id']))['comments']
     assert [row['id'] for row in remaining] == [reply['id']]
 
 
 def test_public_and_private_have_one_body_authority(feed):
-    private = run(feed.create_moment('aning', '只给 AI 看'))
+    private = run(feed.create_moment('human', '只给 AI 看'))
     public = run(feed.create_moment('k', '大家都能看', visibility='public'))
     assert feed.public.get_moment(private['id']) is None
     assert run(feed.private.get_moment(public['id'])) is None
@@ -111,18 +111,18 @@ def test_public_and_private_have_one_body_authority(feed):
 
 
 def test_private_to_public_moves_existing_interactions_and_back(feed):
-    moment = run(feed.create_moment('aning', '原本私密'))
+    moment = run(feed.create_moment('human', '原本私密'))
     run(feed.add_comment(moment['id'], 'k', '原有评论'))
     run(feed.toggle_like(moment['id'], 'k'))
-    result = run(feed.set_moment_visibility(moment['id'], 'aning', 'public'))
+    result = run(feed.set_moment_visibility(moment['id'], 'human', 'public'))
     assert result['changed']
     assert any(row['moment_id'] == moment['id'] for row in run(feed.unread_notifications('k')))
     assert run(feed.private.get_moment(moment['id'])) is None
     assert [comment['content'] for comment in feed.public.get_moment(moment['id'])['comments']] == ['原有评论']
     guest = feed.public.add_comment('visitor:friend1', moment['id'], '访客评论')
-    assert any(row['actor'] == 'visitor:friend1' for row in run(feed.unread_notifications('aning')))
+    assert any(row['actor'] == 'visitor:friend1' for row in run(feed.unread_notifications('human')))
     feed.public.toggle_like('visitor:friend1', moment['id'])
-    run(feed.set_moment_visibility(moment['id'], 'aning', 'private'))
+    run(feed.set_moment_visibility(moment['id'], 'human', 'private'))
     assert feed.public.get_moment(moment['id']) is None
     with sqlite3.connect(feed.public.path) as db:
         assert db.execute('SELECT content FROM wall_moments WHERE id=?', (moment['id'],)).fetchone()[0] == ''
@@ -134,7 +134,7 @@ def test_private_to_public_moves_existing_interactions_and_back(feed):
     assert {c['content'] for c in restored['comments']} == {'原有评论', '访客评论'}
     assert guest['id'] in {c['id'] for c in restored['comments']}
     assert {r['author'] for r in restored['reactions']} == {'k', 'visitor:friend1'}
-    run(feed.set_moment_visibility(moment['id'], 'aning', 'public'))
+    run(feed.set_moment_visibility(moment['id'], 'human', 'public'))
     assert len(feed.public.get_moment(moment['id'])['comments']) == 2
 
 
@@ -232,7 +232,7 @@ def test_cursor_and_source_receipt(tmp_path):
     first = wall.create_moment('k', '一', created_at=1, source_key='run-1')
     replay = wall.create_moment('k', '不同内容', created_at=1, source_key='run-1')
     assert replay['id'] == first['id'] and replay['idempotent_replay']
-    second = wall.create_moment('aning', '二', created_at=2)
+    second = wall.create_moment('human', '二', created_at=2)
     page = wall.list_moments(limit=1)
     assert page['items'][0]['id'] == second['id']
     older = wall.list_moments(limit=1, before=tuple(page['next_cursor']))
@@ -243,7 +243,7 @@ def test_cursor_and_source_receipt(tmp_path):
 
 
 def test_public_post_keeps_local_notification_and_read_receipt(feed):
-    moment = run(feed.create_moment('aning', '给大家看', visibility='public'))
+    moment = run(feed.create_moment('human', '给大家看', visibility='public'))
     notices = run(feed.unannounced_notifications('k'))
     assert len(notices) == 1 and notices[0]['moment_id'] == moment['id']
     assert feed.mark_notifications_announced_sync('k', [notices[0]['id']],
@@ -262,14 +262,14 @@ def test_legacy_public_post_is_moved_on_initialize(tmp_path):
     run(feed.initialize())
     assert run(private.get_moment(original['id'])) is None
     assert feed.public.get_moment(original['id'])['content'] == '旧版本已公开'
-    assert any(row['moment_id'] == original['id'] for row in run(feed.unread_notifications('aning')))
+    assert any(row['moment_id'] == original['id'] for row in run(feed.unread_notifications('human')))
 
 
 def test_owner_can_edit_private_and_public_without_crossing_identity(feed):
-    private = run(feed.create_moment('aning', '旧私密'))
-    assert run(feed.edit_moment(private['id'], 'aning', '新私密'))['content'] == '新私密'
-    public = run(feed.create_moment('aning', '旧公开', visibility='public'))
-    updated = run(feed.edit_moment(public['id'], 'aning', '新公开', public['revision']))
+    private = run(feed.create_moment('human', '旧私密'))
+    assert run(feed.edit_moment(private['id'], 'human', '新私密'))['content'] == '新私密'
+    public = run(feed.create_moment('human', '旧公开', visibility='public'))
+    updated = run(feed.edit_moment(public['id'], 'human', '新公开', public['revision']))
     assert updated['content'] == '新公开' and updated['revision'] == public['revision'] + 1
     with pytest.raises(Exception, match='forbidden'):
         run(feed.edit_moment(public['id'], 'k', '篡改', updated['revision']))
@@ -281,4 +281,4 @@ def test_daily_decision_public_post_retains_idempotence_and_notice(feed):
     assert run(feed.private.get_moment(first['moment_id'])) is None
     second = run(feed.commit_daily_summary_decision('2026-09-28', 'post', '不应再发', 'public'))
     assert second['idempotent_replay'] and second['moment_id'] == first['moment_id']
-    assert any(row['id'] == first['notification_id'] for row in run(feed.unread_notifications('aning')))
+    assert any(row['id'] == first['notification_id'] for row in run(feed.unread_notifications('human')))

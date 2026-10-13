@@ -36,8 +36,8 @@ export default function MusicCard({ card, song: supplied, note }: { card?: LongT
   const session = data?.session;
   const shareNumber = Number(song.share_number || card?.share_number || 0);
   const letterLabel = shareNumber
-    ? (card ? `第 ${shareNumber} 次，把这首歌递给 K` : `第 ${shareNumber} 次，把这首歌递给你`)
-    : (card ? '一首歌，递给 K' : '一首歌，递给你');
+    ? (card ? `第 ${shareNumber} 次，把这首歌递给 AI` : `第 ${shareNumber} 次，把这首歌递给你`)
+    : (card ? '一首歌，递给 AI' : '一首歌，递给你');
   const expectedId = song.playlist_id || song.id;
   const sessionMatches = song.kind === 'playlist' ? session?.playlist_id === expectedId : session?.song?.id === song.id;
   const current = session?.device === (getPlatform() === 'mobile' ? 'mobile' : 'computer') && sessionMatches && !['ended', 'external', 'failed'].includes(session.status);

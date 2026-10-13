@@ -58,7 +58,7 @@ async def test_remote_person_and_remark_use_human_key_and_remote_scope(monkeypat
         assert 'human-fixture' not in read.text and 'ai-fixture' not in written.text
         count = len(calls)
         invalid = await client.put('/api/social-sites/fixture/people/visitor:friend/remark',
-                                   json={'remark':'fixture', 'viewer':'aning'})
+                                   json={'remark':'fixture', 'viewer':'human'})
         assert invalid.status_code == 422 and len(calls) == count
 
 

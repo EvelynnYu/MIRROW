@@ -67,7 +67,7 @@ async def test_remote_refresh_version_and_failed_media_retry(tmp_path):
     source,eid,receipt=setup(tmp_path);target=DecorStore(tmp_path/'other'/'gift.db');migrate(target,backup_ready=True)
     target.imported_gift('k','https://source.example',receipt,'朋友家')
     image=io.BytesIO();Image.new('RGB',(12,12),'red').save(image,format='PNG')
-    asset=save_media(source,'aning',image.getvalue())
+    asset=save_media(source,'human',image.getvalue())
     home=source.home();home['exhibits'][0]['image']=asset['id'];source.save_home(HomeDesign.model_validate(home),sync_gift_exhibits=[eid])
     class Client:
         fail=True;calls=0

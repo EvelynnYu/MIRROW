@@ -141,10 +141,10 @@ class DecorStore:
 
     def save_home(self, design: HomeDesign, *, sync_gift_exhibits=()):
         data = design.model_dump()
-        self.check_assets(data['theme'], 'aning')
+        self.check_assets(data['theme'], 'human')
         ids = []
         for exhibit in data['exhibits']:
-            self.check_assets(exhibit, 'aning')
+            self.check_assets(exhibit, 'human')
             exhibit['id'] = exhibit['id'] or uuid.uuid4().hex
             ids.append(exhibit['id'])
         if len(set(ids)) != len(ids):
@@ -198,7 +198,7 @@ class DecorStore:
         with self.connect() as db:
             db.execute('BEGIN IMMEDIATE')
             gift = db.execute('SELECT * FROM gifts WHERE active=1 AND kind=?', (kind,)).fetchone()
-            if gift and actor not in {'aning', 'k'}:
+            if gift and actor not in {'human', 'k'}:
                 from .decor_gift_updates import present
                 effective = present(db, gift)
                 effective_snapshot = json.dumps(effective['snapshot'], ensure_ascii=False)

@@ -202,7 +202,7 @@ class BehaviorProfile:
                 "ORDER BY timestamp DESC LIMIT 1"
             ).fetchone()
             row2 = conn.execute(
-                "SELECT created_at FROM group_chat_messages WHERE sender!='K' "
+                "SELECT created_at FROM group_chat_messages WHERE sender!='AI' "
                 "ORDER BY created_at DESC LIMIT 1"
             ).fetchone()
             conn.close()

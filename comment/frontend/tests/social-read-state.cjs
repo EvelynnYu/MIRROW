@@ -7,10 +7,10 @@ function moduleFile(name){
   return exports;
 }
 test('reading preferences/drafts are scoped by backend, home and actor; clearing drops them',()=>{
-  const s=moduleFile('viewState'),key=s.socialViewKey('backend','aning','a','draft');
+  const s=moduleFile('viewState'),key=s.socialViewKey('backend','human','a','draft');
   s.writeView(key,'草稿');assert.equal(s.readView(key,''),'草稿');
-  assert.equal(s.readView(s.socialViewKey('other','aning','a','draft'),''),'');
-  assert.equal(s.readView(s.socialViewKey('backend','aning','b','draft'),''),'');
+  assert.equal(s.readView(s.socialViewKey('other','human','a','draft'),''),'');
+  assert.equal(s.readView(s.socialViewKey('backend','human','b','draft'),''),'');
   s.clearSocialViews();assert.equal(s.readView(key,''),'');
 });
 test('split UTF8 records deliver progress before complete and return only final page',async()=>{

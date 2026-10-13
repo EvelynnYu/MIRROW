@@ -54,7 +54,7 @@ HTMLMediaElement.prototype.pause=function(){playing=false;pauses++;this.dispatch
 // Every request is intercepted in memory: no credentials, real posts or writes.
 const sites=[{id:'fixture',name:'演示家',origin:'https://home.example.test',enabled:true,has_human_key:true,has_ai_key:true}];
 const items:TimelineMoment[]=[
-  {id:'same-id',author:'k',content:'演示私密动态：仅本家可见。',visibility:'private',created_at:1790900040,comments:[],reactions:[{author:'aning'}],people:{k:{name:'AI · 本家机'},aning:{name:'站主'}},viewer_actor:'aning',source:{site_id:'',site_name:'本家',origin:'',hosting_mode:'home'}},
+  {id:'same-id',author:'k',content:'演示私密动态：仅本家可见。',visibility:'private',created_at:1790900040,comments:[],reactions:[{author:'human'}],people:{k:{name:'AI · 本家机'},human:{name:'站主'}},viewer_actor:'human',source:{site_id:'',site_name:'本家',origin:'',hosting_mode:'home'}},
   {id:'same-id',author:'visitor:friend',content:'演示公开动态：可用于测试点赞和评论。',visibility:'public',created_at:1790900000,comments:[{id:'own-comment',author:'visitor:self',content:'干得漂亮！',created_at:1790900020},{id:'friend-comment',author:'visitor:friend',content:'谢谢，来坐坐。',created_at:1790900030}],reactions:[{author:'visitor:self'}],people:{'visitor:friend':{name:'演示朋友'},'visitor:self':{name:'站主'}},viewer_actor:'visitor:self',source:{site_id:'fixture',site_name:'演示家',origin:sites[0].origin,hosting_mode:'hosted'}}
 ];
 if(progressive)for(let i=0;i<15;i++)items.push({...items[i%2],id:'extra-'+i,content:`第 ${i+1} 条隔离阅读位置验收动态。`,created_at:1790899900-i*20,comments:[],reactions:[]});
@@ -65,7 +65,7 @@ window.fetch=async(input,init)=>{
   const path=url.pathname,method=init?.method||'GET';
   (window as any).__timelineCalls.push({path,method});
   if(path==='/api/social-sites')return Response.json({sites});
-  if(path.endsWith('/mention-people'))return Response.json({capability:'mentions_v1',items:[{actor_id:'k',name:'AI · 本家机'},{actor_id:'aning',name:'站主'}]});
+  if(path.endsWith('/mention-people'))return Response.json({capability:'mentions_v1',items:[{actor_id:'k',name:'AI · 本家机'},{actor_id:'human',name:'站主'}]});
   if(path.endsWith('/timeline/stream')&&progressive){
     const rows=items.filter(r=>url.searchParams.get('visibility_filter')==='all'||r.visibility===url.searchParams.get('visibility_filter'));
     const encoder=new TextEncoder();let closed=false;
@@ -88,7 +88,7 @@ window.fetch=async(input,init)=>{
   }
   if(path.endsWith('/moments')&&method==='GET')return Response.json({items:items.filter(r=>Boolean(r.source.site_id)===path.includes('/social-sites/fixture/')),has_more:false,next_cursor:null});
   if(path.endsWith('/notifications'))return Response.json({items:[]});
-  if(path.endsWith('/state'))return Response.json({owner:true,human:true,actor:'aning',profiles:[],sites:[],gifts:[],home:decorHome});
+  if(path.endsWith('/state'))return Response.json({owner:true,human:true,actor:'human',profiles:[],sites:[],gifts:[],home:decorHome});
   if(path.endsWith('/presets'))return Response.json({themes:[{id:'ink',name:'深墨',accent:'#aa66bb'}],frames:[]});
   if(path.endsWith('/home')&&method==='PUT'){decorHome=JSON.parse(String(init?.body));return Response.json(decorHome);}
   if(path.endsWith('/music-import'))return importFailure

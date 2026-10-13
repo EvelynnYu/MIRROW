@@ -54,7 +54,7 @@
       counts.set(entity.name, count + 1);
       return [entity.id, entity.name + '*'.repeat(count)];
     }));
-    $('cognitionPrimary').replaceChildren(option('', '暂不绑定'), ...entities.filter(e => !['aning','k'].includes(e.id)).map(e => option(e.id, labelOf(e))));
+    $('cognitionPrimary').replaceChildren(option('', '暂不绑定'), ...entities.filter(e => !['human','k'].includes(e.id)).map(e => option(e.id, labelOf(e))));
     $('cognitionRelated').replaceChildren();
     for (const entity of entities) {
       const label = document.createElement('label'), checkbox = document.createElement('input');

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { cognitionRequest } from '../shared/cognitionApi';
 type MusicRecord = { id: string; title: string; artist: string; subject_id: string; source: string; mode: string; reaction: string; dimensions: Record<string, string>; created_at: string };
 
-const subjects: Record<string, string> = { k: 'K', owner: '使用者', collaborator: '协作者', shared: 'K 与使用者', unknown: '未标注' };
+const subjects: Record<string, string> = { k: 'AI', owner: '使用者', collaborator: '协作者', shared: 'AI 与使用者', unknown: '未标注' };
 
 export default function MusicExperiences({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void }) {
   const [records, setRecords] = useState<MusicRecord[]>([]);

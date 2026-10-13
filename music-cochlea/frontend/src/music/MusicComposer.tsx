@@ -55,7 +55,7 @@ export default function MusicComposer({ initial, initialSong, onClose, onSave, s
   }
   return createPortal(<div className="music-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
     <section ref={dialog} className="music-dialog" role="dialog" aria-modal="true" aria-label="分享歌曲">
-      <header><div><small className="music-eyebrow">MUSIC LETTER</small><h2>把这首歌，递给 K</h2><p>一段旋律，也可以是一句话。</p></div><button className="music-close" onClick={onClose} aria-label="关闭">×</button></header>
+      <header><div><small className="music-eyebrow">MUSIC LETTER</small><h2>把这首歌，递给 AI</h2><p>一段旋律，也可以是一句话。</p></div><button className="music-close" onClick={onClose} aria-label="关闭">×</button></header>
       <label>网易云链接<div className="music-input-row"><input ref={input} value={text} placeholder="粘贴歌曲链接或分享文字" onChange={e => { generation.current++; setBusy(false); setText(e.target.value); setSong(null); }} onPaste={e => { const value = e.clipboardData.getData('text'); if (value) { e.preventDefault(); setText(value); void resolve(value); } }} /><button className="music-button" onClick={() => resolve()} disabled={busy}>识别</button></div></label>
       {busy && <p className="music-muted" role="status">正在找这首歌…</p>}
       {error && <p className="music-error" role="alert">{error}</p>}

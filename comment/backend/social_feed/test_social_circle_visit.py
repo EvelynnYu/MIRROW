@@ -96,7 +96,7 @@ async def test_home_delivery_observation_is_bounded_and_available_to_both_trigge
 @pytest.mark.asyncio
 @pytest.mark.parametrize('read_source', ['chat', 'wander'])
 async def test_notification_ack_failure_preserves_completed_actions(feed, monkeypatch, read_source):
-    moment = await feed.create_moment('aning', '供测试的动态')
+    moment = await feed.create_moment('human', '供测试的动态')
     notices = await feed.unread_notifications('k')
 
     async def decide(_messages):
@@ -129,7 +129,7 @@ async def test_notification_ack_failure_preserves_completed_actions(feed, monkey
 
 @pytest.mark.asyncio
 async def test_unread_batch_is_idempotent_and_summary_has_grounded_reply(feed):
-    moment = await feed.create_moment('aning', '今天新来的小伙伴')
+    moment = await feed.create_moment('human', '今天新来的小伙伴')
     assert len(await feed.unread_notifications('k')) == 1
 
     async def decide(messages):
@@ -162,7 +162,7 @@ async def test_unread_batch_is_idempotent_and_summary_has_grounded_reply(feed):
 
 @pytest.mark.asyncio
 async def test_latest_and_search_are_bounded_and_targets_must_be_visible(feed):
-    older = await feed.create_moment('aning', '遥远的海', created_at=100)
+    older = await feed.create_moment('human', '遥远的海', created_at=100)
     newest = await feed.create_moment('k', '今天的太阳', created_at=200)
     public = await feed.create_moment('k', '公开的星星', visibility='public', created_at=300)
     assert [row['id'] for row in await feed.search_moments('星星')] == [public['id']]
@@ -190,7 +190,7 @@ async def test_latest_and_search_are_bounded_and_targets_must_be_visible(feed):
 @pytest.mark.asyncio
 async def test_visibility_change_uses_visible_k_post_id_and_keeps_other_posts_untouched(feed):
     own = await feed.create_moment('k', '一条准备收起来的动态', visibility='public')
-    other = await feed.create_moment('aning', '站主的动态', visibility='private')
+    other = await feed.create_moment('human', '站主的动态', visibility='private')
 
     async def decide(messages):
         assert own['id'] in messages[0]['content']
@@ -230,7 +230,7 @@ async def test_missing_persona_is_not_silently_replaced(feed):
 @pytest.mark.asyncio
 async def test_unread_is_paged_without_loading_the_whole_inbox(feed):
     for index in range(12):
-        await feed.create_moment('aning', f'第 {index} 条', created_at=100 + index)
+        await feed.create_moment('human', f'第 {index} 条', created_at=100 + index)
 
     async def decide(_messages):
         return {'content': json.dumps({'actions': [], 'next': {'kind': 'unread'},
@@ -270,7 +270,7 @@ async def test_k_can_rename_own_circle_profile_without_changing_avatar(feed, mon
 
 @pytest.mark.asyncio
 async def test_switch_site_keeps_actions_in_one_wall_per_node(feed, monkeypatch):
-    home = await feed.create_moment('aning', '本家的动态')
+    home = await feed.create_moment('human', '本家的动态')
     remote = {'id': 'remote-post', 'author': 'visitor:friend', 'content': '人甲 家的动态',
               'comments': [], 'reactions': [], 'people': {'visitor:friend': {'name': '人甲'}},
               'created_at': 100}

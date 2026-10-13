@@ -54,7 +54,7 @@ def local_font(identifier: str):
 
 class LinkInput(StrictModel):
     origin: str = Field(max_length=300)
-    subject: str = Field(pattern=r'^(aning|k)$')
+    subject: str = Field(pattern=r'^(human|k)$')
     token: str = Field(min_length=32,max_length=80)
 
 
@@ -105,12 +105,12 @@ def create_decor_router(runtime=None, *, local=False):
         return result
 
     def identity(request, write=False, *, admission=True):
-        if local: return 'aning'
+        if local: return 'human'
         if not admission: return _identity(current_runtime(),request,write=write,admission=False)
         return _identity(current_runtime(),request,write=write)
 
     def owner(request):
-        if identity(request,True) != 'aning':
+        if identity(request,True) != 'human':
             raise HTTPException(403,'只有本家主人可以布置整站')
 
     def human_target(request, subject):
@@ -126,7 +126,7 @@ def create_decor_router(runtime=None, *, local=False):
     def human_machine_subjects(request, write=False, *, admission=True):
         """A human can inspect only its own valid household machines."""
         actor = identity(request, write,admission=admission)
-        if actor == 'aning':
+        if actor == 'human':
             return actor, ['k']
         if not actor.startswith('visitor:'):
             return actor, []
@@ -171,18 +171,18 @@ def create_decor_router(runtime=None, *, local=False):
         actor = identity(request)
         store = get_decor_store()
         managed = _managed_profiles(current_runtime(),actor)
-        human = actor=='aning' or actor.startswith('visitor:') and current_runtime().visitor_service.effective_visitor(actor[8:]).visitor_kind=='human'
+        human = actor=='human' or actor.startswith('visitor:') and current_runtime().visitor_service.effective_visitor(actor[8:]).visitor_kind=='human'
         from .public_wall import get_public_wall
         from .profile_registration import state_in
         with get_public_wall()._connect() as db:
             editable = {subject: human and state_in(db, actor)['can_interact'] and state_in(db, subject)['can_interact']
                         for subject in managed}
-        return {'home':store.home(),'actor':actor,'owner':actor=='aning','human':human,
+        return {'home':store.home(),'actor':actor,'owner':actor=='human','human':human,
                 'profiles':[{'actor':subject,'name':_display(current_runtime(),subject,viewer=actor)['name'],
                              'can_edit_decor':editable[subject],
                              'design':store.personal(subject),'link':store.link(subject),
-                             'sync':store.choice(subject) if actor=='aning' else None} for subject in managed],
-                'gifts':store.gifts(),'sites':[site.public_dict() for site in get_remote_site_store().list()] if actor=='aning' else []}
+                             'sync':store.choice(subject) if actor=='human' else None} for subject in managed],
+                'gifts':store.gifts(),'sites':[site.public_dict() for site in get_remote_site_store().list()] if actor=='human' else []}
 
     @router.get('/music-choices')
     def music_choices(request: Request):
@@ -246,13 +246,13 @@ def create_decor_router(runtime=None, *, local=False):
         actor = human_target(request,subject)
         store = get_decor_store()
         design = store.save_personal(subject,body)
-        results = await federation.sync_personal(store,subject,PUBLIC_SOCIAL_ORIGIN) if actor=='aning' else []
+        results = await federation.sync_personal(store,subject,PUBLIC_SOCIAL_ORIGIN) if actor=='human' else []
         return {'design':design,'sync_results':results}
 
     @router.put('/people/{subject}/sync')
     async def sync(body: SyncChoice, subject: str, request: Request):
         owner(request)
-        if subject not in {'aning','k'}:
+        if subject not in {'human','k'}:
             raise HTTPException(403,'只能同步本家身份')
         store = get_decor_store()
         previous = store.choice(subject)
@@ -262,14 +262,14 @@ def create_decor_router(runtime=None, *, local=False):
     @router.post('/sites/{site_id}/link/{subject}')
     async def link_site(site_id: str, subject: str, request: Request):
         owner(request)
-        if subject not in {'aning','k'}:
+        if subject not in {'human','k'}:
             raise HTTPException(403,'只能关联本家身份')
         return await federation.link_site(get_decor_store(),get_remote_site_store().get(site_id),subject,PUBLIC_SOCIAL_ORIGIN)
 
     @router.post('/media/{subject}')
     async def upload(subject: str, request: Request, kind: str='image'):
         human_target(request,subject)
-        if kind not in {'image','audio'} or kind=='audio' and identity(request)!='aning':
+        if kind not in {'image','audio'} or kind=='audio' and identity(request)!='human':
             raise HTTPException(403,'只有本家主人可上传背景音乐')
         raw = bytearray()
         async for chunk in request.stream():
@@ -296,8 +296,8 @@ def create_decor_router(runtime=None, *, local=False):
     @router.post('/visit')
     async def visit(request: Request):
         actor = identity(request,True,admission=False)
-        human = actor=='aning' or actor.startswith('visitor:') and current_runtime().visitor_service.effective_visitor(actor[8:]).visitor_kind=='human'
-        name = _display(current_runtime(),actor,viewer='aning')['name']
+        human = actor=='human' or actor.startswith('visitor:') and current_runtime().visitor_service.effective_visitor(actor[8:]).visitor_kind=='human'
+        name = _display(current_runtime(),actor,viewer='human')['name']
         gifts = get_decor_store().visit(actor,'human' if human else 'ai',name)
         from .decor_events import publish_pending
         try:
@@ -374,7 +374,7 @@ def create_decor_router(runtime=None, *, local=False):
         items = []
         for row in report['items']:
             try:
-                name = _display(current_runtime(),row['actor'],viewer='aning')['name']
+                name = _display(current_runtime(),row['actor'],viewer='human')['name']
             except (KeyError,ValueError):
                 name = '已移除的访客'
             items.append({'id':row['id'],'name':name,'kind':row['kind'],'received':row['received'],
@@ -398,7 +398,7 @@ def create_decor_router(runtime=None, *, local=False):
         if not actor.startswith('visitor:'):
             raise HTTPException(400,'只能关联来访身份')
         human = current_runtime().visitor_service.effective_visitor(actor[8:]).visitor_kind=='human'
-        if (body.subject=='aning') != human:
+        if (body.subject=='human') != human:
             raise DecorError('link_identity_mismatch')
         origin = normalize_social_origin(body.origin)
         if origin==PUBLIC_SOCIAL_ORIGIN:

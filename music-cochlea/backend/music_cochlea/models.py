@@ -52,9 +52,9 @@ class SongMetadata:
 
 @dataclass
 class CachedReaction:
-    """K 对一首歌的反应——缓存到 SQLite"""
+    """AI 对一首歌的反应——缓存到 SQLite"""
     song_fingerprint: str
-    k_reaction: str           # K 的 ~200 字感受
+    k_reaction: str           # AI 的 ~200 字感受
     push_node: str = ""       # "start" | "middle" | "end"
     generated_at: str = ""    # ISO timestamp
     play_count: int = 1

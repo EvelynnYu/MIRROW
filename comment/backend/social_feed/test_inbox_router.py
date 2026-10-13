@@ -33,7 +33,7 @@ async def test_read_claims_are_source_and_human_bound_and_detail_does_not_ack(mo
         assert calls[-1][4]['payload']=={'notification_ids':['same']}
         calls.clear()
         await c.post('/inbox/read',json={'notification_ids':['same']})
-        assert calls==[('local','aning',['same'])]
+        assert calls==[('local','human',['same'])]
 
 
 @pytest.mark.asyncio
@@ -42,8 +42,8 @@ async def test_metadata_poll_does_not_generate_arrival_gifts(tmp_path,monkeypatc
     from social_feed.public_wall import PublicWall
     wall=PublicWall(tmp_path/'wall.db');wall.initialize()
     monkeypatch.setattr(public_gateway,'get_public_wall',lambda:wall)
-    monkeypatch.setattr(public_gateway,'_identity',lambda *a,**kw:'aning')
-    monkeypatch.setattr(public_gateway,'_display',lambda *a,**kw:{'actor_id':'aning'})
+    monkeypatch.setattr(public_gateway,'_identity',lambda *a,**kw:'human')
+    monkeypatch.setattr(public_gateway,'_display',lambda *a,**kw:{'actor_id':'human'})
     gifts=[]
     monkeypatch.setattr(public_gateway,'_receive_login_gift',lambda *a:gifts.append(True))
     app=public_gateway.create_public_social_app(SimpleNamespace())

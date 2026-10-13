@@ -10,32 +10,32 @@ from social_feed.store import SocialFeedStore
 def test_same_home_forward_is_dynamic_and_never_copies_source(tmp_path):
     wall = PublicWall(tmp_path / 'wall.db')
     wall.initialize()
-    source = wall.create_moment('aning', '原文')
+    source = wall.create_moment('human', '原文')
     forwarded = wall.create_moment('k', '转发了一条动态', forward_ref={'origin': '', 'moment_id': source['id']})
     with wall._connect() as db:
         stored = db.execute('SELECT content,forward_json FROM wall_moments WHERE id=?', (forwarded['id'],)).fetchone()
     assert stored['content'] == '转发了一条动态'
     assert '原文' not in stored['forward_json']
     assert wall.get_moment(forwarded['id'])['forward']['source']['content'] == '原文'
-    wall.edit_moment('aning', source['id'], '已编辑', 1)
+    wall.edit_moment('human', source['id'], '已编辑', 1)
     assert wall.get_moment(forwarded['id'])['forward']['source']['content'] == '已编辑'
-    wall.withdraw('aning', source['id'])
+    wall.withdraw('human', source['id'])
     assert wall.get_moment(forwarded['id'])['forward']['status'] == 'unavailable'
 
 
 def test_forward_rejects_recursive_and_invalid_origin(tmp_path):
     wall = PublicWall(tmp_path / 'wall.db'); wall.initialize()
-    source = wall.create_moment('aning', '源')
+    source = wall.create_moment('human', '源')
     forwarded = wall.create_moment('k', '转发', forward_ref={'origin': '', 'moment_id': source['id']})
     with pytest.raises(PublicWallError, match='forward_source_unavailable'):
-        wall.create_moment('aning', '再转', forward_ref={'origin': '', 'moment_id': forwarded['id']})
+        wall.create_moment('human', '再转', forward_ref={'origin': '', 'moment_id': forwarded['id']})
     with pytest.raises(ValueError):
-        wall.create_moment('aning', '坏源', forward_ref={'origin': 'https://localhost', 'moment_id': source['id']})
+        wall.create_moment('human', '坏源', forward_ref={'origin': 'https://localhost', 'moment_id': source['id']})
 
 
 def test_external_forward_is_link_only(tmp_path):
     wall = PublicWall(tmp_path / 'wall.db'); wall.initialize()
-    item = wall.create_moment('aning', '转发', forward_ref={'origin': 'https://Example.COM', 'moment_id': 'sw_remote'})
+    item = wall.create_moment('human', '转发', forward_ref={'origin': 'https://Example.COM', 'moment_id': 'sw_remote'})
     forward = wall.get_moment(item['id'])['forward']
     assert forward['status'] == 'link_only'
     assert forward['reference'] == {'origin': 'https://example.com', 'moment_id': 'sw_remote'}
@@ -45,7 +45,7 @@ def test_external_forward_is_link_only(tmp_path):
 def test_private_public_round_trip_keeps_reference(tmp_path):
     async def run():
         feed = HybridSocialFeedStore(SocialFeedStore(tmp_path / 'private.db'), PublicWall(tmp_path / 'public.db'))
-        source = await feed.create_moment('aning', '公开源', visibility='public')
+        source = await feed.create_moment('human', '公开源', visibility='public')
         forwarded = await feed.create_moment('k', '转发', visibility='private',
                                              forward_ref={'origin': '', 'moment_id': source['id']})
         assert (await feed.get_moment(forwarded['id']))['forward']['status'] == 'available'
@@ -53,7 +53,7 @@ def test_private_public_round_trip_keeps_reference(tmp_path):
         assert (await feed.get_moment(forwarded['id']))['forward']['status'] == 'available'
         await feed.set_moment_visibility(forwarded['id'], 'k', 'private')
         assert (await feed.get_moment(forwarded['id']))['forward']['status'] == 'available'
-        await feed.set_moment_visibility(source['id'], 'aning', 'private')
+        await feed.set_moment_visibility(source['id'], 'human', 'private')
         assert (await feed.get_moment(forwarded['id']))['forward']['status'] == 'unavailable'
         with pytest.raises(Exception, match='forward_source_unavailable'):
             await feed.create_moment('k', '不能转私密源', visibility='private',
@@ -64,9 +64,9 @@ def test_private_public_round_trip_keeps_reference(tmp_path):
 def test_source_made_private_and_private_source_cannot_forward(tmp_path):
     async def run():
         feed = HybridSocialFeedStore(SocialFeedStore(tmp_path/'private.db'),PublicWall(tmp_path/'public.db'))
-        source = await feed.create_moment('aning','隐私正文',visibility='public')
+        source = await feed.create_moment('human','隐私正文',visibility='public')
         copy = await feed.create_moment('k','附言',visibility='public',forward_ref={'origin':'','moment_id':source['id']})
-        await feed.set_moment_visibility(source['id'],'aning','private')
+        await feed.set_moment_visibility(source['id'],'human','private')
         projection = await feed.get_moment(copy['id'])
         assert projection['forward']['status']=='unavailable'
         assert '隐私正文' not in str(projection)
@@ -89,7 +89,7 @@ async def test_authenticated_cross_home_forward_sends_reference_not_body():
             if method=='GET':return {'id':'same-id','visibility':'public','content':'源文不入目的站','author':'visitor:friend'}
             return {'id':'created'}
     transport=Transport()
-    result=await forward_moment(actor='aning',moment_id='same-id',source_site_id='a',site_id='b',visibility='public',source_key='request',sites=Registry(),client=transport,local_store=object())
+    result=await forward_moment(actor='human',moment_id='same-id',source_site_id='a',site_id='b',visibility='public',source_key='request',sites=Registry(),client=transport,local_store=object())
     payload=transport.calls[-1][-1]['payload']
     assert payload['forward_ref']=={'origin':'https://a.example.test','moment_id':'same-id'}
     assert '源文不入目的站' not in str(payload)
@@ -145,7 +145,7 @@ async def test_wander_forward_is_grounded_and_replays_without_duplicate(tmp_path
     from types import SimpleNamespace
     from wander_manager.social_circle_visit import SocialCircleVisit, activity_summary
     feed = HybridSocialFeedStore(SocialFeedStore(tmp_path/'private.db'),PublicWall(tmp_path/'public.db'))
-    source = await feed.create_moment('aning','公开来源正文',visibility='public')
+    source = await feed.create_moment('human','公开来源正文',visibility='public')
     async def context(_recipe, **kwargs):
         return SimpleNamespace(system_content=kwargs['wander_runtime_text'])
     async def decide(_messages):
@@ -175,7 +175,7 @@ async def test_public_forward_api_requires_session_csrf_and_current_source(tmp_p
     from social_feed.public_gateway import create_public_social_app
     wall = PublicWall(tmp_path/'public.db'); wall.initialize()
     monkeypatch.setattr('social_feed.public_wall._WALL',wall)
-    source = wall.create_moment('aning','公开原文')
+    source = wall.create_moment('human','公开原文')
     app = create_public_social_app(SimpleNamespace())
     payload = {'content':'自己的附言','forward_ref':{'origin':'','moment_id':source['id']},'request_id':'fixture-forward-001'}
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='https://social.example.invalid') as client:
@@ -191,7 +191,7 @@ async def test_public_forward_api_requires_session_csrf_and_current_source(tmp_p
         repeat = await client.post('/social/v1/moments',json=payload,headers=headers)
         assert repeat.json()['id']==created.json()['id']
         assert len(wall.list_moments()['items'])==2
-        wall.withdraw('aning',source['id'])
+        wall.withdraw('human',source['id'])
         response = await client.get('/social/v1/moments/'+created.json()['id'])
         assert response.json()['forward']['status']=='unavailable'
         assert '公开原文' not in response.text
@@ -205,12 +205,12 @@ def test_transfer_carries_only_durable_ref_and_keeps_original_home(tmp_path,monk
     for wall in (old,new):
         wall.initialize();wall.migrate_transfers()
     monkeypatch.setattr('social_feed.public_gateway.PUBLIC_SOCIAL_ORIGIN','https://old.example.test')
-    source = old.create_moment('aning','不应进入搬迁快照的原文')
+    source = old.create_moment('human','不应进入搬迁快照的原文')
     forwarded = old.create_moment('visitor:friend','自己的附言',forward_ref={'origin':'','moment_id':source['id']})
-    prepared = migration.prepare(old,'visitor:friend',forwarded['id'],'https://new.example.test','aning')
+    prepared = migration.prepare(old,'visitor:friend',forwarded['id'],'https://new.example.test','human')
     assert '不应进入搬迁快照的原文' not in str(prepared['snapshot'])
     staged = migration.stage(new,transfer_id=prepared['transfer_id'],source_origin='https://old.example.test',
-        source_actor='visitor:friend',target_actor='aning',snapshot=prepared['snapshot'],expected_digest=prepared['digest'])
+        source_actor='visitor:friend',target_actor='human',snapshot=prepared['snapshot'],expected_digest=prepared['digest'])
     committed = migration.commit(old,'visitor:friend',prepared['transfer_id'],staged['destination_moment_id'])
     activated = migration.activate(new,prepared['transfer_id'],committed)
     projection = new.get_moment(activated['id'])['forward']

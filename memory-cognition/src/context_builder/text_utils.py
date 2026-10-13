@@ -22,7 +22,7 @@ _BEARER_RE = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
 _IPV4_RE = re.compile(r"(?<!\d)(?:\d{1,3}\.){3}\d{1,3}(?!\d)")
 _DATA_URL_RE = re.compile(r"data:[^;,\s]+;base64,[A-Za-z0-9+/=]+", re.IGNORECASE)
 _LEGACY_SPEAKER_PREFIXES = {
-    "user": ("洛月凝", "人类伙伴", "user"),
+    "user": ("人类伙伴", "人类伙伴", "user"),
     "assistant": ("Agent", "assistant"),
 }
 

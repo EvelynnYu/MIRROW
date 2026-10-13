@@ -16,8 +16,8 @@ def migrate(wall, *, backup_ready=False):
         # No table references this receipt table. Preserve every ID and read/announce fact.
         sql=db.execute("SELECT sql FROM sqlite_master WHERE name='wall_notifications'").fetchone()[0]
         replacement=sql.replace('wall_notifications','wall_notifications_expanded',1).replace(
-            "CHECK (recipient IN ('aning','k'))", "CHECK (recipient IN ('aning','k') OR recipient GLOB 'visitor:*')")
-        if replacement==sql or "recipient IN ('aning','k'))" in replacement:
+            "CHECK (recipient IN ('human','k'))", "CHECK (recipient IN ('human','k') OR recipient GLOB 'visitor:*')")
+        if replacement==sql or "recipient IN ('human','k'))" in replacement:
             raise PublicWallError('social_notification_schema_unknown')
         db.execute(replacement)
         db.execute('INSERT INTO wall_notifications_expanded SELECT * FROM wall_notifications')

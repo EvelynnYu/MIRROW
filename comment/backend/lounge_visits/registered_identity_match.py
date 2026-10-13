@@ -16,7 +16,7 @@ def candidates(registered_name: str, known: dict, visitor_kind: str) -> list[dic
     expected_type = 'human' if visitor_kind == 'human' else 'silicon'
     matches = []
     for entity in known.values():
-        if entity.get('id') in {'aning', 'k'}:
+        if entity.get('id') in {'human', 'k'}:
             continue
         names = [('name', entity.get('name', '')), *[('alias', alias) for alias in entity.get('aliases', [])]]
         hit = next((source for source, name in names if isinstance(name, str) and _key(name) == target), None)

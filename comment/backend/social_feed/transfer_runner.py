@@ -19,7 +19,7 @@ async def move_hosted_post(wall, site: RemoteSite, actor_kind: str, moment_id: s
     destination_origin = migration.validate_origin(destination_origin)
     if origin == destination_origin:
         raise PublicWallError('transfer_same_home')
-    target_actor = 'aning' if actor_kind == 'human' else 'k'
+    target_actor = 'human' if actor_kind == 'human' else 'k'
     client = client or RemoteSocialClient()
     existing = migration.inbound_record(wall, origin, moment_id)
     if existing and existing['target_actor'] != target_actor:

@@ -17,7 +17,7 @@
 
 `household_identity.py` 只接受有效人类 Key 与最多八枚不同机 Key，同一机不可归两位人。已手工在主人名册登记的机可直接登录；未登记的机必须和人类 Key 成对注册。Key 轮换或撤销后，网页 Cookie 与 MCP 调用均要重新核验；访客「暂停」是否阻断共域须按本家会客语义单独决定并测试，不可假定与撤销等价。MCP 既有 `/mcp` 和一对一会客不能被共域覆盖。
 
-公开墙数据路径来自 `get_public_wall()`；移植时改成本家专用数据目录，**不要**使用 MIRROW 的 `events/social_public.db`。当前 `public_wall.py` 的 `aning`、`k` 是本家主人／机的本地保留 actor ID；若本家已有同名 ID，改映射并跑完整测试。
+公开墙数据路径来自 `get_public_wall()`；移植时改成本家专用数据目录，**不要**使用 MIRROW 的 `events/social_public.db`。当前 `public_wall.py` 的 `human`、`k` 是本家主人／机的本地保留 actor ID；若本家已有同名 ID，改映射并跑完整测试。
 
 ## 公网隔离与隧道
 

@@ -1,6 +1,6 @@
 """Authoritative storage for the private AI/A-Ning social feed.
 
-The feed is deliberately separate from conversation_messages and Elpis' group
+The feed is deliberately separate from conversation_messages and Peer' group
 chat "moments".  Opening the feed consumes only feed notifications; it never
 creates chat history or a topic boundary.
 """
@@ -88,7 +88,7 @@ try:
     _BEIJING = ZoneInfo("Asia/Shanghai")
 except ZoneInfoNotFoundError:  # Windows/minimal installs may omit the tzdata wheel
     _BEIJING = timezone(timedelta(hours=8), name="Asia/Shanghai")
-_AUTHORS = {"aning", "k"}
+_AUTHORS = {"human", "k"}
 _VISIBILITIES = {"private", "public"}
 _CURSOR_VERSION = 1
 
@@ -141,7 +141,7 @@ class SocialFeedStore:
                 """
                 CREATE TABLE IF NOT EXISTS social_moments (
                     id TEXT PRIMARY KEY,
-                    author TEXT NOT NULL CHECK (author IN ('aning', 'k')),
+                    author TEXT NOT NULL CHECK (author IN ('human', 'k')),
                     content TEXT NOT NULL,
                     visibility TEXT NOT NULL DEFAULT 'private'
                         CHECK (visibility IN ('private', 'public')),
@@ -156,7 +156,7 @@ class SocialFeedStore:
                 CREATE TABLE IF NOT EXISTS social_comments (
                     id TEXT PRIMARY KEY,
                     moment_id TEXT NOT NULL REFERENCES social_moments(id) ON DELETE CASCADE,
-                    author TEXT NOT NULL CHECK (author IN ('aning', 'k')),
+                    author TEXT NOT NULL CHECK (author IN ('human', 'k')),
                     content TEXT NOT NULL,
                     reply_to_id TEXT REFERENCES social_comments(id) ON DELETE SET NULL,
                     created_at REAL NOT NULL
@@ -166,7 +166,7 @@ class SocialFeedStore:
 
                 CREATE TABLE IF NOT EXISTS social_reactions (
                     moment_id TEXT NOT NULL REFERENCES social_moments(id) ON DELETE CASCADE,
-                    author TEXT NOT NULL CHECK (author IN ('aning', 'k')),
+                    author TEXT NOT NULL CHECK (author IN ('human', 'k')),
                     reaction TEXT NOT NULL CHECK (reaction = 'like'),
                     created_at REAL NOT NULL,
                     PRIMARY KEY (moment_id, author)
@@ -174,8 +174,8 @@ class SocialFeedStore:
 
                 CREATE TABLE IF NOT EXISTS social_notifications (
                     id TEXT PRIMARY KEY,
-                    recipient TEXT NOT NULL CHECK (recipient IN ('aning', 'k')),
-                    actor TEXT NOT NULL CHECK (actor IN ('aning', 'k')),
+                    recipient TEXT NOT NULL CHECK (recipient IN ('human', 'k')),
+                    actor TEXT NOT NULL CHECK (actor IN ('human', 'k')),
                     kind TEXT NOT NULL CHECK (kind IN ('moment', 'comment', 'like')),
                     moment_id TEXT NOT NULL REFERENCES social_moments(id) ON DELETE CASCADE,
                     comment_id TEXT REFERENCES social_comments(id) ON DELETE CASCADE,
@@ -338,7 +338,7 @@ class SocialFeedStore:
 
     @staticmethod
     def _other(author: str) -> str:
-        return "k" if author == "aning" else "aning"
+        return "k" if author == "human" else "human"
 
     @staticmethod
     def _visibility(value: str) -> str:
@@ -499,7 +499,7 @@ class SocialFeedStore:
                     ),
                 )
                 notification_id = await self._insert_notification(
-                    db, "aning", "k", "moment", moment_id, None, now
+                    db, "human", "k", "moment", moment_id, None, now
                 )
 
             await db.execute(
@@ -611,7 +611,7 @@ class SocialFeedStore:
             if row is None:
                 raise SocialFeedError("moment_not_found")
             owner = str(row["author"])
-            if owner != actor and not (allow_owner_override and actor == "aning"):
+            if owner != actor and not (allow_owner_override and actor == "human"):
                 raise SocialFeedError("forbidden")
             previous = str(row["visibility"])
             changed = previous != visibility
@@ -709,7 +709,7 @@ class SocialFeedStore:
             )).fetchone()
             if row is None:
                 raise SocialFeedError("comment_not_found")
-            if actor != "aning" and row["author"] != actor:
+            if actor != "human" and row["author"] != actor:
                 raise SocialFeedError("forbidden")
             await db.execute("DELETE FROM social_comments WHERE id=? AND moment_id=?", (comment_id, moment_id))
             await db.commit()
@@ -986,7 +986,7 @@ class SocialFeedStore:
             """
             CREATE TABLE IF NOT EXISTS social_moments (
                 id TEXT PRIMARY KEY,
-                author TEXT NOT NULL CHECK (author IN ('aning', 'k')),
+                author TEXT NOT NULL CHECK (author IN ('human', 'k')),
                 content TEXT NOT NULL,
                 visibility TEXT NOT NULL DEFAULT 'private'
                     CHECK (visibility IN ('private', 'public')),
@@ -998,15 +998,15 @@ class SocialFeedStore:
             CREATE TABLE IF NOT EXISTS social_comments (
                 id TEXT PRIMARY KEY,
                 moment_id TEXT NOT NULL REFERENCES social_moments(id) ON DELETE CASCADE,
-                author TEXT NOT NULL CHECK (author IN ('aning', 'k')),
+                author TEXT NOT NULL CHECK (author IN ('human', 'k')),
                 content TEXT NOT NULL,
                 reply_to_id TEXT REFERENCES social_comments(id) ON DELETE SET NULL,
                 created_at REAL NOT NULL
             );
             CREATE TABLE IF NOT EXISTS social_notifications (
                 id TEXT PRIMARY KEY,
-                recipient TEXT NOT NULL CHECK (recipient IN ('aning', 'k')),
-                actor TEXT NOT NULL CHECK (actor IN ('aning', 'k')),
+                recipient TEXT NOT NULL CHECK (recipient IN ('human', 'k')),
+                actor TEXT NOT NULL CHECK (actor IN ('human', 'k')),
                 kind TEXT NOT NULL CHECK (kind IN ('moment', 'comment', 'like')),
                 moment_id TEXT NOT NULL REFERENCES social_moments(id) ON DELETE CASCADE,
                 comment_id TEXT REFERENCES social_comments(id) ON DELETE CASCADE,

@@ -104,7 +104,7 @@ identityLabel.append(identitySelector); $('logout').before(identityLabel);
 $('profile-panel').prepend($('managed-profile-label'));
 const personOverrides = new Map();
 const csrf = () => decodeURIComponent((document.cookie.match(/(?:^|; )mirrow_wall_csrf=([^;]*)/) || [, ''])[1]);
-const person = (item, id) => personOverrides.get(id)?.name || item?.people?.[id]?.name || (id === 'k' ? 'AI' : id === 'aning' ? '站主' : '好友');
+const person = (item, id) => personOverrides.get(id)?.name || item?.people?.[id]?.name || (id === 'k' ? 'AI' : id === 'human' ? '站主' : '好友');
 const explainError = detail => ({
   invalid_key: 'Key 无法在 MIRROW 验证。请使用站主在「会客室→接待设置」生成并交给你的 Key；你家生成给 AI 出门用的 Key 不能在这里登录。',
   identity_binding_required: '这枚 Key 尚未绑定人物，请让站主在会客室完成认知绑定。',
@@ -446,10 +446,10 @@ async function ready(openAfterRegistration = false) {
     canManageAvatar = !!me.can_manage_avatar;
     $('draft').hidden = !(me.capabilities || []).includes('post');
     $('publish').hidden = $('draft').hidden;
-    $('draft').previousElementSibling.textContent = actor === 'aning'
+    $('draft').previousElementSibling.textContent = actor === 'human'
       ? '写一条本家动态'
       : '寄存一条动态在本家';
-    $('hosting-notice').textContent = !canInteract ? '资料待验证：可浏览。请打开「修改共域网名／头像 → 统一网名与头像」完成资料主站关联。' : actor === 'aning'
+    $('hosting-notice').textContent = !canInteract ? '资料待验证：可浏览。请打开「修改共域网名／头像 → 统一网名与头像」完成资料主站关联。' : actor === 'human'
       ? '本家动态由本家管理，向本家已准入的朋友开放。'
       : '寄存动态向本家已准入的朋友开放；站主可作为站主管理。日后可申请迁回自己的服务器。';
     showHeaderIdentity(me.actor);

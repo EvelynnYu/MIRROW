@@ -78,7 +78,7 @@ export function invalidateSocialPrewarm(api:string){
 export async function prewarmSocial(api:string){
   // Code and registry load alongside notification reads; only the registry precedes timeline.
   void loadSocialFeedPage().catch(()=>{});
-  const filter=readView<string>(socialViewKey(api,'aning','timeline','filter'),'all');
+  const filter=readView<string>(socialViewKey(api,'human','timeline','filter'),'all');
   const key=JSON.stringify([api,filter]);
   if(Date.now()-(warmed.get(key)||0)<120000)return;
   const stamp=Date.now();warmed.set(key,stamp);while(warmed.size>4)warmed.delete(warmed.keys().next().value!);

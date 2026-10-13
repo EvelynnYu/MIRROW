@@ -28,8 +28,8 @@ def digest(value: str) -> str:
 
 def home_grant(row) -> bool:
     """The local human explicitly delegates its own household's public profile."""
-    return (row['issuer'] == 'aning' and row['key_id'] == '__owner__'
-            and (row['actor'], row['kind']) in {('aning', 'human'), ('k', 'ai')})
+    return (row['issuer'] == 'human' and row['key_id'] == '__owner__'
+            and (row['actor'], row['kind']) in {('human', 'human'), ('k', 'ai')})
 
 
 class ProfileIdentityStore:

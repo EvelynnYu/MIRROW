@@ -14,7 +14,7 @@ import {getTimelineSnapshot,saveTimelineSnapshot} from '../social/timelineSnapsh
 import {beginSocialWrite,completeSocialWrite} from '../social/writeAttempt';
 
 export default function SocialTimelinePage({sites,onSwitch,onBack}:{sites:SocialSite[];onSwitch:(id:string)=>void;onBack:()=>void}) {
-  const view=(field:string)=>socialViewKey(getApiBase(),'aning','timeline',field);
+  const view=(field:string)=>socialViewKey(getApiBase(),'human','timeline',field);
   const [filter,setFilter]=useSocialView<VisibilityFilter>(view('filter'),'all');
   const [items,setItems]=useState<TimelineMoment[]>([]);
   const [cursor,setCursor]=useState<string|null>(null);

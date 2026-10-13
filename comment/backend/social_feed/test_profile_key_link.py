@@ -34,7 +34,7 @@ def setup(tmp_path, monkeypatch):
     target, ts, tr, runtime = runtime_fixture(tmp_path, monkeypatch)
     target.link_households('h', [('a', '私有机名')], human_name='私有人名')
     source, ss, sr = wall_fixture(tmp_path, 'source')
-    source.set_profile('aning', '公开人名')
+    source.set_profile('human', '公开人名')
     source.set_profile('k', '公开机名')
     callback = ClaimClient(source, ss)
     monkeypatch.setattr('social_feed.profile_key_link.ProfileTransport', lambda: callback)
@@ -45,9 +45,9 @@ def setup(tmp_path, monkeypatch):
 
 def payload(store, ai_key='fixture-secret-only-a'):
     members = []
-    for actor, kind in [('aning', 'human')] + ([('k', 'ai')] if ai_key else []):
+    for actor, kind in [('human', 'human')] + ([('k', 'ai')] if ai_key else []):
         snap = store.snapshot(actor, kind, SOURCE)
-        code = store.make_grant(actor, kind, 'aning', '__owner__', HOME, SOURCE)['code']
+        code = store.make_grant(actor, kind, 'human', '__owner__', HOME, SOURCE)['code']
         members.append({'code': code, 'kind': kind, 'profile_id': snap['profile_id']})
     return {'members': members, 'ai_key': ai_key}
 
@@ -79,14 +79,14 @@ async def test_human_guardian_pair_auto_link_idempotent_updates_and_rotation(tmp
         assert target.profile('visitor:a')['nickname'] == '公开机名'
         assert tr.state('visitor:h')['state'] == tr.state('visitor:a')['state'] == 'linked'
         assert target.registered_name('h') == '私有人名' and target.household_human('a') == 'h'
-        before = [len(ss.grants(a)) for a in ('aning', 'k')]
+        before = [len(ss.grants(a)) for a in ('human', 'k')]
         assert await sync_home_profiles(source, site(), SOURCE, client=remote) == result
-        assert before == [len(ss.grants(a)) for a in ('aning', 'k')] and callback.calls == 2
+        assert before == [len(ss.grants(a)) for a in ('human', 'k')] and callback.calls == 2
         old_ids = [ts.status(a)['identity_id'] for a in ('visitor:h', 'visitor:a')]
         source.set_profile('k', '机的新公开网名')
         assert await sync_home_profiles(source, site(), SOURCE, client=remote) == result
         assert target.profile('visitor:a')['nickname'] == '机的新公开网名'
-        assert all(len([g for g in ss.grants(a) if g['revoked'] is None]) == 1 for a in ('aning', 'k'))
+        assert all(len([g for g in ss.grants(a) if g['revoked'] is None]) == 1 for a in ('human', 'k'))
         original_auth = runtime.keys.authenticate_bearer_identity
         with runtime.database.connection() as db:
             db.execute("UPDATE visitor_keys SET revoked_at='now' WHERE id='key-h'")
@@ -198,15 +198,15 @@ def test_home_delegation_does_not_enable_guest_hosting(tmp_path):
     wall.register_human_name('h', '人'); wall.set_profile('visitor:h', '访客公开名')
     with pytest.raises(PublicWallError, match='hosting_disabled'):
         store.make_grant('visitor:h','human','visitor:h','key',SOURCE,HOME)
-    wall.set_profile('aning', '本家公开名')
-    store.make_grant('aning','human','aning','__owner__',SOURCE,HOME)
+    wall.set_profile('human', '本家公开名')
+    store.make_grant('human','human','human','__owner__',SOURCE,HOME)
     assert store.enabled() is False
 
 
 @pytest.mark.asyncio
 async def test_fake_remote_success_without_callback_never_completes_or_accumulates(tmp_path):
     wall, store, _ = wall_fixture(tmp_path)
-    wall.set_profile('aning', '本人公开名'); wall.set_profile('k', '机公开名')
+    wall.set_profile('human', '本人公开名'); wall.set_profile('k', '机公开名')
     class FakeRemote:
         async def request(self, site, role, method, path, *, payload=None):
             if method == 'GET':
@@ -216,4 +216,4 @@ async def test_fake_remote_success_without_callback_never_completes_or_accumulat
     for _ in range(3):
         result = await sync_home_profiles(wall, site(), SOURCE, client=FakeRemote())
         assert result['human']['status'] == result['ai']['status'] == 'pending'
-    assert all(not [g for g in store.grants(actor) if g['revoked'] is None] for actor in ('aning','k'))
+    assert all(not [g for g in store.grants(actor) if g['revoked'] is None] for actor in ('human','k'))

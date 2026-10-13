@@ -110,7 +110,7 @@ def validate_origin(origin: str) -> str:
 def prepare(wall, actor: str, moment_id: str, destination_origin: str, target_actor: str) -> dict:
     actor = wall._actor(actor)
     destination_origin = validate_origin(destination_origin)
-    if target_actor not in {'aning', 'k'}:
+    if target_actor not in {'human', 'k'}:
         raise PublicWallError('invalid_transfer_target')
     with wall._connect() as db:
         db.execute('BEGIN IMMEDIATE')
@@ -149,7 +149,7 @@ def prepare(wall, actor: str, moment_id: str, destination_origin: str, target_ac
         for other in actors:
             profile = db.execute('SELECT nickname FROM wall_profiles WHERE actor_id=?', (other,)).fetchone()
             people[other] = str((profile['nickname'] if profile and profile['nickname'] else '') or
-                                ('站主' if other == 'aning' else 'AI' if other == 'k' else '未设置网名'))[:40]
+                                ('站主' if other == 'human' else 'AI' if other == 'k' else '未设置网名'))[:40]
         snapshot = {'moment': item, 'people': people}
         snap_digest = digest(snapshot)
         if active_prior and active_prior['digest'] != snap_digest:
@@ -174,7 +174,7 @@ def stage(wall, *, transfer_id: str, source_origin: str, source_actor: str,
             or not isinstance(expected_digest, str) or not re.fullmatch(r'[a-f0-9]{64}', expected_digest)):
         raise PublicWallError('invalid_transfer_request')
     source_origin = validate_origin(source_origin)
-    if target_actor not in {'aning', 'k'} or not source_actor.startswith('visitor:'):
+    if target_actor not in {'human', 'k'} or not source_actor.startswith('visitor:'):
         raise PublicWallError('invalid_transfer_identity')
     if digest(snapshot) != expected_digest:
         raise PublicWallError('transfer_digest_mismatch')

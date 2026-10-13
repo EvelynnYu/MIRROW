@@ -61,11 +61,11 @@ _GENERIC_TERMS = {
     "assistant",
     "user",
     "人类伙伴",
-    "洛月",
-    "月凝",
+    "伙伴",
+    "伙伴",
 }
 _GENERIC_FRAGMENTS = (
-    "洛月凝",
+    "人类伙伴",
     "人类伙伴",
     "表示",
     "提到",

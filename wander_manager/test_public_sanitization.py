@@ -44,7 +44,7 @@ class PublicSanitizationTests(unittest.TestCase):
     def test_legacy_self_memory_subject_stays_in_self_block(self):
         builder = ContextBuilder()
         builder._kwargs = {"memories": [SimpleNamespace(
-            content="stored self memory", metadata={"subject": "K"},
+            content="stored self memory", metadata={"subject": "AI"},
         )]}
         with patch("context_builder.builder.guide_for", side_effect=lambda key, _: key):
             result = asyncio.run(builder._call_ingredient(RecipeSection("memory", "memories")))

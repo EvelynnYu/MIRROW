@@ -1,9 +1,9 @@
-"""Factual candidate provenance and bounded variety for K's music choice."""
+"""Factual candidate provenance and bounded variety for AI's music choice."""
 from __future__ import annotations
 
 from collections import deque
 
-SUBJECT_LABELS = {"owner": "使用者", "k": "K", "shared": "共有"}
+SUBJECT_LABELS = {"owner": "使用者", "k": "AI", "shared": "共有"}
 
 
 def memberships(song: dict) -> list[dict[str, str]]:
@@ -47,7 +47,7 @@ def merge_shelf_candidates(cached: list[dict], shelf: list[dict]) -> list[dict]:
 
 def preview_candidates(cached: list[dict], *, recent_fingerprints: set[str] | None = None,
                        limit: int = 30) -> list[dict]:
-    """Show each available shelf and ordinary cache without forcing K's choice."""
+    """Show each available shelf and ordinary cache without forcing AI's choice."""
     recent = recent_fingerprints or set()
     buckets: dict[str, list[dict]] = {key: [] for key in ("owner", "shared", "k", "cache")}
     for song in cached:
@@ -78,7 +78,7 @@ def preview_candidates(cached: list[dict], *, recent_fingerprints: set[str] | No
 
 
 def selected_origin(selection: dict, song: dict) -> tuple[str, dict[str, str] | None]:
-    """A song's membership alone cannot reveal which source K chose."""
+    """A song's membership alone cannot reveal which source AI chose."""
     if selection.get("from_cache") is not True:
         return "search_result", None
     source_id = str(selection.get("source_playlist_id") or "").strip()

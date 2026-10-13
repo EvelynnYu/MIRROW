@@ -16,7 +16,7 @@
     const advanced=node('details','md-music-advanced');advanced.append(node('summary','','显示名（可选）'));
     const title=field('音乐显示名',draft.theme.music_title,v=>{draft.theme.music_title=v;updateStatus();},{max:200});
     const titleInput=title.querySelector('input');advanced.append(title,node('small','md-copy','留空使用默认名称；这只改变顶栏显示，不决定是否有音频。'));
-    const fileStatus=await uploadField(filePane,'上传 MP3 / WAV','aning',draft.theme,'music',true,()=>{
+    const fileStatus=await uploadField(filePane,'上传 MP3 / WAV','human',draft.theme,'music',true,()=>{
       // A local file becomes the sole selected source; old cloud metadata is not its authority.
       draft.theme.music_track=null;
       const name=uploadedName();

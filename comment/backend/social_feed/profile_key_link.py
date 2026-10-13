@@ -73,7 +73,7 @@ async def accept_key_profiles(wall, bindings, home_origin, *, client=None, valid
 async def sync_home_profiles(wall, site, home_origin, *, client):
     """Each configured Key maps exactly one source role; failure is never connected."""
     store = ProfileIdentityStore(wall)
-    roles = [('human', 'aning')] + ([('ai', 'k')] if site.ai_key else [])
+    roles = [('human', 'human')] + ([('ai', 'k')] if site.ai_key else [])
     results = {role: {'status': 'not_configured'} for role in ('human', 'ai')}
     if not site.human_key:
         if site.ai_key: results['ai'] = {'status': 'pending', 'reason': 'profile_human_key_required'}
@@ -96,7 +96,7 @@ async def sync_home_profiles(wall, site, home_origin, *, client):
         with wall._connect() as db:
             active_claims = all(db.execute(
                 "SELECT 1 FROM profile_identity_grants WHERE actor=? AND kind=? AND audience=? AND consumer=? "
-                "AND issuer='aning' AND key_id='__owner__' AND revoked IS NULL AND expires>?",
+                "AND issuer='human' AND key_id='__owner__' AND revoked IS NULL AND expires>?",
                 (subject, role, site.origin, remote_roles[role]['actor_id'], time.time())).fetchone()
                 for role, subject in roles)
         if active_claims and all((remote_roles[role].get('link') or {}).get('status') == 'verified'
@@ -105,7 +105,7 @@ async def sync_home_profiles(wall, site, home_origin, *, client):
             return {**results, **{role: {'status': 'linked'} for role, _ in roles}}
         members = []
         for role, subject in roles:
-            code = store.make_grant(subject, role, 'aning', '__owner__', site.origin, home_origin)['code']
+            code = store.make_grant(subject, role, 'human', '__owner__', site.origin, home_origin)['code']
             codes.append((subject, code))
             members.append({'code': code, 'kind': role, 'profile_id': snapshots[role]['profile_id']})
         value = await client.request(site, 'human', 'POST', '/social/v1/profile-links/key-profile',
@@ -126,12 +126,12 @@ async def sync_home_profiles(wall, site, home_origin, *, client):
                 row = db.execute('SELECT * FROM profile_identity_grants WHERE ticket_hash=?', (digest(ticket),)).fetchone()
                 if (not row or row['actor'] != subject or row['kind'] != role or row['audience'] != site.origin
                         or row['consumer'] != remote_roles[role]['actor_id'] or row['revoked'] is not None
-                        or row['expires'] <= time.time() or row['issuer'] != 'aning' or row['key_id'] != '__owner__'):
+                        or row['expires'] <= time.time() or row['issuer'] != 'human' or row['key_id'] != '__owner__'):
                     raise PublicWallError('profile_response_invalid')
             for (role, subject), (_, code) in zip(roles, codes):
                 _, ticket = decode_code(code)
                 db.execute("UPDATE profile_identity_grants SET revoked=? WHERE actor=? AND audience=? "
-                           "AND consumer=? AND issuer='aning' AND key_id='__owner__' AND ticket_hash!=? AND revoked IS NULL",
+                           "AND consumer=? AND issuer='human' AND key_id='__owner__' AND ticket_hash!=? AND revoked IS NULL",
                            (time.time(), subject, site.origin, remote_roles[role]['actor_id'], digest(ticket)))
         results.update({role: {'status': 'linked'} for role, _ in roles})
     except (PublicWallError, RemoteSiteError, ValueError, OSError, RuntimeError) as exc:

@@ -40,8 +40,8 @@ def _decode(cursor, actor, visibility):
 
 
 class SocialTimeline:
-    def __init__(self, local, sites, *, actor='aning', remote_read=None):
-        if actor not in {'aning', 'k'}:
+    def __init__(self, local, sites, *, actor='human', remote_read=None):
+        if actor not in {'human', 'k'}:
             raise TimelineError('invalid_timeline_actor')
         self.local, self.sites, self.actor = local, sites, actor
         self.remote_read = remote_read or self._remote
@@ -49,7 +49,7 @@ class SocialTimeline:
     async def _remote(self, site, params):
         from .remote_client import RemoteSocialClient
         client = RemoteSocialClient()
-        kind = 'human' if self.actor == 'aning' else 'ai'
+        kind = 'human' if self.actor == 'human' else 'ai'
         me, page = await asyncio.gather(
             client.request(site, kind, 'GET', '/social/v1/me',params={'arrival':'false'}),
             client.request(site, kind, 'GET', '/social/v1/moments', params=params))
@@ -73,7 +73,7 @@ class SocialTimeline:
             'v': 1, 'actor': self.actor, 'visibility': visibility,
             'at': time.time(), 'positions': {}}
         eligible = [s for s in self.sites if s.enabled and
-                    (s.human_key if self.actor == 'aning' else s.ai_key)] if visibility != 'private' else []
+                    (s.human_key if self.actor == 'human' else s.ai_key)] if visibility != 'private' else []
         omitted = max(0, len(eligible) - 32)
         eligible = eligible[:32]
         sources = [('', None), *[(s.id, s) for s in eligible]]

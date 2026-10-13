@@ -232,7 +232,7 @@ class NetEaseProvider:
                 raise MusicNotFound("这张歌单已不在当前网易云账号中")
             owner = raw.get("userId") or (raw.get("creator") or {}).get("userId")
             if str(owner or "") != str(uid):
-                raise MusicNotFound("只能删除 K 自己创建的网易云歌单")
+                raise MusicNotFound("只能删除 AI 自己创建的网易云歌单")
             response = playlist.SetRemovePlaylist([int(pid)])
             if not isinstance(response, dict) or response.get("code") not in {200, 201}:
                 raise MusicNotFound("网易云未确认删除歌单")

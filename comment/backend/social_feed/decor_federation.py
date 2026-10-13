@@ -47,7 +47,7 @@ async def retry_pending():
     from .decor_store import get_decor_store
     from .public_gateway import PUBLIC_SOCIAL_ORIGIN
     store=get_decor_store()
-    for subject in ('aning','k'):
+    for subject in ('human','k'):
         if store.sync_jobs(subject):
             try:
                 await asyncio.wait_for(sync_personal(store,subject,PUBLIC_SOCIAL_ORIGIN,enqueue=False),timeout=20)
@@ -56,7 +56,7 @@ async def retry_pending():
 
 
 async def link_site(store, site, subject, home_origin, client=None):
-    kind = 'human' if subject == 'aning' else 'ai'
+    kind = 'human' if subject == 'human' else 'ai'
     client = client or RemoteSocialClient()
     me = await client.request(site,kind,'GET','/social/v1/me')
     actor = me.get('actor',{}).get('actor_id','')
@@ -83,7 +83,7 @@ async def sync_personal(store, subject, home_origin, *, previous=None, enqueue=T
         if site is None:
             store.finish_sync(subject,job['site_id'],job['generation'])
             continue
-        kind = 'human' if subject=='aning' else 'ai'
+        kind = 'human' if subject=='human' else 'ai'
         if not site.enabled or not (site.human_key if kind=='human' else site.ai_key):
             results.append({'site_id':site.id,'name':site.name,'status':'pending'})
             continue
@@ -112,7 +112,7 @@ async def sync_personal(store, subject, home_origin, *, previous=None, enqueue=T
 async def receive_remote_gifts(site, subject, store, client=None):
     """Enter as exactly one actor. Import receipts before acknowledging delivery."""
     client = client or RemoteSocialClient()
-    kind = 'human' if subject=='aning' else 'ai'
+    kind = 'human' if subject=='human' else 'ai'
     result = await client.request(site,kind,'POST','/social/v1/decor/visit',payload={})
     gifts = result.get('gifts') or []
     for gift in gifts[:50]:
@@ -138,7 +138,7 @@ async def receive_remote_gifts(site, subject, store, client=None):
 
 async def refresh_remote_gifts(site, subject, store, client=None):
     client = client or RemoteSocialClient()
-    kind = 'human' if subject=='aning' else 'ai'
+    kind = 'human' if subject=='human' else 'ai'
     from .decor_gift_updates import present, ready
     with store.connect() as db:
         if not ready(db):

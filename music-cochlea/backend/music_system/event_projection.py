@@ -30,7 +30,7 @@ def persisted_action_actor(message_id: str, event_type: str, content: str) -> st
     if event_type != 'music_library_event' or not re.fullmatch(r'music_library_event_[0-9]+', message_id):
         return ''
     text = content.removeprefix('[事件记录] ')
-    for actor, label in (('k', 'K'), ('owner', '使用者')):
+    for actor, label in (('k', 'AI'), ('owner', '使用者')):
         if any(text.startswith(label + '已确认' + action) for action in _ACTIONS.values()):
             return actor
     return ''
@@ -43,7 +43,7 @@ def event_fact(event: dict[str, Any]) -> dict[str, Any] | None:
         return None
     if kind in {"tracks_added", "tracks_removed"} and not details.get("verified_change"):
         return None
-    actor = "K" if details.get("source") in {"wander", "k_tool"} else "使用者"
+    actor = "AI" if details.get("source") in {"wander", "k_tool"} else "使用者"
     name = str(details.get("name") or details.get("after") or "")[:100]
     song_name = str(details.get("song_title") or "")[:160]
     song_artist = str(details.get("song_artist") or "")[:120]
@@ -67,7 +67,7 @@ def event_fact(event: dict[str, Any]) -> dict[str, Any] | None:
         "playlist_id": str(event.get("playlist_id") or ""),
         "node_id": str(details.get("node_id") or ""),
         "source_event_id": int(event["id"]),
-        "actor_id": "k" if actor == "K" else "owner",
+        "actor_id": "k" if actor == "AI" else "owner",
     }
 
 

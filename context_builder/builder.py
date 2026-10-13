@@ -497,9 +497,9 @@ class ContextBuilder:
                             meta_parts.append(", ".join(v) if isinstance(v, list) else str(v))
                     meta_str = " · ".join(meta_parts)
                     content += str(md.get("source_hint") or "")
-                    # ``K`` is the historical storage subject for AI-owned
+                    # ``AI`` is the historical storage subject for AI-owned
                     # memories.  It is a compatibility key, not display text.
-                    if subject == "K":
+                    if subject == "AI":
                         self_i += 1
                         self_parts.append(f"相关记忆 {self_i}: ({meta_str}) {content}" if meta_str else f"相关记忆 {self_i}: {content}")
                     else:

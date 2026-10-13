@@ -38,7 +38,7 @@ def test_gift_receipts_split_deduplicate_and_survive_removal(tmp_path):
     assert store.collection('visitor:a')[0]['snapshot']['name']=='小杯酒'
     with store.connect() as db:
         assert db.execute('SELECT COUNT(*) FROM events').fetchone()[0]==3
-    assert store.visit('aning','human','站主')==[]
+    assert store.visit('human','human','站主')==[]
 
 
 @pytest.mark.asyncio
@@ -72,7 +72,7 @@ async def test_guardian_comment_projection_and_delete_match_http_permission(gate
     from social_feed.public_wall import get_public_wall
     app, _store = gateway; wall = get_public_wall()
     wall.link_household('h','a')
-    post = wall.create_moment('aning','隔离测试动态')
+    post = wall.create_moment('human','隔离测试动态')
     own_ai = wall.add_comment('visitor:a',post['id'],'自家机的评论')
     other = wall.add_comment('visitor:other',post['id'],'另一家的评论')
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='https://social.example.invalid') as client:
@@ -110,7 +110,7 @@ def gateway(tmp_path,monkeypatch):
     monkeypatch.setattr('social_feed.public_wall._WALL',wall)
     monkeypatch.setattr('social_feed.public_gateway._identity',lambda runtime,request,write=False,admission=True:request.headers.get('x-test-actor','visitor:h'))
     monkeypatch.setattr('social_feed.public_gateway._display',lambda runtime,actor,viewer:{'actor_id':actor,'name':actor,'avatar':''})
-    monkeypatch.setattr('social_feed.public_gateway._managed_profiles',lambda runtime,actor:['aning','k'] if actor=='aning' else ['visitor:h','visitor:a'] if actor=='visitor:h' else [actor])
+    monkeypatch.setattr('social_feed.public_gateway._managed_profiles',lambda runtime,actor:['human','k'] if actor=='human' else ['visitor:h','visitor:a'] if actor=='visitor:h' else [actor])
     runtime=SimpleNamespace(visitor_service=SimpleNamespace(effective_visitor=lambda vid:SimpleNamespace(visitor_kind='human' if vid=='h' else 'external_ai')))
     # Suppress external delivery: test receipts must never enter real main chat.
     async def publish(*args,**kwargs): return 0
@@ -127,16 +127,16 @@ async def test_public_boundary_personal_permissions_and_signed_sync(gateway,monk
         assert (await client.post('/social/v1/decor/gifts',json={'kind':'human','exhibit_id':'x','request_id':'unique-123'})).status_code==403
         assert (await client.put('/social/v1/decor/people/visitor:a',json={'frame':'orbit'})).status_code==200
         assert (await client.put('/social/v1/decor/people/visitor:a',json={'frame':'lace'},headers={'x-test-actor':'visitor:a'})).status_code==403
-        assert (await client.put('/social/v1/decor/people/aning',json={'frame':'lace'})).status_code==403
+        assert (await client.put('/social/v1/decor/people/human',json={'frame':'lace'})).status_code==403
         state=await client.get('/social/v1/decor/state');assert state.json()['owner'] is False and state.json()['sites']==[]
-        proof={'origin':'https://person_a.example','subject':'aning','audience':'https://social.example.invalid','actor':'visitor:h'}
+        proof={'origin':'https://person_a.example','subject':'human','audience':'https://social.example.invalid','actor':'visitor:h'}
         async def read(*args):return proof
         monkeypatch.setattr('social_feed.decor_federation.read_proof',read)
-        body={'origin':'https://person_a.example','subject':'aning','token':'x'*40}
+        body={'origin':'https://person_a.example','subject':'human','token':'x'*40}
         assert (await client.post('/social/v1/decor/link',json=body)).status_code==200
         proof['actor']='visitor:other'
         assert (await client.post('/social/v1/decor/link',json=body)).status_code==400
-        payload={'origin':'https://person_a.example','subject':'aning','design':PersonalDesign(frame='orbit').model_dump(),'frame_data':'','card_data':''}
+        payload={'origin':'https://person_a.example','subject':'human','design':PersonalDesign(frame='orbit').model_dump(),'frame_data':'','card_data':''}
         digest=hashlib.sha256(json.dumps(payload,sort_keys=True,separators=(',',':')).encode()).hexdigest()
         proof={'operation':'decor_sync','actor':'visitor:h','audience':'https://social.example.invalid','digest':digest,'version':1}
         assert (await client.put('/social/v1/decor/sync',json=payload|{'token':'x'*40})).status_code==200
@@ -163,14 +163,14 @@ def test_gift_race_and_old_sync_cannot_overwrite_latest(tmp_path):
     with ThreadPoolExecutor(max_workers=6) as workers:
         results=list(workers.map(lambda _:store.visit('visitor:h','human','人甲'),range(12)))
     assert len({rows[0]['id'] for rows in results})==1
-    store.bind('visitor:h','https://person_a.example','aning')
+    store.bind('visitor:h','https://person_a.example','human')
     assert store.save_synced('visitor:h','https://person_a.example',20,PersonalDesign(frame='orbit'))
     assert not store.save_synced('visitor:h','https://person_a.example',19,PersonalDesign(frame='lace'))
     assert store.personal('visitor:h')['frame']=='orbit'
-    store.queue_sync('aning','site',True); old=store.sync_jobs('aning')[0]
-    store.queue_sync('aning','site',False)
-    store.finish_sync('aning','site',old['generation'])
-    assert store.sync_jobs('aning')[0]['active']==0
+    store.queue_sync('human','site',True); old=store.sync_jobs('human')[0]
+    store.queue_sync('human','site',False)
+    store.finish_sync('human','site',old['generation'])
+    assert store.sync_jobs('human')[0]['active']==0
     store.unlink('visitor:h')
     with pytest.raises(DecorError,match='home_link_required'):
         store.save_synced('visitor:h','https://person_a.example',30,PersonalDesign(frame='lace'))
@@ -234,13 +234,13 @@ async def test_sync_pending_and_scope_withdrawal_retried(tmp_path,monkeypatch):
                 proof=store.proof(kwargs['payload']['token']);assert proof['operation']=='decor_sync'
             return {'ok':True}
     monkeypatch.setattr(f,'RemoteSocialClient',Client)
-    store.save_personal('aning',PersonalDesign(frame='orbit'))
-    store.choice('aning',SyncChoice(scope='all'))
-    assert (await f.sync_personal(store,'aning','https://home.example'))[0]['status']=='pending'
+    store.save_personal('human',PersonalDesign(frame='orbit'))
+    store.choice('human',SyncChoice(scope='all'))
+    assert (await f.sync_personal(store,'human','https://home.example'))[0]['status']=='pending'
     fail=False
-    assert (await f.sync_personal(store,'aning','https://home.example',enqueue=False))[0]['status']=='success'
-    assert calls==['orbit'] and not store.sync_jobs('aning')
-    old=store.choice('aning');store.choice('aning',SyncChoice(scope='local'));fail=True
-    await f.sync_personal(store,'aning','https://home.example',previous=old)
-    fail=False;await f.sync_personal(store,'aning','https://home.example',enqueue=False)
-    assert calls==['orbit','none'] and not store.sync_jobs('aning')
+    assert (await f.sync_personal(store,'human','https://home.example',enqueue=False))[0]['status']=='success'
+    assert calls==['orbit'] and not store.sync_jobs('human')
+    old=store.choice('human');store.choice('human',SyncChoice(scope='local'));fail=True
+    await f.sync_personal(store,'human','https://home.example',previous=old)
+    fail=False;await f.sync_personal(store,'human','https://home.example',enqueue=False)
+    assert calls==['orbit','none'] and not store.sync_jobs('human')

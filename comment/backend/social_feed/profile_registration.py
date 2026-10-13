@@ -16,7 +16,7 @@ def ready(db):
 
 
 def state_in(db, actor):
-    if actor in {'aning', 'k'}:
+    if actor in {'human', 'k'}:
         return {'state': 'local', 'can_interact': True, 'can_edit_profile': True}
     link = None
     if db.execute("SELECT 1 FROM sqlite_master WHERE name='profile_identity_links'").fetchone():
@@ -45,7 +45,7 @@ def source_in(db, actor, choice, home_origin):
     mode, origin = choice.get('choice'), choice.get('origin', '')
     if mode not in {'local', 'existing'}:
         raise PublicWallError('profile_source_required')
-    if actor in {'aning', 'k'}:
+    if actor in {'human', 'k'}:
         raise PublicWallError('profile_home_is_source')
     if mode == 'existing':
         from .remote_sites import normalize_social_origin

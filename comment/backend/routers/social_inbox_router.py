@@ -41,7 +41,7 @@ async def inbox():
     if runtime:
         for row in result['items']:
             if not row['site_id']:
-                row['actor_name']=_display(runtime,row['actor'],viewer='aning')['name']
+                row['actor_name']=_display(runtime,row['actor'],viewer='human')['name']
     return result
 
 
@@ -54,7 +54,7 @@ async def acknowledge(body:ReadInput):
         result,_,_=await remote(body.site_id,'POST','/social/v1/notifications/read',
                                payload={'notification_ids':body.notification_ids})
         return {'marked':result.get('marked',0)}
-    count=await get_social_feed_store().mark_notifications_read('aning',body.notification_ids,
+    count=await get_social_feed_store().mark_notifications_read('human',body.notification_ids,
                                                               read_source='human_inbox')
     return {'marked':count}
 
@@ -79,8 +79,8 @@ async def open_moment(moment_id:str,site_id:str=''):
         from routers.social_feed_router import _local_avatar
         runtime=current_runtime()
         if runtime:
-            item=_decorate(runtime,item,viewer='aning')
+            item=_decorate(runtime,item,viewer='human')
             for person in item.get('people',{}).values():_local_avatar(person)
         item['source']={'site_id':'','site_name':'本家','origin':'','hosting_mode':'home'}
-        item['viewer_actor']='aning'
+        item['viewer_actor']='human'
     return item

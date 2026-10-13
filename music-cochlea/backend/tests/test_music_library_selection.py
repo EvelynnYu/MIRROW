@@ -44,7 +44,7 @@ class SelectionTests(unittest.IsolatedAsyncioTestCase):
         provider._account = Mock(return_value=7)
         async def call(fn, *args): return fn(*args)
         provider._call = call
-        owned = {'id': 3, 'name': 'K Shelf', 'userId': 7, 'trackCount': 1}
+        owned = {'id': 3, 'name': 'AI Shelf', 'userId': 7, 'trackCount': 1}
         with patch('pyncm.apis.user.GetUserPlaylists', side_effect=[
             {'code': 200, 'playlist': [owned], 'more': False},
             {'code': 200, 'playlist': [], 'more': False},
@@ -88,7 +88,7 @@ class SelectionTests(unittest.IsolatedAsyncioTestCase):
             with patch.object(library, 'get_service', return_value=service):
                 default = library.set_wander_default('4')
                 self.assertTrue(default['wander_default'])
-                result = await library.collect('node-one', {'netease_song_id':'9'}, 'K明确想留下')
+                result = await library.collect('node-one', {'netease_song_id':'9'}, 'AI明确想留下')
             self.assertEqual('completed', result['status'])
             self.assertEqual('4', result['playlist_id'])
             self.assertEqual(updated, store.material('playlist:4'))
@@ -155,7 +155,7 @@ class SelectionTests(unittest.IsolatedAsyncioTestCase):
             with patch.object(library, 'get_service', return_value=service):
                 with self.assertRaises(MusicNotFound):
                     await library.delete('3')
-                store.bind_playlist('3', 'k', 'K Shelf')
+                store.bind_playlist('3', 'k', 'AI Shelf')
                 removed = await library.delete('3', source='wander')
             self.assertTrue(removed['deleted'])
             self.assertEqual([], store.bindings())
@@ -165,8 +165,8 @@ class SelectionTests(unittest.IsolatedAsyncioTestCase):
     async def test_structured_wander_action_adds_only_the_current_song_once(self):
         with tempfile.TemporaryDirectory() as directory:
             store = MusicStore(Path(directory) / 'music.db')
-            store.bind_playlist('4', 'k', 'K Shelf')
-            updated = {'id':'4','name':'K Shelf','songs':[{'id':'9','name':'Nine','artist':'A'}],
+            store.bind_playlist('4', 'k', 'AI Shelf')
+            updated = {'id':'4','name':'AI Shelf','songs':[{'id':'9','name':'Nine','artist':'A'}],
                        '_changed_song_ids':['9']}
             provider = SimpleNamespace(change_tracks=AsyncMock(return_value=updated))
             service = SimpleNamespace(store=store, provider=provider)

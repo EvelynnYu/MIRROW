@@ -1,0 +1,20 @@
+.local-shell { max-width: 1040px; margin: auto; padding: 40px 24px; }
+.local-shell h1 { font-size: clamp(1.8rem, 4vw, 2.7rem); margin: 16px 0; }
+.local-shell nav { flex-wrap: wrap; }
+.local-shell button { background: #403348; color: inherit; border: 1px solid #766080; border-radius: 10px; padding: 10px 16px; }
+.local-shell button[aria-pressed=true] { background: #6c4e7c; }
+.local-form { border: 1px solid #65516b; border-radius: 16px; padding: 24px; }
+.local-form label { display: grid; gap: 8px; margin: 18px 0; }
+.local-shell input, .local-shell textarea { width: 100%; color: inherit; background: #26212e; border: 1px solid #766080; border-radius: 8px; padding: 12px; }
+.local-shell textarea { resize: vertical; }
+.local-form p, .local-hint { color: #c9becb; line-height: 1.7; }
+.local-form button + button { margin-left: 10px; }
+.idle-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.chat-history { display: grid; gap: 14px; margin: 24px 0; }
+.chat-message { max-width: 88%; border: 1px solid #554b60; border-radius: 14px; padding: 14px 18px; background: #302a37; }
+.chat-message.user { justify-self: end; background: #42304d; }
+.chat-message p, .local-form blockquote p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; }
+.chat-message small { display: block; color: #c9becb; }
+.chat-compose { display: grid; gap: 10px; }
+.chat-compose button { justify-self: end; }
+@media(max-width: 600px) { .local-shell { padding: 24px 16px; } .local-form { padding: 16px; } .chat-message { max-width: 96%; } }

@@ -55,8 +55,8 @@ async def test_remote_relay_preserves_request_and_desired_state(monkeypatch):
 @pytest.mark.asyncio
 async def test_private_archive_like_replay(tmp_path):
     store = HybridSocialFeedStore(SocialFeedStore(tmp_path/'private.db'), PublicWall(tmp_path/'public.db'))
-    item = await store.create_moment('aning', 'archive demo', visibility='public')
-    await store.set_moment_visibility(item['id'], 'aning', 'private')
+    item = await store.create_moment('human', 'archive demo', visibility='public')
+    await store.set_moment_visibility(item['id'], 'human', 'private')
     for target in (True, True, False, False):
-        assert (await store.toggle_like(item['id'], 'aning', liked=target))['active'] == target
+        assert (await store.toggle_like(item['id'], 'human', liked=target))['active'] == target
         assert len((await store.get_moment(item['id']))['reactions']) == int(target)

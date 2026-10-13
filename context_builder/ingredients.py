@@ -39,10 +39,9 @@ def build_time_section() -> str:
         if is_rest_day_today and is_rest_day_today():
             return f"今天是用户的休息日。当前日期: {date_str} {weekday_str} {time_str}"
         else:
-            return f"今天是用户的工作日，工作时间通常是8:30-18:00。当前日期: {date_str} {weekday_str} {time_str}"
+            return f"宿主日历标记今天为工作日。当前日期: {date_str} {weekday_str} {time_str}"
     except Exception:
-        day_type = "工作日" if now.weekday() < 5 else "休息日"
-        return f"当前日期: {date_str} {weekday_str} {time_str} ({day_type})"
+        return f"当前日期: {date_str} {weekday_str} {time_str}；个人工作安排未知"
 
 
 def build_timeline_anchor() -> str:

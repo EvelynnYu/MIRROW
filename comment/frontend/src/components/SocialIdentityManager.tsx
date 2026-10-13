@@ -3,9 +3,9 @@ import { getApiBase } from '../config';
 import SocialProfileLinkPanel from './SocialProfileLinkPanel';
 import './SocialIdentityManager.css';
 
-type Subject = 'aning'|'k';
+type Subject = 'human'|'k';
 type Person = {nickname?:string; name?:string; avatar?:string; profile_identity?:{linked:boolean; status:string}};
-const names = {aning:'站主',k:'AI'};
+const names = {human:'站主',k:'AI'};
 
 async function uploadImage(file:File) {
   if (!['image/png','image/jpeg'].includes(file.type) || file.size>10*1024*1024) throw Error('请选择 10 MB 内的 PNG/JPG。');
@@ -24,11 +24,11 @@ export default function SocialIdentityManager({initialSubject,onClose,onSaved,re
   initialSubject?:Subject|null;onClose?:()=>void;onSaved:()=>void;remote?:boolean;
 }) {
   const base=getApiBase(),dialog=useRef<HTMLDialogElement>(null),fileInput=useRef<HTMLInputElement>(null);
-  const [open,setOpen]=useState(false),[subject,setSubject]=useState<Subject>('aning');
+  const [open,setOpen]=useState(false),[subject,setSubject]=useState<Subject>('human');
   const [people,setPeople]=useState<Partial<Record<Subject,Person>>>({}),[nickname,setNickname]=useState('');
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[status,setStatus]=useState('');
   const load=useCallback(async()=>{
-    const rows=await Promise.all((['aning','k'] as Subject[]).map(async id=>{
+    const rows=await Promise.all((['human','k'] as Subject[]).map(async id=>{
       const response=await fetch(`${base}/api/social-feed/people/${id}`,{cache:'no-store'});
       if(!response.ok)throw Error('共域身份资料暂时不可用');
       return [id,(await response.json()).person] as const;
@@ -54,15 +54,15 @@ export default function SocialIdentityManager({initialSubject,onClose,onSaved,re
     }catch(e){setError(e instanceof Error?e.message:'资料保存失败');}finally{setBusy(false);}
   }
   return <>
-    <button type="button" className="social-identity-entry" aria-label={remote?'管理本家共域资料':'编辑共域头像、网名与资料'} onClick={()=>{setSubject('aning');setOpen(true);}}>
-      <span data-social-actor="aning">{people.aning?.avatar?<img src={src(people.aning.avatar)} alt=""/>:<span>{(people.aning?.nickname||names.aning).slice(0,1)}</span>}</span>
+    <button type="button" className="social-identity-entry" aria-label={remote?'管理本家共域资料':'编辑共域头像、网名与资料'} onClick={()=>{setSubject('human');setOpen(true);}}>
+      <span data-social-actor="human">{people.human?.avatar?<img src={src(people.human.avatar)} alt=""/>:<span>{(people.human?.nickname||names.human).slice(0,1)}</span>}</span>
       <span className="social-identity-entry-label">{remote?'本家资料':'资料'}</span>
     </button>
     {open&&<dialog ref={dialog} className="social-identity-dialog" aria-label="共域身份资料管理" onCancel={event=>{event.preventDefault();close();}}>
       <header><h3>共域身份资料</h3><button type="button" onClick={close} disabled={busy} aria-label="关闭资料管理">×</button></header>
       <p>头像与主聊天、人设卡独立。这里修改本家公开资料，网站与内站共用。</p>
       {remote&&<p>当前正在朋友家浏览：此处管理本家资料；对方尚未关联的资料仍须在对方网页维护。</p>}
-      <div className="social-identity-tabs" role="tablist" aria-label="管理身份">{(['aning','k'] as Subject[]).map(id=><button key={id} type="button" role="tab" aria-selected={subject===id} disabled={busy} onClick={()=>setSubject(id)}>{names[id]}的资料</button>)}</div>
+      <div className="social-identity-tabs" role="tablist" aria-label="管理身份">{(['human','k'] as Subject[]).map(id=><button key={id} type="button" role="tab" aria-selected={subject===id} disabled={busy} onClick={()=>setSubject(id)}>{names[id]}的资料</button>)}</div>
       <div className="social-identity-editor">
         {person?.avatar?<img className="social-identity-picture" src={src(person.avatar)} alt={`${names[subject]}共域头像`}/>:<span className="social-identity-picture">{names[subject].slice(0,1)}</span>}
         {locked&&<p>统一资料来源已关联（{person?.profile_identity?.status}）；请在资料主站修改。</p>}

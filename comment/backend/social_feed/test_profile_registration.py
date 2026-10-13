@@ -96,7 +96,7 @@ def test_pending_guards_all_public_mutations_and_guardian(tmp_path):
     with pytest.raises(PublicWallError, match='verification_pending'):
         wall.set_profile('visitor:a', '人代改也不行')
     assert wall.get_moment(moment['id'])['content'] == '可浏览'
-    assert store.state('aning')['can_interact'] and store.state('k')['can_interact']
+    assert store.state('human')['can_interact'] and store.state('k')['can_interact']
 
 
 @pytest.mark.asyncio

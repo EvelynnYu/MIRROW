@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { musicApi, refreshMusic } from './api';
 import type { Playlist } from './types';
 
-export const shelfNames: Record<string, string> = { owner: '使用者的', k: 'K 的', shared: '共有的' };
+export const shelfNames: Record<string, string> = { owner: '使用者的', k: 'AI 的', shared: '共有的' };
 
 export default function PlaylistSync({ onClose }: { onClose: () => void }) {
   const [items, setItems] = useState<Playlist[]>([]);

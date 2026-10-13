@@ -123,7 +123,7 @@ async def timeline(limit: int = Query(30, ge=1, le=30),
         runtime = current_runtime()
         for index, item in enumerate(result['items']):
             if not item['source']['site_id'] and runtime:
-                item = _decorate(runtime, item, viewer='aning')
+                item = _decorate(runtime, item, viewer='human')
                 for person in item.get('people', {}).values():
                     _local_avatar(person)
                 result['items'][index] = item
@@ -157,7 +157,7 @@ async def timeline_stream(limit: int = Query(30, ge=1, le=30),
                 runtime = current_runtime()
                 for index, item in enumerate(rows):
                     if not item['source']['site_id'] and runtime:
-                        item = _decorate(runtime, item, viewer='aning')
+                        item = _decorate(runtime, item, viewer='human')
                         for person in item.get('people', {}).values():
                             _local_avatar(person)
                         rows[index] = item
@@ -215,11 +215,11 @@ async def remote_decor(site_id: str, operation: str, request: Request):
         raise HTTPException(404,'not_found')
     if operation=='visit':
         try:
-            await receive_remote_gifts(_site(site_id),'aning',get_decor_store())
+            await receive_remote_gifts(_site(site_id),'human',get_decor_store())
         except (ValueError,OSError,httpx.HTTPError):
             return {'gifts':[], 'delivery_pending':True}
         await publish_pending()
-        return {'gifts':[r for r in get_decor_store().collection('aning',pending=True) if r['origin']==_site(site_id).origin], 'local_receipts':True}
+        return {'gifts':[r for r in get_decor_store().collection('human',pending=True) if r['origin']==_site(site_id).origin], 'local_receipts':True}
     body = None
     if request.method in {'POST','PUT'}:
         raw = bytearray()
@@ -280,7 +280,7 @@ async def save_site(body: SiteInput, site_id: str = ''):
         raise HTTPException(400, str(exc)) from None
     from social_feed.decor_store import get_decor_store
     decor = get_decor_store()
-    for subject in ('aning','k'):
+    for subject in ('human','k'):
         choice = decor.choice(subject)
         if choice['scope']=='all' or choice['scope']=='selected' and saved.id in choice['site_ids']:
             decor.queue_sync(subject,saved.id,True)
@@ -393,7 +393,7 @@ async def cancel_migration(site_id: str, transfer_id: str):
         row = inbound_by_id(get_public_wall(), transfer_id)
         if not row or row['source_origin'] != site.origin or row['state'] != 'staged':
             raise PublicWallError('transfer_not_found')
-        actor = 'human' if row['target_actor'] == 'aning' else 'ai'
+        actor = 'human' if row['target_actor'] == 'human' else 'ai'
         result = await RemoteSocialClient().request(site, actor, 'POST',
                                                      '/social/v1/transfers/' + transfer_id + '/cancel')
         if result.get('state') != 'cancelled':

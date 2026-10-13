@@ -29,7 +29,7 @@ class FamilyCodeInput(Strict):
 
 class FamilyBinding(Strict):
     index: int=Field(ge=0,le=8)
-    subject: str=Field(pattern=r'^(aning|k|visitor:[A-Za-z0-9_-]{1,92})$')
+    subject: str=Field(pattern=r'^(human|k|visitor:[A-Za-z0-9_-]{1,92})$')
 
 
 class FamilyLinkInput(FamilyCodeInput):
@@ -39,7 +39,7 @@ class FamilyLinkInput(FamilyCodeInput):
 class ClaimInput(Strict):
     ticket: str=Field(pattern=r'^[A-Za-z0-9_-]{43}$')
     audience: str=Field(min_length=12,max_length=300)
-    consumer: str=Field(pattern=r'^(aning|k|visitor:[A-Za-z0-9_-]{1,92})$')
+    consumer: str=Field(pattern=r'^(human|k|visitor:[A-Za-z0-9_-]{1,92})$')
 
 
 class ReadInput(Strict):
@@ -82,7 +82,7 @@ def create_profile_router(runtime=None, *, local=False):
 
     def viewer(request,write=False):
         # Admission transitions must remain available to a pending identity; CSRF still applies.
-        return 'aning' if local else _identity(current(),request,write=write,admission=False)
+        return 'human' if local else _identity(current(),request,write=write,admission=False)
 
     def human_subject(request,subject):
         actor=viewer(request,True)
@@ -90,7 +90,7 @@ def create_profile_router(runtime=None, *, local=False):
         return actor
 
     def kind(actor):
-        return 'human' if actor=='aning' or actor.startswith('visitor:') and current().visitor_service.effective_visitor(actor[8:]).visitor_kind=='human' else 'ai'
+        return 'human' if actor=='human' or actor.startswith('visitor:') and current().visitor_service.effective_visitor(actor[8:]).visitor_kind=='human' else 'ai'
 
     def valid_grant(row):
         # A separate read token cannot outlive the credential that authorized it.
@@ -132,7 +132,7 @@ def create_profile_router(runtime=None, *, local=False):
     def state(request: Request):
         actor=viewer(request)
         human=kind(actor)=='human'
-        return {'ready':store().ready(),'hosting_enabled':store().enabled(),'owner':actor=='aning','human':human,
+        return {'ready':store().ready(),'hosting_enabled':store().enabled(),'owner':actor=='human','human':human,
                 'registration_ready':ProfileRegistrationStore(get_public_wall()).ready(),
                 'profiles':[{'actor':a,'name':get_public_wall().registered_name(a[8:]) if a.startswith('visitor:') else _display(current(),a,viewer=actor)['name'],'link':store().status(a),
                              'registration':ProfileRegistrationStore(get_public_wall()).state(a),
@@ -146,7 +146,7 @@ def create_profile_router(runtime=None, *, local=False):
 
     @router.put('/policy')
     def policy(body: PolicyInput,request: Request):
-        if viewer(request,True)!='aning':
+        if viewer(request,True)!='human':
             raise HTTPException(403,'profile_owner_required')
         store().set_enabled(body.enabled)
         return {'enabled':store().enabled()}

@@ -26,7 +26,7 @@
     {
       "path": "backend/lounge_visits/registered_identity_match.py",
       "bytes": 1147,
-      "sha256": "afe9b076997e7ec83795af3d3e061caec575542212977f5ec11fc95b27587399"
+      "sha256": "8f71d839f668182ccea8c39bf8b8144c98ad886c0a9464b66a66cace405a70fc"
     },
     {
       "path": "backend/lounge_visits/secret_vault.py",
@@ -41,17 +41,17 @@
     {
       "path": "backend/routers/social_feed_router.py",
       "bytes": 14760,
-      "sha256": "f02546a1f1490a447268f7a0cf04fbd7033cef306a4d1f3f682d5056bb95de4e"
+      "sha256": "d2a6ede0bc8cde9d153291aa6600cadfc21fcba91a24e1020c4adafbf86dde49"
     },
     {
       "path": "backend/routers/social_inbox_router.py",
       "bytes": 4052,
-      "sha256": "045d81060cdfe47c40cb13be125714c49671658d5cf6d50b32058adf9fc066b9"
+      "sha256": "ce1293ac9eb18aed765b2c2296518a93002e4152b71557c91a87b3df61a47ad1"
     },
     {
       "path": "backend/routers/social_sites_router.py",
       "bytes": 20642,
-      "sha256": "a7ad794381a6ab6172b45098fbf7bef3f89875ed05e5938ca35ef41adc217229"
+      "sha256": "6dc93287b2daec0f70d02ee1cb546193f3cc1d2b8388756b59208d2443fc1744"
     },
     {
       "path": "backend/social_feed/__init__.py",
@@ -76,7 +76,7 @@
     {
       "path": "backend/social_feed/decor_federation.py",
       "bytes": 9041,
-      "sha256": "cf35f88ff938054c2b2f599573b96a69ded2f3cfafe47615e777ffa2aaa7ce54"
+      "sha256": "980e62f853685928a27cb4c5ef8b395acbf1fbb7e0018f8671fda53be2a59a2b"
     },
     {
       "path": "backend/social_feed/decor_gif.py",
@@ -106,17 +106,17 @@
     {
       "path": "backend/social_feed/decor_music.py",
       "bytes": 902,
-      "sha256": "1ba123bda6662e5e69f7f6289f64df3f07f88b4083f85bee19145c26d362d1cc"
+      "sha256": "12e34fcf27a0945af13d3137d7732e6f9ea4aa922b7c28d85728576101c6d9d7"
     },
     {
       "path": "backend/social_feed/decor_music_import.py",
       "bytes": 8544,
-      "sha256": "adc4b514602f7da32211eb758a9e4fa5d0156813ee6d11993b1e5f290f50f2c2"
+      "sha256": "959b06259ebbc74bd4fa0df571944235eabc68fbbbd178ab1a128dd045797cc7"
     },
     {
       "path": "backend/social_feed/decor_music_ui.js",
       "bytes": 5988,
-      "sha256": "30cb6d240f16069411fa1eb6ed4f80ca4e8d78fb356d1cfd7d9d6545acdd9786"
+      "sha256": "504f3ab544ca7e616dba447c3e3aad5d5def82718182b3348cae5fc4c2b5d56d"
     },
     {
       "path": "backend/social_feed/decor_presets/catalog.json",
@@ -196,17 +196,17 @@
     {
       "path": "backend/social_feed/decor_router.py",
       "bytes": 20424,
-      "sha256": "b88c7400a8c6898ea71fda12fe6798b2703b027a7a569757d45559e8e11e84a6"
+      "sha256": "4b6c1bc59e3dec031990ce3ef4774b59627b69720cf1a358cfcaa076d90eee4c"
     },
     {
       "path": "backend/social_feed/decor_source.py",
       "bytes": 927,
-      "sha256": "489c3bc4acefb58003e0f1f1202751095dfa80dc22aaba89331fb606c951ead7"
+      "sha256": "c98df4162dd44796177f5631989effca6203f4bb8e5c52bb60a3d9bc0917b143"
     },
     {
       "path": "backend/social_feed/decor_store.py",
       "bytes": 19394,
-      "sha256": "0c7922d606258ae776f89ec5b22b90af7cee4cb0d62f0f7367778a20977f0f31"
+      "sha256": "5882656b55f0045484dc584cff05f94715623aed1e8617d773493a1271ac0ae9"
     },
     {
       "path": "backend/social_feed/decor_studio_ui.js",
@@ -221,7 +221,7 @@
     {
       "path": "backend/social_feed/decor_ui.js",
       "bytes": 45070,
-      "sha256": "90cdeb3d684e782f40326e32d7017e7d04fc70719cd510eb339bcacabd612287"
+      "sha256": "77826afb0773c2e9c53ccb1fb2699bf4f7ec90c817586dc9f82762934b7ab782"
     },
     {
       "path": "backend/social_feed/deployment_config.py",
@@ -231,12 +231,12 @@
     {
       "path": "backend/social_feed/forward_action.py",
       "bytes": 2928,
-      "sha256": "95a822cc0749b4134caae20cda415ae871fffa2ad6a1ef241b33b518e3a33a68"
+      "sha256": "94ef1ffafe3f307b5fa1d9edc60070b1ec126384188efcec93ac559afdbf3dde"
     },
     {
       "path": "backend/social_feed/forward_router.py",
       "bytes": 1344,
-      "sha256": "3f62009ef115a51469d91b989292f05539318585e16e25571724ddeb03dd230c"
+      "sha256": "422438528d25a07c57762f6c2a365df48511f172e160b07744465b1d8f155b72"
     },
     {
       "path": "backend/social_feed/forward_ui.js",
@@ -261,12 +261,12 @@
     {
       "path": "backend/social_feed/human_inbox.py",
       "bytes": 3546,
-      "sha256": "b45abca44f86c9028932578899b2263eac4cec168e85db8410d56e477a2deacb"
+      "sha256": "142bb23c8707fece29e2a1744f7e8dfcf18e5adb0596b7c2edbac94255a30ffe"
     },
     {
       "path": "backend/social_feed/hybrid_store.py",
       "bytes": 36400,
-      "sha256": "050bcee606de89cef5ab578a06f10a3aa1114b1f76a1bacef20ed2bbd336051b"
+      "sha256": "a2e113261ac086562e2dc5bb548571f205b17a702ebfe71cc9dbef9916951ee9"
     },
     {
       "path": "backend/social_feed/identity_switch.py",
@@ -276,17 +276,17 @@
     {
       "path": "backend/social_feed/mentions.py",
       "bytes": 8181,
-      "sha256": "0d7df49bccb0a8bee8aa7a059893108d276b03b4611b6b74705560ac2b4de7f9"
+      "sha256": "6d5799fef68121e95ee8f2adf624ee0c7709732636bc5faf4ad58b6289856b62"
     },
     {
       "path": "backend/social_feed/migration.py",
       "bytes": 23797,
-      "sha256": "a45847b5e3780ede842cc130201739f0624646f262339ebd31e99f5c8b9cdb7c"
+      "sha256": "70f83188c4fc0720585c9b65e9486231a11b0e2d83ff34e0f14ca22637186e3c"
     },
     {
       "path": "backend/social_feed/notification_schema.py",
       "bytes": 1514,
-      "sha256": "adc8b4f54fa523ef783a11e2244caa81dc1534b5458092c1fc84760895c5406e"
+      "sha256": "7aac48e48caf1c1a8cf94da0aaf6f3e8185239eafcc30414b4bf7af44a00181a"
     },
     {
       "path": "backend/social_feed/owner_access.py",
@@ -301,12 +301,12 @@
     {
       "path": "backend/social_feed/profile_identity.py",
       "bytes": 18108,
-      "sha256": "d70b993dbf86c8742b94db24ea8c19a2258c509862dc0a86c8095d2bf171b381"
+      "sha256": "ea8bf8ea2cb6002e30d08db402d646cb2371143670ed6fea4cb6bdae7c0fd1cf"
     },
     {
       "path": "backend/social_feed/profile_key_link.py",
       "bytes": 9466,
-      "sha256": "1d1e88f38966021ce18451a7962c90e514f2370e442e745f689b792574458d86"
+      "sha256": "cd50d13a425191a3b71b94ea1294c36dbc20ba7a6a7f76122b51a148140ac8f0"
     },
     {
       "path": "backend/social_feed/profile_key_router.py",
@@ -326,12 +326,12 @@
     {
       "path": "backend/social_feed/profile_registration.py",
       "bytes": 5381,
-      "sha256": "1588edbd8848a6d9adad18876ee5f0fd2bbc39e1bd578be5f8aad8ace7ac1cd8"
+      "sha256": "f48245b8c94897f49c31a43af49bda63e7f73a564b572d12c54b6b874c29dd4c"
     },
     {
       "path": "backend/social_feed/profile_router.py",
       "bytes": 13224,
-      "sha256": "92f021dc6743cbc5225125690c12732cbf1b0552e58d184672afee531f9aee92"
+      "sha256": "f1ecc0b7ce035c0840156df3425edd4e8c8c04147fcfd50fdbb0673a45b2d6fa"
     },
     {
       "path": "backend/social_feed/profile_transport.py",
@@ -341,7 +341,7 @@
     {
       "path": "backend/social_feed/public_gateway.py",
       "bytes": 41070,
-      "sha256": "cbeaa9cd155b2466a901b996a9f45cc4841636a8eeb634280b2adbf995300927"
+      "sha256": "c781619504b90f5eff51cfdd7663dba9496cf0e2ed1a665625d388a8013e493c"
     },
     {
       "path": "backend/social_feed/public_inbox.css",
@@ -366,12 +366,12 @@
     {
       "path": "backend/social_feed/public_wall.js",
       "bytes": 44446,
-      "sha256": "710013779c9ee4af7d0931035608e894d7e03db86f225f90c8beeb821bc9b1ee"
+      "sha256": "2fd0b4b44d9240d86d622ceba9b307826e064021ebb5a180387968c6f901c7a8"
     },
     {
       "path": "backend/social_feed/public_wall.py",
       "bytes": 57568,
-      "sha256": "7af281e806e38d491faebc9044f0b204dca89449ac7855287813ea0ad080a9f2"
+      "sha256": "8a90935a5bd812c828b8ba775262b47444d99ebf04bfa39302c5560e72f9cfd7"
     },
     {
       "path": "backend/social_feed/public_wall_state.js",
@@ -395,13 +395,13 @@
     },
     {
       "path": "backend/social_feed/store.py",
-      "bytes": 55850,
-      "sha256": "a9321d59b9f4d6601933dc2457cb7f7f33d3337a818c41e262276c2b1d7cb263"
+      "bytes": 55849,
+      "sha256": "b403fa7adf2ae50b2b46fa426baba30225f8ce7695a8d3d2f1c877f321e9b107"
     },
     {
       "path": "backend/social_feed/test_decor.py",
       "bytes": 15255,
-      "sha256": "9e81069b68de46807db4666b69355530bfc8b48ccaccca3fd3d4db81c77c72b8"
+      "sha256": "f0e4fbe1a008fad0f4aea632cbb960a17b6cfe2116a29f6c90639e34a7d5087d"
     },
     {
       "path": "backend/social_feed/test_decor_gif.py",
@@ -416,12 +416,12 @@
     {
       "path": "backend/social_feed/test_decor_regressions.py",
       "bytes": 15053,
-      "sha256": "70ca8732183dc64de3c6e330197564876cd7b9be10683ad1b88fc6706edca482"
+      "sha256": "2b13f161e74ed2238424fb75c5345a3dd80deaffd59b2208616f028a3f4c396e"
     },
     {
       "path": "backend/social_feed/test_decor_source.py",
-      "bytes": 1415,
-      "sha256": "607f597008b863b6377057df5825a583ecfee0109b15eb8172ef2adb8e54d885"
+      "bytes": 1414,
+      "sha256": "7bb905aded1f3812c7c26deb6785967b37d76e07578a07425a7bad9cd58f891c"
     },
     {
       "path": "backend/social_feed/test_decor_studio.py",
@@ -431,27 +431,27 @@
     {
       "path": "backend/social_feed/test_forwarding.py",
       "bytes": 13342,
-      "sha256": "6470f9df22d144df22f961ce414a16d24ad807accff966855e1238f808af2a1a"
+      "sha256": "e3a92f2f86ad63a52cec82091e8777785c26acaf50732b7346fdc1464e36acd9"
     },
     {
       "path": "backend/social_feed/test_gift_human_notice.py",
       "bytes": 5877,
-      "sha256": "93ad10980667a1d293b3924b030f34b36e904654d3b48582661443d797442f98"
+      "sha256": "c114597bbb8dffd07d87e910de87dd3437d8bab66e780d2db04a4fda8a0aa275"
     },
     {
       "path": "backend/social_feed/test_gift_updates.py",
       "bytes": 5563,
-      "sha256": "ae98cc1fbea3a73a93c072faaac180345f0a3f76c9607ff853c75f500e4d0569"
+      "sha256": "0bfbb2277b556e0edc71df928f5f15512e244bbf32d016ae60d6db4904f46726"
     },
     {
       "path": "backend/social_feed/test_human_inbox.py",
       "bytes": 5966,
-      "sha256": "494270809e123df3c8ac213c6d98fb3758e2ba4d743e642c061ab6f872a9f039"
+      "sha256": "38a72e20c92573da7b0a7037a85f9c44004bfb781c04313715ee4db50f013aea"
     },
     {
       "path": "backend/social_feed/test_inbox_router.py",
       "bytes": 3159,
-      "sha256": "98edcb0d122d30fbf03a65052fd72dbb5b72b4a3916a7e7774fd7611e5eed8cc"
+      "sha256": "3a6fa544fe9058f0872afadd05aaa4ef75dc29acd0ce8dee0813f1b19369044a"
     },
     {
       "path": "backend/social_feed/test_local_wall_avatar.py",
@@ -461,12 +461,12 @@
     {
       "path": "backend/social_feed/test_mentions.py",
       "bytes": 9181,
-      "sha256": "a775281b3e2cede4f60c3b69a10bc52a439141b8ed30884659374e525c0550a3"
+      "sha256": "624d278eae6246aab26e5a7e56353eb88e619b27ba704e11c22e461b72d612cc"
     },
     {
       "path": "backend/social_feed/test_migration.py",
       "bytes": 11332,
-      "sha256": "e0a7178f4b0088ef07a38f906b4cd6e50dd4a453bd4592d717d6cc4a5762ae6e"
+      "sha256": "a9008b37b58f6f020516145c44850ce913756cc7b92badd7b850f00d65015137"
     },
     {
       "path": "backend/social_feed/test_owner_access.py",
@@ -481,27 +481,27 @@
     {
       "path": "backend/social_feed/test_profile_identity.py",
       "bytes": 12702,
-      "sha256": "3bf9e368d318ac29e16509c8b237a562a029b7b7ee091adad0372066012264bb"
+      "sha256": "17a42c3674aa2898fe072bdc50bf1dec18b952cb90e645cf838f4cd6e44242ee"
     },
     {
       "path": "backend/social_feed/test_profile_key_link.py",
       "bytes": 13431,
-      "sha256": "14e78aa52f2eec0d728491e627d21532e3e72347fad32435c5f977fe738c5fcd"
+      "sha256": "034370d33c9d79a271ec2b77de69d574626d74eeb25081a6e0bb0f64e58ef516"
     },
     {
       "path": "backend/social_feed/test_profile_registration.py",
       "bytes": 14477,
-      "sha256": "64c59dfe92897c94c6fcd8ba03d7e42d418d90126acd5f6319fe87e8d84dadc6"
+      "sha256": "c56329266c168ae99f1be46642b8fadbf4104c6b58dd6fed5847564311adfad5"
     },
     {
       "path": "backend/social_feed/test_public_gateway.py",
       "bytes": 33580,
-      "sha256": "4d6b057e5aed3b7fad4d9215fb140d535b7d620ef02884bd004c02f749f9190c"
+      "sha256": "8c09ff0843b4743f34320fe7098fb206275f32841f767b2cf28b93671cabef68"
     },
     {
       "path": "backend/social_feed/test_public_wall.py",
       "bytes": 16211,
-      "sha256": "bba96d407d407bdfb4e8506068bd1d4235940caef3c7c30a470dc5f25a67864b"
+      "sha256": "c9fe0910d7ee4e46da0f499442a4204be2c64f752160ad0eee174b5c10d517d4"
     },
     {
       "path": "backend/social_feed/test_public_wall_state.cjs",
@@ -511,7 +511,7 @@
     {
       "path": "backend/social_feed/test_remote_person_routes.py",
       "bytes": 4224,
-      "sha256": "bc5e8ddf1b62d6fff001e456ffde2ded46a7409769ee512ac748d6987534967f"
+      "sha256": "ad5a21bc7a6020b864e6581c2770ad9dbe1765ed4498b8e2755f3945249e72b5"
     },
     {
       "path": "backend/social_feed/test_remote_sites.py",
@@ -521,7 +521,7 @@
     {
       "path": "backend/social_feed/test_social_circle_visit.py",
       "bytes": 21910,
-      "sha256": "257d9da4bdadc51c5e999ee1ef0c938896133d2cb4ce882c84a3dee9c5de3ec2"
+      "sha256": "0cf9034bdc64d564a1750ee169cc83dd7a73cd32dcc46f268be64c9fbd994eb4"
     },
     {
       "path": "backend/social_feed/test_social_contacts_router.py",
@@ -531,7 +531,7 @@
     {
       "path": "backend/social_feed/test_social_mentions_tools.py",
       "bytes": 5649,
-      "sha256": "ba09ec209231d3e1d4e61e1f7d712494d7efbbcb0186dc9063701dcbed097e29"
+      "sha256": "e23650f49cd670889d2fc2ebd3d9f80621cb82af5ccf96399ed6ef9a9f960b17"
     },
     {
       "path": "backend/social_feed/test_social_sites_router.py",
@@ -546,7 +546,7 @@
     {
       "path": "backend/social_feed/test_ui_write_retry.py",
       "bytes": 3532,
-      "sha256": "024a9ae7228c239c0f55c6bbd70fbe1bac63dd6e85d41be26b24d75a717dbe47"
+      "sha256": "08cac51ae50869947d23a0fa5906bae2e8b73e85d9231d49c87a0f517db1a312"
     },
     {
       "path": "backend/social_feed/tests_support/public_inbox_test.cjs",
@@ -566,17 +566,17 @@
     {
       "path": "backend/social_feed/timeline.py",
       "bytes": 9025,
-      "sha256": "f41017165c771953ab4d911c4e111eda23227c0f602cefb4082c8751f5e26cde"
+      "sha256": "172d6655788b98b1c5694c0ba03c27efdbfa0c59024b56203e4cc0f0ee23802d"
     },
     {
       "path": "backend/social_feed/transfer_runner.py",
       "bytes": 5111,
-      "sha256": "f8f957fcd17a79ffb22c5675996ab951e898ace9a42e2b72f6b92ef5824ef571"
+      "sha256": "67fe414461bfe97a76eb1dd709e7b98939cbf4b94b7a7002e0a8c6f13972b61a"
     },
     {
       "path": "backend/static/lounge/cognition.js",
       "bytes": 9907,
-      "sha256": "c0e21838b1203879760ef83f14e36143eddbcbd867366915862d70ea3931718f"
+      "sha256": "545181405dab27c2af5c4f9b9947d4880572b14d5e8faa6961dc4f1c1712a557"
     },
     {
       "path": "backend/static/lounge/common.css",
@@ -691,17 +691,17 @@
     {
       "path": "frontend/src/components/SocialIdentityManager.tsx",
       "bytes": 6382,
-      "sha256": "4107ae06eec8535611abf67c3ca7f4cfbf838f07312f2b5676b0b15958e0f69c"
+      "sha256": "2d5d347fd1d2b9553986ed558348b576a10ba6d67abc274f0eec766a07f71fe0"
     },
     {
       "path": "frontend/src/components/SocialInbox.css",
       "bytes": 4283,
-      "sha256": "fd1d5071e338ef93c8589da5f2fa4fa6efff078cf0776e400966ce7f10e604a9"
+      "sha256": "e2589806b08cbb0f60e2ecbae7198e422c0941e09461e5fea1383f8158a85997"
     },
     {
       "path": "frontend/src/components/SocialInbox.tsx",
       "bytes": 13978,
-      "sha256": "db0f80643b9bac9e31de4a0e2ed8d58cc0fcae18e3951e6ffb7fb7c392b30044"
+      "sha256": "6cc2486c6b7ec12c6bc085393e5710095a757fbfad83eefd768edd388da37953"
     },
     {
       "path": "frontend/src/components/SocialMentions.css",
@@ -741,7 +741,7 @@
     {
       "path": "frontend/src/components/SocialTimelineCard.tsx",
       "bytes": 10736,
-      "sha256": "8f5197ae8f59db9b01548196a8cdd799e112951dc1147f5d79873bd90083fda9"
+      "sha256": "4836130182369083d4f76aa54c40afd8883def77845a189beaa8a2a57a8ade4c"
     },
     {
       "path": "frontend/src/config.ts",
@@ -761,12 +761,12 @@
     {
       "path": "frontend/src/pages/SocialFeedPage.css",
       "bytes": 20241,
-      "sha256": "8113de5605d6c87173c0996cf1cb5efc07472443bf9f6bb0df04d173ffe30ef6"
+      "sha256": "e2cb9670000d56c0f46b5006627d6f429865119004dff89b2928274c2cafc7be"
     },
     {
       "path": "frontend/src/pages/SocialFeedPage.tsx",
       "bytes": 36727,
-      "sha256": "d58a42fb969de0b92c88acf41532104adcbb64fdbffc642a05a71de610021ecc"
+      "sha256": "53169edf38ddeb065ff1aafbbef5c7c4e5e6456044415ddbc29f74afdfcca20c"
     },
     {
       "path": "frontend/src/pages/SocialFeedVisibility.css",
@@ -776,17 +776,17 @@
     {
       "path": "frontend/src/pages/SocialRemoteFeed.css",
       "bytes": 3875,
-      "sha256": "b1eeb4e71498873781e699e62442e4cab30ec4146b640187f9cecb5c1ae8518e"
+      "sha256": "40daa2098a8e3bde39d4a1200b087f95a83bf2edc276743f4f7e656f9cd57cd2"
     },
     {
       "path": "frontend/src/pages/SocialRemoteFeed.tsx",
       "bytes": 25136,
-      "sha256": "1a215b863b66e284e1e12df81ae27e79a5a7d502b7d72a1a628c73359c3aac05"
+      "sha256": "2577dc746befb9165fb031d3c1a8024f13255fc1d521f2a0d4606d75a07e4119"
     },
     {
       "path": "frontend/src/pages/SocialTimelinePage.tsx",
       "bytes": 10716,
-      "sha256": "787fc124148738cd0facae1d2c7d0411c2df40441fb3bef61c7f5e83276b0cf3"
+      "sha256": "4cacb9f7f15246b323b076769795f583b70784cf91d9f657ae653df031f8462e"
     },
     {
       "path": "frontend/src/social/acknowledgeInbox.ts",
@@ -796,7 +796,7 @@
     {
       "path": "frontend/src/social/prewarm.ts",
       "bytes": 5288,
-      "sha256": "c10239bab1eef85c1781ab3e0e2b01d4e9c6c06be05daa13eec68b542ff5b15b"
+      "sha256": "9e35865e1937c8e62ea36107ec2d9abae970af6c05fa1e1e2fae47d386613f8d"
     },
     {
       "path": "frontend/src/social/remoteAvatarUrl.ts",
@@ -846,7 +846,7 @@
     {
       "path": "frontend/tests/social-feed-smoke.tsx",
       "bytes": 2066,
-      "sha256": "0fa78e8c70c373cdf44fe56925c14cc292e5328394eea40e1d374ad9f78bc69b"
+      "sha256": "d246f9a0dd118f64ba272be6317edeb6976ffc926eb2e2c3e1870d6f13736184"
     },
     {
       "path": "frontend/tests/social-forward-smoke.html",
@@ -891,7 +891,7 @@
     {
       "path": "frontend/tests/social-read-state.cjs",
       "bytes": 2425,
-      "sha256": "042aa3fb004f73bcd1ea53fdd84605a75a3a5e9df48cc46883808c75f2365c66"
+      "sha256": "f5c5ae3292ed7ac48f92a7fb3b575ac2329318230d6c85e6b8af7a567b655390"
     },
     {
       "path": "frontend/tests/social-remote-smoke.html",
@@ -911,7 +911,7 @@
     {
       "path": "frontend/tests/social-timeline-smoke.tsx",
       "bytes": 12955,
-      "sha256": "3345486a68d83677494180ac6ed69fd290ac925e8476bb1479114a2ea412184d"
+      "sha256": "a172b4ea31d1499252adf8ab7fe66c0800600da7be192ffdbe71a2e2fe233211"
     },
     {
       "path": "frontend/tests/social-write-attempt.test.cjs",
@@ -926,7 +926,7 @@
     {
       "path": "INTEGRATION.md",
       "bytes": 9921,
-      "sha256": "da27663d80d962891a31ff0df5f9457616a3bbf86c876628b8e838b456f4bc26"
+      "sha256": "b6648bf45124d54f43f8dd9a5d7ca0c45201a9975c91e5c7da492a9c36cffc9f"
     },
     {
       "path": "integration_examples/behavior_scheduler/social_feed_tool.py",
@@ -946,7 +946,7 @@
     {
       "path": "KEY_MAPPING.md",
       "bytes": 5844,
-      "sha256": "58acd81b5762e5ebc46429e0e25abb6d6e1025e4188c7bf18407aee9d987dbc2"
+      "sha256": "3b32875b75ba2ecdf93613b7207fe520b442a5815d2a70ead727068ae5e1d655"
     },
     {
       "path": "LICENSE",
@@ -961,12 +961,12 @@
     {
       "path": "PROFILE_LINKS.md",
       "bytes": 12215,
-      "sha256": "165d0d47d0674a278b7478ab95574e57cb5817373d50098d44e5148fdd5e778a"
+      "sha256": "bdf0ee03447b28ca00432c4a9f7fc8051a28ee377eebc0197fa14cc395eb4404"
     },
     {
       "path": "PUBLICATION_AUDIT.md",
       "bytes": 4306,
-      "sha256": "da3fe954ea27416294e1b657e9b5e4f8f22715ada45dd4f1a51b593dd6b8471f"
+      "sha256": "f03b1fb9512d5660f7b917d533b1b9d42a575bcdee6e0a3f6bc259cf162ad1ec"
     },
     {
       "path": "R6_UPGRADE.md",
@@ -975,8 +975,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 6447,
-      "sha256": "bc9a9fcb9c59e7feb66608413f663a276eeaf7c2ac63f55a4999882049f3045b"
+      "bytes": 6702,
+      "sha256": "d0f4279196e85a05ca4bffea765a59d6c825359fbc73cc87f12fb97cdc7849d1"
     },
     {
       "path": "requirements.integration.txt",

@@ -9,8 +9,8 @@ from music_system.service import MusicService
 from music_system.store import MusicStore
 
 
-SONG_A = {"id": "1", "name": "A", "artist": "K", "album": "", "cover": "", "duration": 1000, "link": ""}
-SONG_B = {"id": "2", "name": "B", "artist": "K", "album": "", "cover": "", "duration": 1000, "link": ""}
+SONG_A = {"id": "1", "name": "A", "artist": "AI", "album": "", "cover": "", "duration": 1000, "link": ""}
+SONG_B = {"id": "2", "name": "B", "artist": "AI", "album": "", "cover": "", "duration": 1000, "link": ""}
 
 
 class MusicSystemTests(unittest.IsolatedAsyncioTestCase):
@@ -28,9 +28,9 @@ class MusicSystemTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_single_requires_explicit_end_and_then_stops(self):
         session = await self.service.start_song(SONG_A, "mobile", "single")
-        await self.service.observe("mobile", {"available": True, "playing": True, "title": "A", "artist": "K", "position_ms": 999})
+        await self.service.observe("mobile", {"available": True, "playing": True, "title": "A", "artist": "AI", "position_ms": 999})
         self.assertEqual(self.service.status()["session"]["id"], session["id"])
-        await self.service.observe("mobile", {"available": True, "playing": False, "title": "A", "artist": "K", "end_of_track": True})
+        await self.service.observe("mobile", {"available": True, "playing": False, "title": "A", "artist": "AI", "end_of_track": True})
         self.assertIsNone(self.service.status()["session"])
         self.assertNotIn(("pause", "mobile", "1"), self.calls)
         self.assertEqual("finished", self.service.playback_receipt(session["id"], "1")["state"])
@@ -59,9 +59,9 @@ class MusicSystemTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_loop_moves_only_on_confirmed_end(self):
         session = await self.service.start_song(SONG_A, "computer", "loop", [SONG_A, SONG_B])
-        await self.service.observe("computer", {"available": True, "playing": True, "title": "A", "artist": "K"})
+        await self.service.observe("computer", {"available": True, "playing": True, "title": "A", "artist": "AI"})
         self.assertEqual(self.service.status()["session"]["queue_index"], 0)
-        await self.service.observe("computer", {"available": True, "playing": False, "title": "A", "artist": "K", "end_of_track": True})
+        await self.service.observe("computer", {"available": True, "playing": False, "title": "A", "artist": "AI", "end_of_track": True})
         self.assertEqual(self.service.status()["session"]["song"]["id"], "2")
         events = self.store.events_for_day(self.store.active_session()["observed_at"][:10])
         self.assertTrue(any(event["event_type"] == "advanced" for event in events))
@@ -69,7 +69,7 @@ class MusicSystemTests(unittest.IsolatedAsyncioTestCase):
     async def test_external_song_exits_without_cross_device_fallback(self):
         await self.service.start_song(SONG_A, "mobile", "single")
         await self.service.observe("mobile", {"available": True, "playing": True,
-                                              "title": "A", "artist": "K"})
+                                              "title": "A", "artist": "AI"})
         result = await self.service.observe("mobile", {"available": True, "playing": True, "title": "else", "artist": "other"})
         self.assertIsNone(result)
         self.assertIsNone(self.service.status()["session"])

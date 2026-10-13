@@ -24,7 +24,7 @@ class ForwardRequest(BaseModel):
 async def create_forward(body: ForwardRequest):
     signature = hashlib.sha256(json.dumps(body.model_dump(), sort_keys=True).encode()).hexdigest()
     try:
-        return await forward_moment(actor='aning', moment_id=body.source_moment_id,
+        return await forward_moment(actor='human', moment_id=body.source_moment_id,
             source_site_id=body.source_site_id, site_id=body.site_id,
             content=body.content, visibility=body.visibility, source_key=signature)
     except ValueError as exc:

@@ -1,4 +1,4 @@
-"""K's playlist shelf supplies explicit candidates and recoverable collection receipts."""
+"""AI's playlist shelf supplies explicit candidates and recoverable collection receipts."""
 from .service import get_service
 from .materials import prepare
 
@@ -69,7 +69,7 @@ async def rename(playlist_id, name, *, source="ui", reason="", node_id=""):
 
 
 async def delete(playlist_id, source="ui", *, reason="", node_id=""):
-    """Delete one K-owned NetEase playlist after snapshotting its last known contents.
+    """Delete one AI-owned NetEase playlist after snapshotting its last known contents.
 
     This is intentionally different from :func:`unbind`: deletion affects the
     provider account, so only the ``k`` shelf is eligible and an active shared
@@ -86,7 +86,7 @@ async def delete(playlist_id, source="ui", *, reason="", node_id=""):
     if not binding:
         raise MusicNotFound("歌单尚未放入 MIRROW")
     if binding["subject"] != "k":
-        raise MusicNotFound("K 只能删除自己唱片架里的网易云歌单")
+        raise MusicNotFound("AI 只能删除自己唱片架里的网易云歌单")
     active = service.status().get("session")
     if active and str(active.get("playlist_id") or "") == playlist_id:
         raise MusicNotFound("这张歌单正在共同播放，请先结束一起听再删除")
@@ -184,7 +184,7 @@ def set_wander_default(playlist_id, selected=True):
     try:
         binding = service.store.set_wander_default(str(playlist_id), bool(selected))
     except ValueError as error:
-        raise MusicNotFound("只有 K 的唱片架可以设为漫想默认收藏处") from error
+        raise MusicNotFound("只有 AI 的唱片架可以设为漫想默认收藏处") from error
     service.store.library_event(
         "wander_default_changed", binding["id"], binding["subject"],
         {"selected": bool(selected), "name": binding["name"]},
@@ -268,7 +268,7 @@ async def wander_catalog(max_playlists=8, max_songs=8):
 
 
 async def apply_wander_action(node_id, payload, action, reason=""):
-    """Execute one idempotent K/shared-library intention for a music node."""
+    """Execute one idempotent AI/shared-library intention for a music node."""
     from .errors import MusicNotFound
     service = get_service()
     key = "wander-library-action:" + str(node_id)
@@ -299,7 +299,7 @@ async def apply_wander_action(node_id, payload, action, reason=""):
     try:
         if kind == "create_playlist":
             if not name:
-                raise MusicNotFound("新建 K 歌单需要名字")
+                raise MusicNotFound("新建 AI 歌单需要名字")
             item = await create(name, "k", privacy=True, source="wander", reason=reason, node_id=node_id)
             playlist_id = item["id"]
             receipt["playlist_subject"] = "k"
@@ -311,7 +311,7 @@ async def apply_wander_action(node_id, payload, action, reason=""):
             if binding["subject"] == "owner":
                 raise MusicNotFound("漫想不能自主编辑使用者的个人歌单")
             if binding["subject"] == "shared" and kind in {"delete_playlist", "set_default_playlist"}:
-                raise MusicNotFound("共有歌单可编辑曲目和名字，不可自主删除或设为 K 的默认收藏处")
+                raise MusicNotFound("共有歌单可编辑曲目和名字，不可自主删除或设为 AI 的默认收藏处")
             receipt["playlist_subject"] = binding["subject"]
             if kind == "rename_playlist":
                 if not name:
@@ -373,7 +373,7 @@ async def collect(node_id, payload, reason):
     preferred = [p for p in targets if p.get("wander_default")]
     target = preferred[0] if len(preferred) == 1 else (targets[0] if len(targets) == 1 else None)
     if not sid or not target:
-        receipt = {"status":"pending","reason":"需要指定一张 K 的漫想默认歌单","song_id":sid}
+        receipt = {"status":"pending","reason":"需要指定一张 AI 的漫想默认歌单","song_id":sid}
     else:
         try:
             receipt = await apply_wander_action(

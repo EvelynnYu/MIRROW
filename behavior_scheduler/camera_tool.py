@@ -51,7 +51,7 @@ class CameraTool(BaseTool):
         "required": []
     }
 
-    def __init__(self, device_name: str = "TIGA Device"):
+    def __init__(self, device_name: str = ""):
         self.image_model = "glm"
         self.device_name = device_name
         self._device_index = None  # 延迟查找

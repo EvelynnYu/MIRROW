@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test';
 
+test.beforeEach(async ({page}) => {
+  await page.route('**/api/local/state', route => route.fulfill({status: 404, json: {detail: 'standalone'}}));
+});
+
 for (const viewport of [{width: 1280, height: 900}, {width: 390, height: 844}]) {
   test(`logs and wish roundtrip at ${viewport.width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize(viewport);

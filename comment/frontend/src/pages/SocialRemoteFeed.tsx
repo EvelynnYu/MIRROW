@@ -40,7 +40,7 @@ export default function SocialRemoteFeed({ site, sites, onSwitch, onBack }: {
   site: SocialSite; sites: SocialSite[]; onSwitch: (id: string) => void; onBack: () => void;
 }) {
   const base = `${getApiBase()}/api/social-sites/${encodeURIComponent(site.id)}`;
-  const view=(field:string)=>socialViewKey(getApiBase(),'aning','remote',site.id,field);
+  const view=(field:string)=>socialViewKey(getApiBase(),'human','remote',site.id,field);
   const alive=useRef(false), readSequence=useRef(0), readAbort=useRef<AbortController|null>(null);
   const [actorId, setActorId] = useState('');
   const [aiActorId, setAiActorId] = useState('');
@@ -183,7 +183,7 @@ export default function SocialRemoteFeed({ site, sites, onSwitch, onBack }: {
       } else {
         setPending(current => current.some(row => row.source_moment_id === momentId) ? current :
           [...current, { id: result.transfer_id, source_origin: site.origin, source_moment_id: momentId,
-            target_actor: actor === 'human' ? 'aning' : 'k' }]);
+            target_actor: actor === 'human' ? 'human' : 'k' }]);
       }
     } catch (err) { setError(err instanceof Error ? err.message : '迁移结果未确认，请稍后重试同一条动态'); }
     finally { setBusy(false); }

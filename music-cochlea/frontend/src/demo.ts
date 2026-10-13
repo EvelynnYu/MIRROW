@@ -6,7 +6,7 @@ export const demoSong={id:'900001',name:'晚风写了一封信',artist:'纸月�
 export function setupDemo() {
   const songs=[demoSong,{...demoSong,id:'900002',name:'雨停以前',artist:'小岛电台'},{...demoSong,id:'900003',name:'慢慢靠近',artist:'纸月乐队'}];
   const playlists=[{id:'900010',name:'我们的晚风',subject:'shared',track_count:12,cover},
-    {id:'900011',name:'K 的旧唱片',subject:'k',track_count:8,cover},{id:'900012',name:'我的雨天循环',subject:'owner',track_count:16,cover}];
+    {id:'900011',name:'AI 的旧唱片',subject:'k',track_count:8,cover},{id:'900012',name:'我的雨天循环',subject:'owner',track_count:16,cover}];
   const state:any={session:{id:'demo-session',device:'mobile',status:'playing',song:demoSong,mode:'single',quiet:true,
     follow_external:true,queue:songs,queue_index:0,position_ms:72000,pause_timeout_seconds:1800},playlists,capabilities:{}};
   let messages:any[]=[{id:'demo1',role:'user',body:'今晚想安静一点，陪我一起听吧。',tool_calls:'[]'},

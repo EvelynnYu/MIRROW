@@ -29,9 +29,9 @@ const today = () => {
   return `${map.year}-${map.month}-${map.day}`;
 };
 
-const who = (author:string) => author === 'k' ? 'AI' : author === 'aning' ? '站主' : '好友';
+const who = (author:string) => author === 'k' ? 'AI' : author === 'human' ? '站主' : '好友';
 const named = (moment:Moment, author:string) => moment.people?.[author]?.name || who(author);
-const avatarFallback = (author:string) => author === 'k' ? 'AI' : author === 'aning' ? '主' : '友';
+const avatarFallback = (author:string) => author === 'k' ? 'AI' : author === 'human' ? '主' : '友';
 const formatTime = (timestamp:number) => new Intl.DateTimeFormat('zh-CN', { timeZone:'Asia/Shanghai', hour:'2-digit', minute:'2-digit' }).format(new Date(timestamp * 1000));
 const formatDay = (timestamp:number) => new Intl.DateTimeFormat('zh-CN', { timeZone:'Asia/Shanghai', year:'numeric', month:'long', day:'numeric', weekday:'short' }).format(new Date(timestamp * 1000));
 
@@ -48,7 +48,7 @@ function FeedAvatar({ author, value, className = 'social-feed-avatar', onClick }
 
 export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
   const api = getApiBase();
-  const view=(field:string)=>socialViewKey(api,'aning','home',field);
+  const view=(field:string)=>socialViewKey(api,'human','home',field);
   const [anchorDay, setAnchorDay] = useSocialView(view('day'),today);
   const [siteId, setSiteId] = useSocialView(view('site'),ALL_SOCIAL_SITES);
   const [visibilityFilter, setVisibilityFilter] = useSocialView<VisibilityFilter>(view('filter'),'all');
@@ -80,7 +80,7 @@ export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
   const [commentMentions,setCommentMentions]=useSocialView<Record<string,string[]>>(view('comment-mentions'),{});
   const [userAvatar, setUserAvatar] = useState('');
   const [socialFeedAvatar, setSocialFeedAvatar] = useState('');
-  const [avatarSubject, setAvatarSubject] = useState<'aning'|'k'|null>(null);
+  const [avatarSubject, setAvatarSubject] = useState<'human'|'k'|null>(null);
   const [personSubject, setPersonSubject] = useState<string|null>(null);
   const [forwardMoment,setForwardMoment]=useState<string|null>(null);
   const [openingPublicWall, setOpeningPublicWall] = useState(false);
@@ -126,12 +126,12 @@ export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
 
   const loadAvatarSettings = useCallback(async () => {
     try {
-      const [aningResponse, kResponse] = await Promise.all(['aning', 'k'].map(subject =>
+      const [aningResponse, kResponse] = await Promise.all(['human', 'k'].map(subject =>
         fetch(`${api}/api/social-feed/people/${subject}`)));
       if (!aningResponse.ok || !kResponse.ok) throw new Error('共域头像暂时不可用');
-      const aning = await aningResponse.json() as {person:PublicPerson};
+      const human = await aningResponse.json() as {person:PublicPerson};
       const k = await kResponse.json() as {person:PublicPerson};
-      setUserAvatar(aning.person.avatar || '');
+      setUserAvatar(human.person.avatar || '');
       setSocialFeedAvatar(k.person.avatar || '');
     } catch (e) {
       setError(e instanceof Error ? e.message : '共域头像暂时不可用');
@@ -292,7 +292,7 @@ export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
     const payload = {content, reply_to_id:reply?.id || null, ...(commentMentions[momentId]?.length?{mention_actor_ids:commentMentions[momentId]}:{})};
     const scope = `${api}/api/social-feed/moments/${encodeURIComponent(momentId)}/comments`;
     const writeId = beginSocialWrite(scope,payload);
-    const temporary:Comment = { id:`pending-${Date.now()}`, author:'aning', content, reply_to_id:reply?.id || null, created_at:Date.now() / 1000 };
+    const temporary:Comment = { id:`pending-${Date.now()}`, author:'human', content, reply_to_id:reply?.id || null, created_at:Date.now() / 1000 };
     setPendingAction(momentId, 'comment', true);
     setItems(current => current.map(item => item.id === momentId ? { ...item, comments:[...item.comments, temporary] } : item));
     try {
@@ -338,13 +338,13 @@ export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
     if (isPending(momentId, 'like')) return;
     const current = items.find(item => item.id === momentId);
     if (!current) return;
-    const liked = current.reactions.some(reaction => reaction.author === 'aning');
+    const liked = current.reactions.some(reaction => reaction.author === 'human');
     setPendingAction(momentId, 'like', true);
     setItems(rows => rows.map(item => {
       if (item.id !== momentId) return item;
       const reactions = liked
-        ? item.reactions.filter(reaction => reaction.author !== 'aning')
-        : [...item.reactions, { author:'aning' as const, reaction:'like' as const, created_at:Date.now() / 1000 }];
+        ? item.reactions.filter(reaction => reaction.author !== 'human')
+        : [...item.reactions, { author:'human' as const, reaction:'like' as const, created_at:Date.now() / 1000 }];
       return { ...item, reactions };
     }));
     try {
@@ -354,9 +354,9 @@ export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
       if (typeof result.active === 'boolean') {
         setItems(rows => rows.map(item => {
           if (item.id !== momentId) return item;
-          const withoutOwner = item.reactions.filter(reaction => reaction.author !== 'aning');
+          const withoutOwner = item.reactions.filter(reaction => reaction.author !== 'human');
           return { ...item, reactions:result.active
-            ? [...withoutOwner, { author:'aning' as const, reaction:'like' as const, created_at:Date.now() / 1000 }]
+            ? [...withoutOwner, { author:'human' as const, reaction:'like' as const, created_at:Date.now() / 1000 }]
             : withoutOwner };
         }));
       }
@@ -364,9 +364,9 @@ export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
     } catch (e) {
       setItems(rows => rows.map(item => {
         if (item.id !== momentId) return item;
-        const withoutOwner = item.reactions.filter(reaction => reaction.author !== 'aning');
+        const withoutOwner = item.reactions.filter(reaction => reaction.author !== 'human');
         return { ...item, reactions:liked
-          ? [...withoutOwner, ...current.reactions.filter(reaction => reaction.author === 'aning')]
+          ? [...withoutOwner, ...current.reactions.filter(reaction => reaction.author === 'human')]
           : withoutOwner };
       }));
       setError(e instanceof Error ? e.message : '点赞失败');
@@ -466,12 +466,12 @@ export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
       {feedback && <div className="social-feed-feedback" role="status">✓ {feedback}</div>}
       {place.notice&&<p role="status">{place.notice}</p>}
       {loading ? <div className="social-feed-loading">正在加载共域……</div> : filteredItems.length === 0 ? <div className="social-feed-empty">当前筛选没有动态。</div> : rowsWithDay.map(({ moment, showDay }) => {
-        const liked = moment.reactions.some(reaction => reaction.author === 'aning');
+        const liked = moment.reactions.some(reaction => reaction.author === 'human');
         const visibilityPending = isPending(moment.id, 'visibility');
         return <div key={moment.id} data-social-view-post={moment.id}>
           {showDay && <div className="social-feed-day-separator"><span>{formatDay(moment.created_at)}</span></div>}
-          <article data-social-post-author={moment.author} className={`social-feed-card social-feed-card-${moment.author === 'k' || moment.author === 'aning' ? moment.author : 'friend'}`}>
-            <div className="social-feed-card-head"><FeedAvatar author={moment.author} onClick={moment.author === 'k' || moment.author === 'aning' ? () => setAvatarSubject(moment.author as 'k'|'aning') : () => setPersonSubject(moment.author)} value={moment.author === 'k' ? socialFeedAvatar : moment.author === 'aning' ? userAvatar : moment.people?.[moment.author]?.avatar || ''} /><span className="social-feed-author">{named(moment, moment.author)}</span>{moment.author === 'k' || moment.author === 'aning' ? <select className="social-feed-visibility-control" value={moment.visibility} disabled={visibilityPending} onChange={e => void changeVisibility(moment.id, e.target.value as Visibility)} aria-label={`${named(moment, moment.author)}共域可见性`} title={moment.visibility==='public'?'可与朋友节点分享':'仅站主与 AI 可见'}><option value="private">🔒 私密</option><option value="public">🌐 公开</option></select> : <span className="social-feed-visibility-control">🌐 公开</span>}<time className="social-feed-time">{formatTime(moment.created_at)}</time></div>
+          <article data-social-post-author={moment.author} className={`social-feed-card social-feed-card-${moment.author === 'k' || moment.author === 'human' ? moment.author : 'friend'}`}>
+            <div className="social-feed-card-head"><FeedAvatar author={moment.author} onClick={moment.author === 'k' || moment.author === 'human' ? () => setAvatarSubject(moment.author as 'k'|'human') : () => setPersonSubject(moment.author)} value={moment.author === 'k' ? socialFeedAvatar : moment.author === 'human' ? userAvatar : moment.people?.[moment.author]?.avatar || ''} /><span className="social-feed-author">{named(moment, moment.author)}</span>{moment.author === 'k' || moment.author === 'human' ? <select className="social-feed-visibility-control" value={moment.visibility} disabled={visibilityPending} onChange={e => void changeVisibility(moment.id, e.target.value as Visibility)} aria-label={`${named(moment, moment.author)}共域可见性`} title={moment.visibility==='public'?'可与朋友节点分享':'仅站主与 AI 可见'}><option value="private">🔒 私密</option><option value="public">🌐 公开</option></select> : <span className="social-feed-visibility-control">🌐 公开</span>}<time className="social-feed-time">{formatTime(moment.created_at)}</time></div>
             <div className="social-feed-content" data-social-read={readEvidence('',moment.id,'content',{created_at:moment.created_at})}>{moment.content}</div>
             <SocialForwardCard forward={moment.forward} name={id=>named(moment,id)}/>
             {moment.mention_actor_ids?.length? <div className="social-mention-chips">{moment.mention_actor_ids.map(id=>moment.people?.[id]?.name&&<button type="button" className="social-mention-chip" key={id} onClick={()=>setPersonSubject(id)}>@{moment.people[id].name}</button>)}</div>:null}
@@ -480,15 +480,15 @@ export default function SocialFeedPage({ onBack }:{ onBack:()=>void }) {
               <button className="social-feed-action" onClick={() => document.getElementById(`comment-${moment.id}`)?.focus()}><span aria-hidden="true">◌</span><span>{moment.comments.length ? `${moment.comments.length} 条评论` : '评论'}</span></button>
               {moment.visibility==='public'&&!moment.forward&&<button type="button" className="social-feed-action social-feed-action-forward" onClick={()=>setForwardMoment(moment.id)}>↗ 转发</button>}
               {moment.author!=='k'&&<details className="social-feed-manage-actions"><summary>更多</summary><div className="social-feed-manage-menu">
-              {moment.author==='aning' && <button className="social-feed-action" disabled={isPending(moment.id, 'edit')} onClick={() => void editMoment(moment)}><span aria-hidden="true">✎</span><span>{isPending(moment.id, 'edit') ? '修改中…' : '编辑'}</span></button>}
-              {moment.author!=='k' && <button className="social-feed-action social-feed-delete" disabled={isPending(moment.id, 'delete')} onClick={() => void removeMoment(moment)}><span aria-hidden="true">⌫</span><span>{isPending(moment.id, 'delete') ? '删除中…' : moment.author === 'aning' ? '删除' : '移除'}</span></button>}
+              {moment.author==='human' && <button className="social-feed-action" disabled={isPending(moment.id, 'edit')} onClick={() => void editMoment(moment)}><span aria-hidden="true">✎</span><span>{isPending(moment.id, 'edit') ? '修改中…' : '编辑'}</span></button>}
+              {moment.author!=='k' && <button className="social-feed-action social-feed-delete" disabled={isPending(moment.id, 'delete')} onClick={() => void removeMoment(moment)}><span aria-hidden="true">⌫</span><span>{isPending(moment.id, 'delete') ? '删除中…' : moment.author === 'human' ? '删除' : '移除'}</span></button>}
               </div></details>}
             </div>
             {moment.reactions.length > 0 && <div className="social-feed-liked-by" data-social-read={readEvidence('',moment.id,'likes',{actors:moment.reactions.map(r=>r.author)})} aria-label="点赞的人"><span aria-hidden="true">♥</span>{moment.reactions.map(reaction=>named(moment, reaction.author)).join('、')}</div>}
             {moment.comments.length > 0 && <div className="social-feed-comments">{(expandedComments[moment.id]?moment.comments:moment.comments.slice(-3)).map(commentRow => {
               const parent = commentRow.reply_to_id ? moment.comments.find(row=>row.id===commentRow.reply_to_id) : undefined;
               return <div className={`social-feed-comment ${commentRow.id.startsWith('pending-') ? 'pending' : ''}`} key={commentRow.id} data-social-read={commentRow.id.startsWith('pending-')?undefined:readEvidence('',moment.id,'comment',{comment_id:commentRow.id})}>
-                <FeedAvatar author={commentRow.author} onClick={commentRow.author === 'k' || commentRow.author === 'aning' ? () => setAvatarSubject(commentRow.author as 'k'|'aning') : () => setPersonSubject(commentRow.author)} value={commentRow.author === 'k' ? socialFeedAvatar : commentRow.author === 'aning' ? userAvatar : moment.people?.[commentRow.author]?.avatar || ''} className="social-feed-comment-avatar" />
+                <FeedAvatar author={commentRow.author} onClick={commentRow.author === 'k' || commentRow.author === 'human' ? () => setAvatarSubject(commentRow.author as 'k'|'human') : () => setPersonSubject(commentRow.author)} value={commentRow.author === 'k' ? socialFeedAvatar : commentRow.author === 'human' ? userAvatar : moment.people?.[commentRow.author]?.avatar || ''} className="social-feed-comment-avatar" />
                 <div className="social-feed-comment-body"><div className="social-feed-comment-meta"><strong>{named(moment, commentRow.author)}</strong>{parent&&<span>回复 {named(moment, parent.author)}</span>}<time>{formatTime(commentRow.created_at)}</time></div><p className="social-feed-comment-text">{commentRow.content}</p>{commentRow.mention_actor_ids?.length?<div className="social-mention-chips">{commentRow.mention_actor_ids.map(id=>moment.people?.[id]?.name&&<button type="button" className="social-mention-chip" key={id} onClick={()=>setPersonSubject(id)}>@{moment.people[id].name}</button>)}</div>:null}<div className="social-feed-comment-tools"><button type="button" onClick={() => { setReplyTo(current => ({...current,[moment.id]:commentRow})); document.getElementById(`comment-${moment.id}`)?.focus(); }}>回复</button>{!commentRow.id.startsWith('pending-') && commentRow.can_delete !== false && <button type="button" disabled={isPending(moment.id, `comment-delete:${commentRow.id}`)} onClick={() => void removeComment(moment.id, commentRow.id)}>{isPending(moment.id, `comment-delete:${commentRow.id}`) ? '删除中…' : '删除'}</button>}</div></div>
               </div>;
             })}</div>}

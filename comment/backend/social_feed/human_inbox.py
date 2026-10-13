@@ -15,10 +15,10 @@ def project(row, site_id, site_name):
             'preview':str(row.get('comment_content') or row.get('moment_content') or '')[:160]}
 
 
-async def collect(local, sites, *, actor='aning', client=None, limit=30, with_heads=True):
-    if actor not in {'aning','k'}:raise ValueError('invalid_inbox_actor')
+async def collect(local, sites, *, actor='human', client=None, limit=30, with_heads=True):
+    if actor not in {'human','k'}:raise ValueError('invalid_inbox_actor')
     client=client or RemoteSocialClient()
-    role='human' if actor=='aning' else 'ai'
+    role='human' if actor=='human' else 'ai'
     gate=asyncio.Semaphore(4)
     eligible=[s for s in sites if s.enabled and (s.human_key if role=='human' else s.ai_key)][:32]
 

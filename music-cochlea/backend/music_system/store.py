@@ -224,7 +224,7 @@ class MusicStore:
             if not row:
                 raise ValueError("Playlist is not bound")
             if selected and row["subject"] != "k":
-                raise ValueError("Wander default must belong to K")
+                raise ValueError("Wander default must belong to AI")
             if selected:
                 conn.execute("UPDATE playlist_bindings SET wander_default=0")
             conn.execute(

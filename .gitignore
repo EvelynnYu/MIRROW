@@ -73,6 +73,9 @@ desktop.ini
 # ── 残留目录（克隆中断/本地杂项，不应提交）──
 AionsHome/
 
-# ── 前端（预留，批次3 以后）──
+# ── 本地宿主 / 前端 ──
+local-data/
+*.db-wal
+*.db-shm
 node_modules/
 dist/

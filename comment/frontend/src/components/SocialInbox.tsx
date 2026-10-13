@@ -132,7 +132,7 @@ export default function SocialInbox({onOpenFeed}:{onOpenFeed:()=>void}) {
   };
   const count=data.items.length+gifts.length;
   const openFeed=(siteId=ALL_SOCIAL_SITES)=>{
-    writeView(socialViewKey(api,'aning','home','site'),siteId);
+    writeView(socialViewKey(api,'human','home','site'),siteId);
     window.dispatchEvent(new CustomEvent('social-feed-open',{detail:{siteId}}));
     onOpenFeed();
   };

@@ -36,14 +36,14 @@ def hosted_post(old):
 def test_staged_transfer_never_exposes_a_second_post_and_preserves_replies(tmp_path):
     old, new = walls(tmp_path)
     post = hosted_post(old)
-    prepared = migration.prepare(old, 'visitor:human-1', post['id'], NEW, 'aning')
+    prepared = migration.prepare(old, 'visitor:human-1', post['id'], NEW, 'human')
     with pytest.raises(PublicWallError, match='moment_transfer_pending'):
         old.add_comment('visitor:human-2', post['id'], '冻结后不能评论')
     with pytest.raises(PublicWallError, match='moment_transfer_pending'):
         old.set_like('visitor:human-2', post['id'], False)
     assert new.list_moments()['items'] == []
     staged = migration.stage(new, transfer_id=prepared['transfer_id'], source_origin=OLD,
-                             source_actor='visitor:human-1', target_actor='aning',
+                             source_actor='visitor:human-1', target_actor='human',
                              snapshot=prepared['snapshot'], expected_digest=prepared['digest'])
     assert new.list_moments()['items'] == []
     proof = migration.prove(new, prepared['transfer_id'], staged['proof'], prepared['digest'],
@@ -66,7 +66,7 @@ def test_staged_transfer_never_exposes_a_second_post_and_preserves_replies(tmp_p
     activated = migration.activate(new, prepared['transfer_id'], committed)
     assert migration.activate(new, prepared['transfer_id'], committed) == activated
     item = new.get_moment(activated['id'])
-    assert item['author'] == 'aning' and item['content'] == '寄存的原帖'
+    assert item['author'] == 'human' and item['content'] == '寄存的原帖'
     assert item['arrived_from_other_home'] is True
     assert [comment['content'] for comment in item['comments']] == ['第一条评论', '回复第一条']
     assert item['comments'][1]['reply_to_id'] == item['comments'][0]['id']
@@ -80,10 +80,10 @@ def test_transfer_requires_original_author_and_does_not_commit_without_destinati
     old, new = walls(tmp_path)
     post = hosted_post(old)
     with pytest.raises(PublicWallError, match='forbidden'):
-        migration.prepare(old, 'visitor:human-2', post['id'], NEW, 'aning')
-    prepared = migration.prepare(old, 'visitor:human-1', post['id'], NEW, 'aning')
+        migration.prepare(old, 'visitor:human-2', post['id'], NEW, 'human')
+    prepared = migration.prepare(old, 'visitor:human-1', post['id'], NEW, 'human')
     migration.stage(new, transfer_id=prepared['transfer_id'], source_origin=OLD,
-                    source_actor='visitor:human-1', target_actor='aning',
+                    source_actor='visitor:human-1', target_actor='human',
                     snapshot=prepared['snapshot'], expected_digest=prepared['digest'])
     with pytest.raises(PublicWallError, match='transfer_source_not_committed'):
         migration.activate(new, prepared['transfer_id'], {'state': 'prepared'})
@@ -96,23 +96,23 @@ def test_migration_schema_is_explicit(tmp_path):
     wall.initialize()
     post = wall.create_moment('visitor:author', '尚未迁移')
     with pytest.raises(PublicWallError, match='transfer_schema_not_ready'):
-        migration.prepare(wall, 'visitor:author', post['id'], NEW, 'aning')
+        migration.prepare(wall, 'visitor:author', post['id'], NEW, 'human')
     assert wall.get_moment(post['id'])['content'] == '尚未迁移'
 
 
 def test_cancel_unfreezes_original_and_can_prepare_again(tmp_path):
     old, new = walls(tmp_path)
     post = hosted_post(old)
-    first = migration.prepare(old, 'visitor:human-1', post['id'], NEW, 'aning')
+    first = migration.prepare(old, 'visitor:human-1', post['id'], NEW, 'human')
     staged = migration.stage(new, transfer_id=first['transfer_id'], source_origin=OLD,
-                             source_actor='visitor:human-1', target_actor='aning',
+                             source_actor='visitor:human-1', target_actor='human',
                              snapshot=first['snapshot'], expected_digest=first['digest'])
     assert staged['state'] == 'staged'
     assert migration.cancel(old, 'visitor:human-1', first['transfer_id'])['state'] == 'cancelled'
     assert migration.cancel(old, 'visitor:human-1', first['transfer_id'])['state'] == 'cancelled'
     migration.discard_staged(new, first['transfer_id'])
     old.add_comment('visitor:human-2', post['id'], '已解冻')
-    second = migration.prepare(old, 'visitor:human-1', post['id'], NEW, 'aning')
+    second = migration.prepare(old, 'visitor:human-1', post['id'], NEW, 'human')
     assert second['transfer_id'] != first['transfer_id']
     assert new.list_moments()['items'] == []
 
@@ -171,7 +171,7 @@ async def test_runner_keeps_stage_invisible_when_old_home_has_not_committed(tmp_
             if path == '/social/v1/me':
                 return {'actor': {'actor_id': 'visitor:human-1'}, 'can_manage_avatar': True}
             if path.endswith('/transfer/prepare'):
-                return migration.prepare(old, 'visitor:human-1', post['id'], NEW, 'aning')
+                return migration.prepare(old, 'visitor:human-1', post['id'], NEW, 'human')
             if path.endswith('/commit'):
                 from social_feed.remote_sites import RemoteSiteError
                 raise RemoteSiteError('network_offline')
@@ -190,9 +190,9 @@ async def test_runner_keeps_stage_invisible_when_old_home_has_not_committed(tmp_
 async def test_old_home_verifies_new_stage_over_pinned_public_destination(tmp_path, monkeypatch):
     old, new = walls(tmp_path)
     post = hosted_post(old)
-    prepared = migration.prepare(old, 'visitor:human-1', post['id'], NEW, 'aning')
+    prepared = migration.prepare(old, 'visitor:human-1', post['id'], NEW, 'human')
     staged = migration.stage(new, transfer_id=prepared['transfer_id'], source_origin=OLD,
-                             source_actor='visitor:human-1', target_actor='aning',
+                             source_actor='visitor:human-1', target_actor='human',
                              snapshot=prepared['snapshot'], expected_digest=prepared['digest'])
     checks = []
 

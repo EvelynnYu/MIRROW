@@ -12,5 +12,5 @@ def persisted_gift_subject(message_id, event_type, content):
     local = re.match(r'^(?:本家收妥时间：[0-9T:+-]+。)?(AI|站主)在[^\n]+的共域收到了赠礼「', text)
     if local:
         return {'receipt_kind': 'local_receives_gift', 'recipient_name': local[1],
-                'core_actor_id': 'k' if local[1] == 'AI' else 'aning'}
+                'core_actor_id': 'k' if local[1] == 'AI' else 'human'}
     return {}

@@ -7,7 +7,7 @@ def music_choices():
     store = get_service().store
     source = list(store.search_shared_songs('', 100))
     for binding in store.bindings()[:30]:
-        if binding['subject'] in {'aning','k','shared'}:
+        if binding['subject'] in {'human','k','shared'}:
             source.extend((store.material('playlist:' + binding['id']) or {}).get('songs',[])[:100])
     choices = {}
     for row in source:

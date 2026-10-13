@@ -16,7 +16,7 @@ class _Store:
         self.materials[key] = dict(value)
 
     def bindings(self):
-        return [{"id": "123", "name": "K 的歌单", "subject": "k"},
+        return [{"id": "123", "name": "AI 的歌单", "subject": "k"},
                 {"id": "456", "name": "另一张歌单", "subject": "k"},
                 {"id": "567", "name": "共有歌单", "subject": "shared"},
                 {"id": "678", "name": "使用者歌单", "subject": "owner"}]
@@ -50,7 +50,7 @@ class WanderCollectionTests(unittest.IsolatedAsyncioTestCase):
         change.assert_awaited_once()
         self.assertTrue(receipt["changed"])
 
-    async def test_shared_playlist_is_editable_but_aning_and_shared_delete_are_not(self):
+    async def test_shared_playlist_is_editable_but_human_and_shared_delete_are_not(self):
         store = _Store()
         payload = {"netease_song_id": "789", "playlist_ids": [], "title": "这首歌"}
         with patch.object(library, "get_service", return_value=SimpleNamespace(store=store)), \

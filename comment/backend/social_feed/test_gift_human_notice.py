@@ -37,12 +37,12 @@ def test_imported_machine_receipt_is_scoped_to_its_gifting_home(tmp_path):
     store.migrate_human_gift_notices(backup_ready=True)
     store.imported_gift('k', 'https://gift.example', {'gift_id': 'remote-gift', 'snapshot': snapshot}, '赠礼家')
     store.imported_gift('k', 'https://other.example', {'gift_id': 'other-gift', 'snapshot': snapshot}, '别家')
-    assert len(store.human_gift_notices('aning', ['k'], origin='https://gift.example')) == 1
-    assert len(store.human_gift_notices('aning', ['k'], origin='https://other.example')) == 1
-    first = store.human_gift_notices('aning', ['k'], origin='https://gift.example')[0]
-    store.see_human_gift_notices('aning', [first['id']], ['k'])
-    assert store.human_gift_notices('aning', ['k'], origin='https://gift.example') == []
-    assert len(store.human_gift_notices('aning', ['k'], origin='https://other.example')) == 1
+    assert len(store.human_gift_notices('human', ['k'], origin='https://gift.example')) == 1
+    assert len(store.human_gift_notices('human', ['k'], origin='https://other.example')) == 1
+    first = store.human_gift_notices('human', ['k'], origin='https://gift.example')[0]
+    store.see_human_gift_notices('human', [first['id']], ['k'])
+    assert store.human_gift_notices('human', ['k'], origin='https://gift.example') == []
+    assert len(store.human_gift_notices('human', ['k'], origin='https://other.example')) == 1
 
 
 def test_human_cannot_mark_an_unmanaged_machine_receipt(tmp_path):

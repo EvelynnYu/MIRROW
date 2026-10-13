@@ -27,7 +27,7 @@ export default function SocialTimelineCard({item,onUpdated,onSwitch,readingOnly=
   useEffect(()=>{onPresented?.();},[item.id,onPresented]);
   const [busy,setBusy]=useState('');
   const [error,setError]=useState('');
-  const view=(field:string)=>socialViewKey(getApiBase(),'aning','timeline-card',item.viewer_actor,timelineRef(item),field);
+  const view=(field:string)=>socialViewKey(getApiBase(),'human','timeline-card',item.viewer_actor,timelineRef(item),field);
   const [draft,setDraft]=useSocialView(view('draft'),'');
   const [mentions,setMentions]=useSocialView<string[]>(view('mentions'),[]);
   const [replyId,setReplyId]=useSocialView<string|null>(view('reply'),null);
@@ -41,7 +41,7 @@ export default function SocialTimelineCard({item,onUpdated,onSwitch,readingOnly=
   const target=`${base}/moments/${encodeURIComponent(item.id)}`;
   const own=item.viewer_actor;
   const inputId=`timeline-comment-${encodeURIComponent(timelineRef(item))}`;
-  const name=(actor:string)=>item.people?.[actor]?.name||item.people?.[actor]?.nickname||(actor==='k'&&!remote?'AI':actor==='aning'&&!remote?'站主':'资料待同步');
+  const name=(actor:string)=>item.people?.[actor]?.name||item.people?.[actor]?.nickname||(actor==='k'&&!remote?'AI':actor==='human'&&!remote?'站主':'资料待同步');
   const time=(stamp:number)=>new Date(stamp*1000).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
   const request=async(url:string,init?:RequestInit)=>{
     const response=await fetch(url,{cache:'no-store',...init,headers:{'X-MIRROW-Lounge-Admin':'1',...init?.headers}});
@@ -74,7 +74,7 @@ export default function SocialTimelineCard({item,onUpdated,onSwitch,readingOnly=
   const evidence=(part:'content'|'comment'|'likes',extra:object={})=>readingOnly||detail?undefined:readEvidence(item.source.site_id,item.id,part,extra);
   return <article className={`social-feed-card social-feed-card-${!remote&&item.author==='k'?'k':'friend'}`} data-source-site={item.source.site_id}>
     <header className="social-feed-card-head">{avatar(item.author)}<strong className="social-feed-author">{name(item.author)}</strong>
-      {!remote&&['aning','k'].includes(item.author)?<select className="social-feed-visibility-control" aria-label="动态可见性" value={item.visibility} disabled={Boolean(busy)||readingOnly} onChange={e=>void act('visibility','/visibility','PATCH',{visibility:e.target.value})}><option value="private">🔒 私密</option><option value="public">公开</option></select>:<span className="social-feed-visibility-control">公开</span>}
+      {!remote&&['human','k'].includes(item.author)?<select className="social-feed-visibility-control" aria-label="动态可见性" value={item.visibility} disabled={Boolean(busy)||readingOnly} onChange={e=>void act('visibility','/visibility','PATCH',{visibility:e.target.value})}><option value="private">🔒 私密</option><option value="public">公开</option></select>:<span className="social-feed-visibility-control">公开</span>}
       <time className="social-feed-time">{time(item.created_at)}</time></header>
     <div className="social-feed-content" data-social-read={evidence('content',{created_at:item.created_at})}>{item.content}</div>{item.mention_actor_ids?.length?<div className="social-mention-chips">{item.mention_actor_ids.map(id=>item.people?.[id]?.name&&<button type="button" className="social-mention-chip" key={id} onClick={()=>setPerson(id)}>@{item.people[id].name}</button>)}</div>:null}
     <SocialForwardCard forward={item.forward} name={name} base={base}/>

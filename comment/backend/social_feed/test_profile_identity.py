@@ -38,7 +38,7 @@ def test_grant_audience_consumer_expiry_and_profile_only(tmp_path):
     with pytest.raises(PublicWallError,match='profile_edit_at_source'):
         # A profile projection cannot issue grants as a second authority.
         s.cache('k','https://original.example','ai','x'*43,{'origin':'https://original.example','kind':'ai','nickname':'机','avatar_data':'','version':1,'profile_id':'1'*32})
-        s.make_grant('k','ai','aning','__owner__',c,b)
+        s.make_grant('k','ai','human','__owner__',c,b)
     code=s.make_grant('visitor:a','human','visitor:a','key-id',c,b)['code']
     origin,ticket=decode_code(code);assert origin==b
     with pytest.raises(PublicWallError,match='ticket_invalid'):s.claim(ticket,'https://other.example','visitor:a')
@@ -183,14 +183,14 @@ async def test_public_routes_owner_consent_machine_management_and_no_wall_login(
     monkeypatch.setattr('social_feed.public_wall._WALL',wall)
     monkeypatch.setattr('social_feed.public_gateway._identity',lambda runtime,request,write=False,admission=True:request.headers.get('x-test-actor','visitor:h'))
     monkeypatch.setattr('social_feed.public_gateway._display',lambda runtime,actor,viewer:{'name':actor})
-    monkeypatch.setattr('social_feed.public_gateway._managed_profiles',lambda runtime,actor:['aning','k'] if actor=='aning' else ['visitor:h','visitor:a'] if actor=='visitor:h' else [actor])
+    monkeypatch.setattr('social_feed.public_gateway._managed_profiles',lambda runtime,actor:['human','k'] if actor=='human' else ['visitor:h','visitor:a'] if actor=='visitor:h' else [actor])
     runtime=SimpleNamespace(visitor_service=SimpleNamespace(effective_visitor=lambda vid:SimpleNamespace(visitor_kind='human' if vid=='h' else 'external_ai')))
     from .profile_router import create_profile_router,install_profile_errors
     from fastapi import FastAPI
     app=FastAPI();app.include_router(create_profile_router(runtime));install_profile_errors(app)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='https://social.example.invalid') as client:
         assert (await client.put('/social/v1/profile-links/policy',json={'enabled':False})).status_code==403
-        assert (await client.put('/social/v1/profile-links/policy',json={'enabled':False},headers={'x-test-actor':'aning'})).status_code==200
+        assert (await client.put('/social/v1/profile-links/policy',json={'enabled':False},headers={'x-test-actor':'human'})).status_code==200
         assert (await client.post('/social/v1/profile-links/people/visitor:other/link',json={'code':'x'*80})).status_code==403
         assert (await client.post('/social/v1/profile-links/people/visitor:a/link',json={'code':'x'*80},headers={'x-test-actor':'visitor:a'})).status_code==403
         data=(await client.get('/social/v1/profile-links/state')).json()

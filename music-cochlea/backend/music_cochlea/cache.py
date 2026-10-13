@@ -3,7 +3,7 @@
 
 两表：
 - song_meta:  歌曲元数据（永久），key = SHA256(title|artist)
-- reaction:   K 的反应（永久，>30 天刷新），key = SHA256(title|artist)
+- reaction:   AI 的反应（永久，>30 天刷新），key = SHA256(title|artist)
 """
 
 import sqlite3
@@ -21,7 +21,7 @@ REACTION_REFRESH_DAYS = 30
 
 
 class SongCache:
-    """歌曲元数据 + K 的反应缓存"""
+    """歌曲元数据 + AI 的反应缓存"""
 
     def __init__(self, db_path: str = DB_PATH):
         self.db_path = db_path

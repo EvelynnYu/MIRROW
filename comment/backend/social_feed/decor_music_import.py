@@ -182,5 +182,5 @@ async def import_music(store, source: str) -> dict:
         raise DecorError('music_import_busy')
     async with _IMPORT_LOCK:
         result = await prepare_music(source)
-        saved = await asyncio.to_thread(persist_media, store, 'aning', result.data, 'mp3', 'audio/mpeg')
+        saved = await asyncio.to_thread(persist_media, store, 'human', result.data, 'mp3', 'audio/mpeg')
         return saved | {'track': result.track, 'duration_seconds': result.duration_seconds}

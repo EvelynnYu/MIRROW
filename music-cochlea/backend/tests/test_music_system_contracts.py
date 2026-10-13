@@ -297,7 +297,7 @@ class PlaybackContracts(unittest.IsolatedAsyncioTestCase):
     async def test_daily_retry_reuses_summary_and_evidence(self):
         from music_system import daily
         from unittest.mock import AsyncMock
-        evidence = [{'id': 'e1', 'speaker': 'device', 'text': '使用者与 K 的共同播放：设备确认歌曲开始播放。', 'timestamp': '2000-01-01T12:00:00+08:00', 'identity_basis': '设备回执'}]
+        evidence = [{'id': 'e1', 'speaker': 'device', 'text': '使用者与 AI 的共同播放：设备确认歌曲开始播放。', 'timestamp': '2000-01-01T12:00:00+08:00', 'identity_basis': '设备回执'}]
         llm = AsyncMock(return_value='今天有一次共同播放记录。')
         world = AsyncMock(side_effect=[RuntimeError('test'), {'status': 'completed'}])
         with patch.object(daily, 'get_service', return_value=self.service), patch.object(daily, 'evidence_for_day', return_value=evidence), patch.object(daily, '_llm', llm), patch('cognition.maintenance.run_evidence', world):
@@ -313,10 +313,10 @@ class PlaybackContracts(unittest.IsolatedAsyncioTestCase):
     async def test_k_music_reflection_is_owned_by_interest_lane_not_music_world_lane(self):
         from music_system import daily
         from unittest.mock import AsyncMock
-        evidence = [{'id': 'music-note:node-1', 'speaker': 'k', 'text': '歌曲《测试曲》；没外放，就把它存进歌单。', 'timestamp': '2000-01-02T12:00:00+08:00', 'identity_basis': 'K 漫想反思'}]
+        evidence = [{'id': 'music-note:node-1', 'speaker': 'k', 'text': '歌曲《测试曲》；没外放，就把它存进歌单。', 'timestamp': '2000-01-02T12:00:00+08:00', 'identity_basis': 'AI 漫想反思'}]
         world = AsyncMock()
         subjective = AsyncMock(return_value={'status': 'completed'})
-        with patch.object(daily, 'get_service', return_value=self.service), patch.object(daily, 'evidence_for_day', return_value=evidence), patch.object(daily, '_llm', AsyncMock(return_value='K 分析了一首歌。')), patch('cognition.maintenance.run_evidence', world), patch('cognition.autonomous.run_evidence', subjective):
+        with patch.object(daily, 'get_service', return_value=self.service), patch.object(daily, 'evidence_for_day', return_value=evidence), patch.object(daily, '_llm', AsyncMock(return_value='AI 分析了一首歌。')), patch('cognition.maintenance.run_evidence', world), patch('cognition.autonomous.run_evidence', subjective):
             result = await daily.run('2000-01-02')
         self.assertEqual(result['status'], 'completed')
         world.assert_not_awaited()
@@ -326,13 +326,13 @@ class PlaybackContracts(unittest.IsolatedAsyncioTestCase):
         from music_system import daily
         session = await self.service.start_song(A, 'mobile', 'loop', [A, B])
         await self.service.control('next', session['id'])
-        self.store.library_event('tracks_added', 'p1', 'k', {'name': 'K Shelf', 'song_ids': ['2'], 'verified_change': True})
+        self.store.library_event('tracks_added', 'p1', 'k', {'name': 'AI Shelf', 'song_ids': ['2'], 'verified_change': True})
         with patch.object(daily, 'get_service', return_value=self.service), patch.object(daily, 'music_records', return_value=[]):
             evidence = daily.evidence_for_day(now_iso()[:10])
         joined = '\n'.join((item['text'] for item in evidence))
         self.assertIn('明确跳过 1 次', joined)
         self.assertIn('自然到达曲尾 0 次', joined)
-        self.assertIn('K Shelf', joined)
+        self.assertIn('AI Shelf', joined)
 
     def test_shared_search_matches_beyond_recent_hundred(self):
         self.store.record_song_share({**A, 'id': 'target', 'name': 'Needle Old Song'}, 'message:target', 'owner')

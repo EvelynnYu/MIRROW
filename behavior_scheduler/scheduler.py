@@ -176,18 +176,23 @@ class BehaviorScheduler:
         llm_api_key: str = None,
         llm_base_url: str = None,
         llm_model: str = None,
-        camera_device_name: str = "TIGA Device",
+        camera_device_name: str = "",
         final_reply_caller: Callable = None,  # 保留兼容，新流程不再使用
         # Pro 模型用于首轮聊天+工具决策
         pro_api_key: str = None,
         pro_model: str = None,
         pro_base_url: str = None,
+        tool_registry: Optional[Dict] = None,
+        enable_memorial_detection: bool = True,
+        raise_model_errors: bool = False,
     ):
         # 决策层组件
         self.call_llm = call_llm_func
+        self.enable_memorial_detection = enable_memorial_detection
+        self.raise_model_errors = raise_model_errors
 
         # 执行层组件（视觉工具现用 call_vision_api 统一入口，不再传 API key）
-        self.tools = register_all_tools(
+        self.tools = dict(tool_registry) if tool_registry is not None else register_all_tools(
             glm_api_key=glm_api_key,
             glm_api_url=glm_api_url,
             glm_model=glm_model,
@@ -626,6 +631,8 @@ class BehaviorScheduler:
 
         检测流程：关键词预筛 → LLM Flash 意图确认 → 创建待确认日历事件 → WS 推送
         """
+        if not self.enable_memorial_detection:
+            return
         from .intent_parser import has_memorial_signal
 
         if not has_memorial_signal(user_message):
@@ -681,7 +688,7 @@ class BehaviorScheduler:
                     description=description,
                     event_type="memorial",
                     date_string=f"{datetime.now().year:04d}-{today_mm_dd}",
-                    creator="K",  # Historical storage role; not a display name.
+                    creator="AI",  # Historical storage role; not a display name.
                     emotion=emotion,
                     is_active=False,  # 待用户确认
                 )
@@ -2308,6 +2315,8 @@ class BehaviorScheduler:
                     assistant_content[:500]
                 )
             except Exception as e:
+                if self.raise_model_errors:
+                    raise
                 error_detail = getattr(e, "detail", None) or str(e)
                 await self._push_llm_reply(f"LLM调用失败：{error_detail}")
                 return SchedulerResult(
@@ -2499,7 +2508,7 @@ def init_global_scheduler(
     llm_api_key: str = None,
     llm_base_url: str = None,
     llm_model: str = None,
-    camera_device_name: str = "TIGA Device",
+    camera_device_name: str = "",
     final_reply_caller: Callable = None,
     # Pro 模型参数（首轮聊天+工具决策，支持 thinking）
     pro_api_key: str = None,

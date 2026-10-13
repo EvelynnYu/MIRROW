@@ -40,7 +40,7 @@ def normalize_long_text_card(value: Any, *, create_id: bool = True) -> Optional[
             raise ValueError("帖子卡片附言不能超过 2000 字符")
         card.update({"kind": "xhs", "link": resolved["url"],
                      "post_key": resolved["post_key"], "link_status": resolved["link_status"]})
-        # Only the owner of a verified K source may attach a read claim.
+        # Only the owner of a verified AI source may attach a read claim.
         card["source_status"] = "owner_link"
     elif value.get("kind"):
         raise ValueError("不支持的卡片类型")
@@ -54,7 +54,7 @@ def card_for_first_turn(card: Optional[Dict[str, str]]) -> str:
         from music_system.cards import card_context
         return card_context(card)
     if card.get("kind") == "xhs":
-        return f"【使用者分享了小红书链接；这不表示 K 已读该帖。{('附言：' + card['body']) if card['body'] else ''} 链接：{card['link']}】"
+        return f"【使用者分享了小红书链接；这不表示 AI 已读该帖。{('附言：' + card['body']) if card['body'] else ''} 链接：{card['link']}】"
     title = f"《{card['title']}》" if card["title"] else ""
     return f"【使用者发来了一段长文{title}，内容如下】\n{card['body']}"
 
@@ -66,7 +66,7 @@ def card_for_history(card: Optional[Dict[str, str]], include_body: bool) -> str:
         from music_system.cards import card_context
         return card_context(card)
     if card.get("kind") == "xhs":
-        return f"【使用者此前分享的小红书链接{('《' + card['title'] + '》') if card['title'] else ''}：{card['link']}；未由此证明 K 已读该帖。】"
+        return f"【使用者此前分享的小红书链接{('《' + card['title'] + '》') if card['title'] else ''}：{card['link']}；未由此证明 AI 已读该帖。】"
     title = card["title"]
     if include_body:
         heading = f"使用者此前发送的长文卡片《{title}》" if title else "使用者此前发送的一张无标题长文卡片"

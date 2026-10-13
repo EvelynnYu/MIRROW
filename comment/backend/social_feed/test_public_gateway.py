@@ -24,7 +24,7 @@ def test_identity_card_uses_viewer_remark_not_private_other_book_name(tmp_path, 
     monkeypatch.setattr('cognition.other_book.entities',
                         lambda: {'private-person': {'name': '人丙'}})
     runtime = SimpleNamespace(visitors=SimpleNamespace(visitor=lambda _vid: SimpleNamespace(display_name='人丙')))
-    home = _display(runtime, 'visitor:v1', viewer='aning')
+    home = _display(runtime, 'visitor:v1', viewer='human')
     friend = _display(runtime, 'visitor:v1', viewer='visitor:v2')
     assert home['name'] == '人乙（人丙）'
     assert home['cognition_bound'] is True
@@ -33,7 +33,7 @@ def test_identity_card_uses_viewer_remark_not_private_other_book_name(tmp_path, 
     assert friend['canonical_name'] == ''
     wall.set_remark('visitor:v2', 'visitor:v1', '我的朋友')
     assert _display(runtime, 'visitor:v1', viewer='visitor:v2')['name'] == '人乙（我的朋友）'
-    assert _display(runtime, 'visitor:v1', viewer='aning')['name'] == '人乙（人丙）'
+    assert _display(runtime, 'visitor:v1', viewer='human')['name'] == '人乙（人丙）'
 
 
 def test_key_login_without_cognition_binding_revocation_and_public_only(tmp_path, monkeypatch):
@@ -91,7 +91,7 @@ def test_key_login_without_cognition_binding_revocation_and_public_only(tmp_path
             assert (await client.post('/social/v1/login', json={'key':'irrelevant'},
                                       headers={'Origin':'https://attacker.example'})).status_code == 403
             assert (await client.get('/social/v1/moments')).status_code == 401
-            assert (await client.get('/social/v1/main-avatar/aning')).status_code == 404
+            assert (await client.get('/social/v1/main-avatar/human')).status_code == 404
             unbound = await client.post('/social/v1/login', json={'key': 'test-only-key-12345678901234567890'})
             assert unbound.status_code == 403 and unbound.json()['detail']=='identity_registration_required'
             assert wall.contacts()==[]
@@ -176,15 +176,15 @@ def test_key_login_without_cognition_binding_revocation_and_public_only(tmp_path
 
             ticket = issue_owner_ticket()
             owner = await client.post('/social/v1/owner-login', json={'ticket': ticket})
-            assert owner.status_code == 200 and owner.json()['actor']['actor_id'] == 'aning'
+            assert owner.status_code == 200 and owner.json()['actor']['actor_id'] == 'human'
             assert owner.json()['actor']['avatar'] == ''  # Never inherits main chat/persona settings.
-            assert (await client.get('/social/v1/main-avatar/aning')).status_code == 404
-            assert (await client.get('/social/v1/me')).json()['actor']['actor_id'] == 'aning'
+            assert (await client.get('/social/v1/main-avatar/human')).status_code == 404
+            assert (await client.get('/social/v1/me')).json()['actor']['actor_id'] == 'human'
             assert 'post' in (await client.get('/social/v1/me')).json()['capabilities']
             assert (await client.post('/social/v1/owner-login', json={'ticket': ticket})).status_code == 401
             owner_csrf = client.cookies['mirrow_wall_csrf']
             managed = (await client.get('/social/v1/me/managed-profiles')).json()['profiles']
-            assert [item['actor_id'] for item in managed] == ['aning', 'k']
+            assert [item['actor_id'] for item in managed] == ['human', 'k']
             uploaded = await client.post('/social/v1/people/k/avatar', content=image_bytes,
                                          headers={'Content-Type': 'image/jpeg', 'X-MIRROW-CSRF': owner_csrf})
             assert uploaded.status_code == 200
@@ -195,7 +195,7 @@ def test_key_login_without_cognition_binding_revocation_and_public_only(tmp_path
             assert wall.profile('k')['nickname'] == 'AI 的圈名'
             owner_post = await client.post('/social/v1/moments', json={'content':'站主公开动态'},
                                            headers={'X-MIRROW-CSRF': owner_csrf})
-            assert owner_post.status_code == 200 and owner_post.json()['author'] == 'aning'
+            assert owner_post.status_code == 200 and owner_post.json()['author'] == 'human'
             note_path = '/social/v1/people/visitor%3Av1/remark'
             assert (await client.put(note_path, json={'remark':'站主给她的备注'})).status_code == 403
             saved_note = await client.put(note_path, json={'remark':'站主给她的备注'},
@@ -230,7 +230,7 @@ def test_key_login_without_cognition_binding_revocation_and_public_only(tmp_path
             assert wall.removal_status('visitor:v1', identifier)['reason'] == 'host_removed'
             with sqlite3.connect(wall.path) as db:
                 assert db.execute('SELECT author,moderator,action FROM wall_moderation_actions WHERE moment_id=?',
-                                  (identifier,)).fetchone() == ('visitor:v1', 'aning', 'host_removed')
+                                  (identifier,)).fetchone() == ('visitor:v1', 'human', 'host_removed')
             assert (await client.delete(f"/social/v1/moments/{owner_post.json()['id']}",
                 headers={'X-MIRROW-CSRF': owner_csrf})).json()['reason'] == 'author_withdrawn'
 

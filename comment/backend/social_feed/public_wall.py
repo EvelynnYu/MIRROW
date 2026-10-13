@@ -106,7 +106,7 @@ class PublicWall:
                     id TEXT PRIMARY KEY,
                     moment_id TEXT NOT NULL,
                     author TEXT NOT NULL,
-                    moderator TEXT NOT NULL CHECK (moderator = 'aning'),
+                    moderator TEXT NOT NULL CHECK (moderator = 'human'),
                     action TEXT NOT NULL CHECK (action = 'host_removed'),
                     created_at REAL NOT NULL
                 );
@@ -114,7 +114,7 @@ class PublicWall:
                     ON wall_moderation_actions(moment_id, created_at);
                 CREATE TABLE IF NOT EXISTS wall_notifications (
                     id TEXT PRIMARY KEY,
-                    recipient TEXT NOT NULL CHECK (recipient IN ('aning','k') OR recipient GLOB 'visitor:*'),
+                    recipient TEXT NOT NULL CHECK (recipient IN ('human','k') OR recipient GLOB 'visitor:*'),
                     actor TEXT NOT NULL,
                     kind TEXT NOT NULL CHECK (kind IN ('moment','comment','like')),
                     moment_id TEXT NOT NULL REFERENCES wall_moments(id) ON DELETE CASCADE,
@@ -173,7 +173,7 @@ class PublicWall:
 
     @staticmethod
     def _actor(actor: str) -> str:
-        if actor in {'aning', 'k'} or (isinstance(actor, str) and actor.startswith('visitor:') and len(actor) <= 100):
+        if actor in {'human', 'k'} or (isinstance(actor, str) and actor.startswith('visitor:') and len(actor) <= 100):
             return actor
         raise PublicWallError('invalid_actor')
 
@@ -378,16 +378,16 @@ class PublicWall:
         viewer, author = self._actor(viewer), self._actor(author)
         with self._connect() as db:
             from .profile_registration import state_in
-            return state_in(db, viewer)['can_interact'] and (viewer == 'aning' or self._guardian_can_manage(db, viewer, author))
+            return state_in(db, viewer)['can_interact'] and (viewer == 'human' or self._guardian_can_manage(db, viewer, author))
 
     @staticmethod
     def _remark_viewer(viewer: str) -> str:
         viewer = PublicWall._actor(viewer)
-        return 'home' if viewer in {'aning', 'k'} else viewer
+        return 'home' if viewer in {'human', 'k'} else viewer
 
     def known_actor(self, actor: str) -> bool:
         actor = self._actor(actor)
-        if actor in {'aning', 'k'}:
+        if actor in {'human', 'k'}:
             return True
         visitor_id = actor[8:]
         with self._connect() as db:
@@ -410,7 +410,7 @@ class PublicWall:
     def set_remark(self, viewer: str, target: str, value: str) -> str:
         scope = self._remark_viewer(viewer)
         target = self._actor(target)
-        if target == viewer or (scope == 'home' and target in {'aning', 'k'}):
+        if target == viewer or (scope == 'home' and target in {'human', 'k'}):
             raise PublicWallError('invalid_remark_target')
         if not isinstance(value, str) or len(value) > 40 or any(ord(char) < 32 for char in value):
             raise PublicWallError('invalid_remark')
@@ -575,7 +575,7 @@ class PublicWall:
             row = db.execute('SELECT author,withdrawn_at FROM wall_moments WHERE id=?', (moment_id,)).fetchone()
             if not row:
                 raise PublicWallError('moment_not_found')
-            if viewer != 'aning' and not self._guardian_can_manage(db, viewer, row['author']):
+            if viewer != 'human' and not self._guardian_can_manage(db, viewer, row['author']):
                 raise PublicWallError('forbidden')
             moderation = db.execute('SELECT created_at FROM wall_moderation_actions '
                                     'WHERE moment_id=? ORDER BY created_at DESC LIMIT 1', (moment_id,)).fetchone()
@@ -626,7 +626,7 @@ class PublicWall:
             db.execute('INSERT INTO wall_moments(id,author,content,created_at,updated_at,mentions_json,forward_json) VALUES(?,?,?,?,?,?,?)',
                        (identifier, actor, content, created, now, encode(mentions), forward_json))
             db.execute('INSERT INTO wall_changes(moment_id,kind,created_at) VALUES(?,?,?)', (identifier, 'upsert', now))
-            for recipient in ('aning', 'k'):
+            for recipient in ('human', 'k'):
                 self._notify(db, recipient, actor, 'moment', identifier, None, now)
             deliver(db, mentions, actor, identifier, None, now)
             result = self._item(db, db.execute('SELECT * FROM wall_moments WHERE id=?', (identifier,)).fetchone())
@@ -719,7 +719,7 @@ class PublicWall:
                              (comment_id, moment_id)).fetchone()
             if not row:
                 raise PublicWallError('comment_not_found')
-            if actor != 'aning' and not self._guardian_can_manage(db, actor, row['author']):
+            if actor != 'human' and not self._guardian_can_manage(db, actor, row['author']):
                 raise PublicWallError('forbidden')
             # Replies remain in the conversation, but ON DELETE SET NULL severs
             # their pointer to the removed text. Pending alerts no longer quote it.
@@ -819,7 +819,7 @@ class PublicWall:
             row = db.execute('SELECT author,withdrawn_at FROM wall_moments WHERE id=?', (moment_id,)).fetchone()
             if not row:
                 raise PublicWallError('moment_not_found')
-            host_moderation = owner_override and actor == 'aning' and row['author'].startswith('visitor:')
+            host_moderation = owner_override and actor == 'human' and row['author'].startswith('visitor:')
             if not self._guardian_can_manage(db, actor, row['author']) and not host_moderation:
                 raise PublicWallError('forbidden')
             if row['withdrawn_at'] is None:
@@ -898,7 +898,7 @@ class PublicWall:
 
     def mark_notifications_announced(self, recipient: str, ids: list[str], source: str,
                                      source_id: str) -> int:
-        if recipient not in {'aning', 'k'} or not source_id:
+        if recipient not in {'human', 'k'} or not source_id:
             raise PublicWallError('invalid_notification_claim')
         bounded = list(dict.fromkeys(ids))[:100]
         if not bounded:

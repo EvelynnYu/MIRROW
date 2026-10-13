@@ -192,8 +192,8 @@ class HybridSocialFeedStore:
             return []
         limit = max(1, min(10, int(limit)))
         author_ids: set[str] = set()
-        if query.casefold() in {'k', '站主', 'aning'}:
-            author_ids.add('k' if query.casefold() == 'k' else 'aning')
+        if query.casefold() in {'k', '站主', 'human'}:
+            author_ids.add('k' if query.casefold() == 'k' else 'human')
         try:
             from lounge_reception.runtime import current_runtime
             from .public_gateway import _display
@@ -253,7 +253,7 @@ class HybridSocialFeedStore:
             if not moment:
                 raise SocialFeedError('moment_not_found')
             owner = moment['author']
-            if owner != actor and not (override and actor == 'aning'):
+            if owner != actor and not (override and actor == 'human'):
                 raise SocialFeedError('forbidden')
             comments = [dict(r) for r in db.execute('SELECT * FROM social_comments WHERE moment_id=? ORDER BY created_at', (moment_id,))]
             likes = [dict(r) for r in db.execute('SELECT * FROM social_reactions WHERE moment_id=? ORDER BY created_at', (moment_id,))]
@@ -307,7 +307,7 @@ class HybridSocialFeedStore:
             if not moment:
                 raise SocialFeedError('moment_not_found')
             owner = moment['author']
-            if owner not in {'aning', 'k'} or (owner != actor and not (override and actor == 'aning')):
+            if owner not in {'human', 'k'} or (owner != actor and not (override and actor == 'human')):
                 raise SocialFeedError('forbidden')
             comments = [dict(r) for r in db.execute('SELECT * FROM public_wall.wall_comments WHERE moment_id=? ORDER BY created_at', (moment_id,))]
             likes = [{'author': r['actor'], 'reaction': 'like', 'created_at': r['created_at']}
@@ -344,7 +344,7 @@ class HybridSocialFeedStore:
         if current is None:
             raise SocialFeedError('moment_not_found')
         previous = current['visibility']
-        if current['author'] != actor and not (allow_owner_override and actor == 'aning'):
+        if current['author'] != actor and not (allow_owner_override and actor == 'human'):
             raise SocialFeedError('forbidden')
         if previous != visibility:
             if visibility == 'public':
@@ -430,7 +430,7 @@ class HybridSocialFeedStore:
                            (result['id'], moment_id, author, content, result['created_at'], encode(mentions)))
                 owner = db.execute('SELECT author FROM social_moments WHERE id=?', (moment_id,)).fetchone()[0]
                 parent_author = next(entry['author'] for entry in comments if entry['id'] == reply_to_id)
-                recipients = ({owner, parent_author} | set(mentions)) & {'aning', 'k'} - {author}
+                recipients = ({owner, parent_author} | set(mentions)) & {'human', 'k'} - {author}
                 for recipient in recipients:
                     db.execute('INSERT INTO social_notifications(id,recipient,actor,kind,moment_id,comment_id,created_at) '
                                "VALUES(?,?,?,'comment',?,?,?)",
@@ -458,7 +458,7 @@ class HybridSocialFeedStore:
                 comments = json.loads(row[0])
                 target = next((item for item in comments if item['id'] == comment_id), None)
                 if target:
-                    if actor != 'aning' and target['author'] != actor:
+                    if actor != 'human' and target['author'] != actor:
                         raise SocialFeedError('forbidden')
                     comments = [item for item in comments if item['id'] != comment_id]
                     for item in comments:

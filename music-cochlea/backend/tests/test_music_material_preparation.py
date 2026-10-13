@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 from music_system.material_preparation import MaterialPreparationScheduler
 
 
-SONG = {"id": "song-1", "name": "A", "artist": "K"}
+SONG = {"id": "song-1", "name": "A", "artist": "AI"}
 
 
 class MaterialPreparationSchedulerTests(unittest.IsolatedAsyncioTestCase):

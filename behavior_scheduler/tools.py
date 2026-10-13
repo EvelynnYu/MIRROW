@@ -214,7 +214,7 @@ def register_all_tools(
     glm_model: str = "glm-4v-flash",
     chrome_user_data: str = None,
     target_qq: str = None,
-    camera_device_name: str = "TIGA Device",
+    camera_device_name: str = "",
     include_agent_tools: bool = True
 ) -> Dict[str, BaseTool]:
     """

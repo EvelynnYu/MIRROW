@@ -1,4 +1,4 @@
-"""K's music actions share the same state and provider as the UI."""
+"""AI's music actions share the same state and provider as the UI."""
 import json
 from .service import get_service
 from .errors import MusicSystemError, MusicNotFound, SessionConflict
@@ -99,7 +99,7 @@ async def execute(action, query="", **kwargs):
             if not pid: raise MusicNotFound("需要明确目标歌单 ID")
             from .library import delete
             p = await delete(pid, source="k_tool",reason=reason)
-            return ToolResult(ToolStatus.SUCCESS,"网易云已确认删除 K 的歌单：" + p["name"])
+            return ToolResult(ToolStatus.SUCCESS,"网易云已确认删除 AI 的歌单：" + p["name"])
         if action in {"playlist_add","playlist_remove","like"}:
             if not pid:
                 candidates = [p for p in service.store.bindings() if p["subject"] == subject]
@@ -212,12 +212,12 @@ async def execute(action, query="", **kwargs):
                 if action == "inspect":
                     return ToolResult(ToolStatus.SUCCESS,"歌曲文本材料；不是收听记录：\n" + json.dumps(material,ensure_ascii=False),extra_data={"music_card":song})
                 reaction = str(kwargs.get("reaction") or "").strip()
-                if not reaction or not material.get("lyrics"): raise MusicNotFound("需要实际歌曲材料与 K 的明确感想")
+                if not reaction or not material.get("lyrics"): raise MusicNotFound("需要实际歌曲材料与 AI 的明确感想")
                 from cognition.music import record
                 from .store import now_iso
                 record({"subject_id":"k","mode":"analysis","title":song["name"],"artist":song["artist"],"reaction":reaction,"dimensions":{}},
-                       source_id="music-analysis:" + song["id"] + ":" + now_iso()[:10],source="K 阅读网易云歌词材料后的自主感想")
-                return ToolResult(ToolStatus.SUCCESS,"K 的歌曲材料感想已保存；不冒充音频收听经历")
+                       source_id="music-analysis:" + song["id"] + ":" + now_iso()[:10],source="AI 阅读网易云歌词材料后的自主感想")
+                return ToolResult(ToolStatus.SUCCESS,"AI 的歌曲材料感想已保存；不冒充音频收听经历")
             return ToolResult(ToolStatus.SUCCESS,"已生成歌曲卡片：《" + song["name"] + "》— " + song["artist"] + "；分享并未开始播放",extra_data={"music_card":song})
         raise MusicNotFound("不支持的音乐操作")
     except MusicSystemError as error:

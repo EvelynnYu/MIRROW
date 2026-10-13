@@ -58,7 +58,7 @@ async def test_delivery_report_owner_only_and_stable_cursor(gateway):
     assert store.delivery_report()['total']==2
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='https://social.example.invalid') as client:
         assert (await client.get('/social/v1/decor/deliveries')).status_code==403
-        result=await client.get('/social/v1/decor/deliveries',headers={'x-test-actor':'aning'})
+        result=await client.get('/social/v1/decor/deliveries',headers={'x-test-actor':'human'})
         assert result.status_code==200 and result.json()['total']==2
         assert all('snapshot' not in row and 'actor' not in row for row in result.json()['items'])
 

@@ -18,9 +18,9 @@ def normalise(value=None, *, private=False) -> list[str]:
         raise ValueError('invalid_mentions')
     result = []
     for actor in value:
-        if not isinstance(actor, str) or not re.fullmatch(r'(aning|k|visitor:[A-Za-z0-9_-]{1,90})', actor):
+        if not isinstance(actor, str) or not re.fullmatch(r'(human|k|visitor:[A-Za-z0-9_-]{1,90})', actor):
             raise ValueError('invalid_mentions')
-        if private and actor not in {'aning', 'k'}:
+        if private and actor not in {'human', 'k'}:
             raise ValueError('private_mentions_home_only')
         if actor not in result:
             result.append(actor)
@@ -38,7 +38,7 @@ def decode(value) -> list[str]:
         if not isinstance(rows, list) or len(rows) > 8:
             return []
         if any(not isinstance(actor, str) or not re.fullmatch(
-                r'(aning|k|visitor:[A-Za-z0-9_-]{1,90}|archive:[a-f0-9]{32})', actor) for actor in rows):
+                r'(human|k|visitor:[A-Za-z0-9_-]{1,90}|archive:[a-f0-9]{32})', actor) for actor in rows):
             return []
         return list(dict.fromkeys(rows))
     except (ValueError, TypeError):
@@ -81,7 +81,7 @@ def initialize_public(db):
 def validate_public(db, values) -> list[str]:
     ids = normalise(values)
     for actor in ids:
-        if actor in {'aning', 'k'}:
+        if actor in {'human', 'k'}:
             continue
         visitor = actor[8:]
         if (not db.execute('SELECT 1 FROM wall_registered_names WHERE visitor_id=?', (visitor,)).fetchone()
@@ -157,7 +157,7 @@ def candidates(runtime, wall, viewer, *, private=False, query='', limit=30):
     """Current public names only, filtered through real admission, never keys."""
     from .public_gateway import _display
     from .household_identity import registered_social_visitor, has_active_key
-    actors = ['aning', 'k']
+    actors = ['human', 'k']
     if not private:
         removed = set(wall.removed_contacts())
         actors += ['visitor:' + identifier for identifier in wall.registered_names()

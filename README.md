@@ -10,16 +10,19 @@
 
 [Memory V2 与三域认知书：架构、源码、接入与测试](memory-cognition/README.md)。独立的匿名代码副本，不含私人对话、词条数据或凭据。
 
-# MIRROW 开源模块
+# MIRROW：本地 AI 伴侣核心与公开应用
 
-MIRROW 是一个单用户、本地部署的 AI 伴侣系统。本仓库提供其中可独立复用的核心模块与配套界面；当前可用范围和接入要求见下文。
+MIRROW 是一个单用户、本地部署的 AI 伴侣系统。本仓库提供可复用模块，以及连接聊天、记忆、认知和漫想的独立本地前后端。每位部署者使用自己的身份设定、模型和数据。
 
-**这里没有完整的整机产品**——你拿到的是可独立接入的"器官",以及把它们接进你自己系统的说明书。模块通过宿主接口解耦，不绑定特定 LLM 厂商；缺失能力如实降级。共享耳蜗另附独立 UI／后端示例，仍不带整机私有人格或聊天大脑。
+**这不是私人生产环境的原样镜像。** `local_app/` 是公开模块的独立宿主：聊天与漫想分享共用本地 SQLite，Memory V2 校验真实消息来源；前端含聊天、设定、记忆检索、漫想日志和许愿板。默认只接通关键词联想、记忆回看、自省；其他已公开模块仍按各自文档接入。共享耳蜗和共域各有独立界面，不会被默认宿主暗中启动。[部署与功能边界](docs/LOCAL_APP.md)。
 
 ## 已发布模块
 
 | 模块 | 一句话 | 亮点 |
 |------|--------|------|
+| [local_app/](local_app/) | 可启动的本地后端 | 固定主会话、模型接线、来源校验记忆、认知书接口、真实漫想运行时 |
+| [memory-cognition/](memory-cognition/) | Memory V2 与三域认知书 | 不可变事件、来源追溯、事件延续和可修订认知 |
+| [comment/](comment/) | 共域／朋友圈 | 本家动态、评论互动、资料与跨站接口；独立接入包 |
 | [music-cochlea/](music-cochlea/) | 共享耳蜗——AI 与你的音乐经历 | 后端、React UI、Windows／Android 网易云控制、歌单／卡片／材料与宿主接口；分析派生文件为非商业许可 |
 | [silicon_perception/](silicon_perception/) | 硅基感知——AI 的"感官系统" | 9 数据源 60s 监控循环、行为基线(6 层数据架构+7 维度基线)、三级触发器体系、数据时效模型(陈旧数据不伪装成正常) |
 | [wander_manager/](wander_manager/) | 漫想模式——AI 的"潜意识" | 五层主动推送引擎 + **v3 持久化运行时**(run→activity→node 可追溯身份链,重启可恢复) + **大脑架构生成器** + 10 事件目录 + 愿望板 |
@@ -27,7 +30,7 @@ MIRROW 是一个单用户、本地部署的 AI 伴侣系统。本仓库提供其
 | [mirrow_core/](mirrow_core/) | 共享基础件 | 截断参数配置中心、时间工具、全局状态注册、称呼配置层 |
 | [context_builder/](context_builder/) | 上下文组装框架——AI 的"长期记忆"方法论 | Recipe 声明式分层语言(14 场景)、Builder 组装管道、注意力五层模型 |
 | [memory_provider.py](memory_provider.py) | 记忆检索抽象协议 | MemoryProvider 标准接口(已附 SQLite 参考实现),不注入=优雅降级 |
-| [wander_frontend/](wander_frontend/) | 漫想配套前端 | 独立 React 日志面板与许愿板，附本地 API 示例，不包含完整聊天应用 |
+| [wander_frontend/](wander_frontend/) | 本地 React 前端 | 聊天、身份设置、记忆检索与整理、漫想日志和许愿板；兼容原独立面板宿主 |
 
 ## 本批更新（批次5：漫想运行时与独立部署边界）
 
@@ -57,18 +60,27 @@ MIRROW 是一个单用户、本地部署的 AI 伴侣系统。本仓库提供其
 
 > 事件目录不等于已配置能力。可选事件需要注册真实处理器，并由 `allowed_event_types` 启用；音乐另需宿主播放服务。会客、购物域实现未开源，缺失接入不会产生成功结果。
 
-## 待发布
+## 不随公开应用提供
 
-- **完整聊天前端 / 群聊 / 语音 / 记忆库(OB_Rev)** — 视社区反馈决定。漫想日志和许愿板前端已单独开放。
+私人身份、对话、记忆数据库、账号登录态、设备标识、模型密钥均不提供。会客和淘宝仅保留接口，原始集成移植自 AionsHome。群聊传输、完整语音链路、私人设备服务和其他生产专属功能不是默认应用的能力；缺失接入不返回模拟成功。
 
 ## 快速开始
 
 ```bash
-pip install -r requirements.txt
-cp .env.example .env   # 填入你的 LLM API key
+python -m venv .venv
+# 激活虚拟环境后：
+python -m pip install -r local_app/requirements.txt
+cp .env.example .env   # PowerShell 使用 Copy-Item；填写 MIRROW_* 模型配置
+cd wander_frontend
+npm ci
+npm run build
+cd ..
+python -m local_app
 ```
 
-三个模块都是"库",不自带入口进程——你需要一个宿主(FastAPI 应用或任意 asyncio 程序)在启动时注入回调。完整接线示例见 **[docs/接入指南.md](docs/接入指南.md)**。
+打开 `http://127.0.0.1:8765`，先在「设定」填写自己的身份。首次启动为空库，不导入私人项目，也不自动启动模型、传感器或后台漫想。安装、费用、停止语义及兼容边界见 **[本地应用指南](docs/LOCAL_APP.md)**。
+
+只想移植模块时，仍可使用自己的 FastAPI / asyncio 宿主；接线示例见 **[docs/接入指南.md](docs/接入指南.md)**。
 
 最小心智模型:
 

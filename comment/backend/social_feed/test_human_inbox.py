@@ -25,8 +25,8 @@ def test_visitor_interactions_self_skip_unlike_and_deleted_comment(tmp_path):
 def test_explicit_migration_preserves_receipts_and_requires_backup(tmp_path):
     wall=PublicWall(tmp_path/'wall.db');wall.initialize()
     post=wall.create_moment('k','hello')
-    notice=wall.notifications('aning')[0]
-    wall.mark_notifications_read('aning',[notice['id']],'fixture')
+    notice=wall.notifications('human')[0]
+    wall.mark_notifications_read('human',[notice['id']],'fixture')
     with wall._connect() as db:
         before=dict(db.execute('SELECT * FROM wall_notifications WHERE id=?',(notice['id'],)).fetchone())
         sql=db.execute("SELECT sql FROM sqlite_master WHERE name='wall_notifications'").fetchone()[0]

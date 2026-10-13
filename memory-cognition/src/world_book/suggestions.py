@@ -183,7 +183,7 @@ category: ""
 
 ## 编辑记录
 
-- {datetime.now().strftime('%Y-%m-%d')}：Agent 建议创建；洛月凝审核采纳（来源: {s.source}）
+- {datetime.now().strftime('%Y-%m-%d')}：Agent 建议创建；人类伙伴审核采纳（来源: {s.source}）
 """
         with open(fpath, "w", encoding="utf-8") as f:
             f.write(yaml_block)
@@ -219,7 +219,7 @@ category: ""
 
             # 在 "## 编辑记录" 前插入新内容
             edit_marker = "## 编辑记录"
-            update_line = f"\n- {datetime.now().strftime('%Y-%m-%d')}：Agent 建议补充；洛月凝审核采纳（来源: {s.source}）\n"
+            update_line = f"\n- {datetime.now().strftime('%Y-%m-%d')}：Agent 建议补充；人类伙伴审核采纳（来源: {s.source}）\n"
             new_body = s.proposed_body.strip() + "\n"
 
             if edit_marker in content:

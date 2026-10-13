@@ -98,7 +98,7 @@ def _owner_person(actor_id: str) -> dict:
         raise HTTPException(503, '公开朋友圈接待尚未就绪')
     if not get_public_wall().known_actor(actor_id):
         raise HTTPException(404, 'person_not_found')
-    return _display(runtime, actor_id, viewer='aning')
+    return _display(runtime, actor_id, viewer='human')
 
 
 @router.get('/mention-people')
@@ -109,7 +109,7 @@ def mention_people(q: str = Query('', max_length=40), visibility: Literal['priva
     runtime = current_runtime()
     if runtime is None:
         raise HTTPException(503, 'social_identity_not_ready')
-    result = candidates(runtime, get_public_wall(), 'aning', private=visibility=='private', query=q)
+    result = candidates(runtime, get_public_wall(), 'human', private=visibility=='private', query=q)
     for person in result['items']:
         _local_avatar(person)
     return result
@@ -163,7 +163,7 @@ def person_card(actor_id: str):
 @router.post('/people/{actor_id}/avatar')
 async def update_local_wall_avatar(actor_id: str, request: Request):
     """Update only the two local wall identities, never chat/persona avatars."""
-    if actor_id not in {'aning', 'k'}:
+    if actor_id not in {'human', 'k'}:
         raise HTTPException(403, 'wall_avatar_owner_only')
     from social_feed.avatar_images import MAX_UPLOAD_BYTES, save_avatar
     from social_feed.public_gateway import PUBLIC_SOCIAL_ORIGIN
@@ -191,7 +191,7 @@ async def update_local_wall_avatar(actor_id: str, request: Request):
 
 @router.put('/people/{actor_id}/profile')
 def update_local_wall_profile(actor_id: str, body: LocalProfileUpdate):
-    if actor_id not in {'aning','k'}:
+    if actor_id not in {'human','k'}:
         raise HTTPException(403,'wall_profile_owner_only')
     from social_feed.public_wall import PublicWallError,get_public_wall
     try:
@@ -208,7 +208,7 @@ def person_remark(actor_id: str, body: RemarkUpdate):
     if _cognition_name(actor_id):
         raise HTTPException(403, 'remark_locked_by_cognition')
     try:
-        get_public_wall().set_remark('aning', actor_id, body.remark)
+        get_public_wall().set_remark('human', actor_id, body.remark)
     except PublicWallError as exc:
         raise HTTPException(404 if str(exc) == 'person_not_found' else 400, str(exc)) from None
     return {'person': _local_avatar(_owner_person(actor_id))}
@@ -244,7 +244,7 @@ async def list_moments(
         from social_feed.public_gateway import _decorate
         runtime = current_runtime()
         if runtime:
-            result['items'] = [_decorate(runtime, item, viewer='aning') for item in result['items']]
+            result['items'] = [_decorate(runtime, item, viewer='human') for item in result['items']]
             for item in result['items']:
                 for person in item.get('people', {}).values():
                     _local_avatar(person)
@@ -257,9 +257,9 @@ async def list_moments(
 async def create_moment(body: MomentCreate):
     try:
         result = await get_social_feed_store().create_moment(
-            "aning", body.content, visibility=body.visibility, mention_actor_ids=body.mention_actor_ids,
+            "human", body.content, visibility=body.visibility, mention_actor_ids=body.mention_actor_ids,
             forward_ref=body.forward_ref,
-            source_key=f'ui:aning:post:{body.request_id}' if body.request_id else None,
+            source_key=f'ui:human:post:{body.request_id}' if body.request_id else None,
         )
         return result
     except SocialFeedError as exc:
@@ -275,7 +275,7 @@ async def moment_detail(moment_id: str):
     from social_feed.public_gateway import _decorate
     runtime = current_runtime()
     if runtime:
-        item = _decorate(runtime,item,viewer='aning')
+        item = _decorate(runtime,item,viewer='human')
         for person in item.get('people',{}).values():
             _local_avatar(person)
     return item
@@ -285,7 +285,7 @@ async def moment_detail(moment_id: str):
 async def delete_moment(moment_id: str):
     """站主可删除自己的动态或移除公开墙的访客动态。"""
     try:
-        return await get_social_feed_store().delete_moment(moment_id, "aning", allow_owner_override=True)
+        return await get_social_feed_store().delete_moment(moment_id, "human", allow_owner_override=True)
     except SocialFeedError as exc:
         raise _domain_error(exc) from exc
 
@@ -294,7 +294,7 @@ async def delete_moment(moment_id: str):
 async def edit_moment(moment_id: str, body: MomentEdit):
     """站主只能修改自己发布的动态；公开帖按 revision 防覆盖。"""
     try:
-        return await get_social_feed_store().edit_moment(moment_id, 'aning', body.content, body.revision)
+        return await get_social_feed_store().edit_moment(moment_id, 'human', body.content, body.revision)
     except SocialFeedError as exc:
         raise _domain_error(exc) from exc
 
@@ -305,7 +305,7 @@ async def set_moment_visibility(moment_id: str, body: VisibilityUpdate):
     try:
         return await get_social_feed_store().set_moment_visibility(
             moment_id,
-            "aning",
+            "human",
             body.visibility,
             allow_owner_override=True,
         )
@@ -317,8 +317,8 @@ async def set_moment_visibility(moment_id: str, body: VisibilityUpdate):
 async def add_comment(moment_id: str, body: CommentCreate):
     try:
         return await get_social_feed_store().add_comment(
-            moment_id, "aning", body.content, reply_to_id=body.reply_to_id, mention_actor_ids=body.mention_actor_ids,
-            source_key=f'ui:aning:comment:{moment_id}:{body.request_id}' if body.request_id else None,
+            moment_id, "human", body.content, reply_to_id=body.reply_to_id, mention_actor_ids=body.mention_actor_ids,
+            source_key=f'ui:human:comment:{moment_id}:{body.request_id}' if body.request_id else None,
         )
     except SocialFeedError as exc:
         raise _domain_error(exc) from exc
@@ -328,7 +328,7 @@ async def add_comment(moment_id: str, body: CommentCreate):
 async def delete_comment(moment_id: str, comment_id: str):
     """Mirror the public wall's author/owner deletion rule in the local UI."""
     try:
-        return await get_social_feed_store().delete_comment(moment_id, comment_id, "aning")
+        return await get_social_feed_store().delete_comment(moment_id, comment_id, "human")
     except SocialFeedError as exc:
         raise _domain_error(exc) from exc
 
@@ -336,7 +336,7 @@ async def delete_comment(moment_id: str, comment_id: str):
 @router.post("/moments/{moment_id}/like")
 async def toggle_like(moment_id: str):
     try:
-        return await get_social_feed_store().toggle_like(moment_id, "aning")
+        return await get_social_feed_store().toggle_like(moment_id, "human")
     except SocialFeedError as exc:
         raise _domain_error(exc) from exc
 
@@ -344,20 +344,20 @@ async def toggle_like(moment_id: str):
 @router.put('/moments/{moment_id}/like')
 async def set_like(moment_id: str, body: LikeUpdate):
     try:
-        return await get_social_feed_store().toggle_like(moment_id, 'aning', liked=body.liked)
+        return await get_social_feed_store().toggle_like(moment_id, 'human', liked=body.liked)
     except SocialFeedError as exc:
         raise _domain_error(exc) from exc
 
 
 @router.get("/notifications")
 async def unread_notifications():
-    items = await get_social_feed_store().unread_notifications("aning")
+    items = await get_social_feed_store().unread_notifications("human")
     return {"items": items, "count": len(items)}
 
 
 @router.post("/notifications/mark-read")
 async def mark_notifications_read(body: MarkReadBody):
     count = await get_social_feed_store().mark_notifications_read(
-        "aning", body.notification_ids, read_source="ui"
+        "human", body.notification_ids, read_source="ui"
     )
     return {"ok": True, "count": count}

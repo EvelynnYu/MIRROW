@@ -214,7 +214,7 @@ emotion_effect 只描述 AI 因这次当前活动而新产生或变化的自身�
 不要声称做过真实材料中没有发生的事情。"""
 
 _SETTLEMENT_INSTRUCTION = """只输出 JSON 对象：
-{"summary":"作为K对整件事的综合感受","share":<true或false>,"continue_next":false,"next_inclination_note":"","emotion_effect":{"changed":false,"from":"","to":"","delta":"变化描述","confidence":0.0},"next_run_delay_seconds":900,"timing_reason":""}
+{"summary":"作为AI对整件事的综合感受","share":<true或false>,"continue_next":false,"next_inclination_note":"","emotion_effect":{"changed":false,"from":"","to":"","delta":"变化描述","confidence":0.0},"next_run_delay_seconds":900,"timing_reason":""}
 share 字段：这次漫想若有真实的感触、新的想法、或此刻想念用户而想主动说些什么，输出 true；否则输出 false。由你自主决定。next_run_delay_seconds 是这轮结束后下次漫想前由你自主选择的等待秒数，并填写 timing_reason；它和 continue_next 独立，continue_next 仅表示是否保留下一轮的倾向笔记。900 只是示例，不是固定要求；0 会由系统调整为至少 5 秒。
 emotion_effect 只描述 AI 因本次已完成活动而形成的自身即时心情；不要把材料中其他人的情绪、旧记录中的历史情绪或 t/l/s 机器状态抄成 AI 的心情。from/to 必须是自然语言心情，无法确认时 changed=false。
 只根据已完成节点总结，不要补造行动。"""

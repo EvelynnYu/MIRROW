@@ -62,7 +62,7 @@ async def _run(job):
         job.update(attachment_status='failed', attachment_error='服务重启中，卡片制作未完成；可重新发起推荐')
         raise
     except Exception:
-        job.update(attachment_status='failed', attachment_error='音乐资料取得失败，未开始播放；可请 K 重新推荐')
+        job.update(attachment_status='failed', attachment_error='音乐资料取得失败，未开始播放；可请 AI 重新推荐')
     finally:
         get_service().store.save_material('share:' + job['generation_id'], job)
     # The provider may finish before the assistant message has reached storage.

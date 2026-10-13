@@ -259,9 +259,9 @@
       themeTab.append(field('点缀色', draft.theme.accent, v => { draft.theme.accent = v; refresh(); }, { type: 'color' }));
       themeTab.append(node('small','md-copy','点缀色用于点赞、按钮、链接和选中强调，不改变背景图。'));
       themeTab.append(field('展架名字', draft.theme.shelf_name, v => { draft.theme.shelf_name = v; refresh(); }, { max: 40 }));
-      await uploadField(themeTab,'动态栏背景','aning',draft.theme,'background',false,refresh);
+      await uploadField(themeTab,'动态栏背景','human',draft.theme,'background',false,refresh);
       themeTab.append(node('small','md-copy','竖版背景仅铺中间动态栏；横版／方图铺整个共域。内站与网站一致。'));
-      await uploadField(themeTab,'动态背景卡','aning',draft.theme,'card_background',false,refresh);
+      await uploadField(themeTab,'动态背景卡','human',draft.theme,'card_background',false,refresh);
       editor.append(themeTab);
       await editMusic(editor,draft);
       const items = node('div'), controls = node('div', 'md-toolbar');
@@ -271,8 +271,8 @@
           const box = node('details', 'md-section'); box.append(node('summary', '', `${index + 1}. ${entry.name || '新展品'}`));
           box.append(field('物品名', entry.name, v => { entry.name = v; refresh(); }, { max: 40 }));
           box.append(field('物品描述', entry.description, v => entry.description = v, { lines: true, max: 500 }));
-          await uploadField(box,'架上展示图','aning',entry,'image',false,refresh);
-          await uploadField(box,'发放物料图（留空沿用展示图）','aning',entry,'gift_image');
+          await uploadField(box,'架上展示图','human',entry,'image',false,refresh);
+          await uploadField(box,'发放物料图（留空沿用展示图）','human',entry,'gift_image');
           box.append(field('你给访客的留言', entry.human_note, v => entry.human_note = v, { lines: true, max: 200 }));
           box.append(field('AI 给访客的留言', entry.ai_note, v => entry.ai_note = v, { lines: true, max: 200 }));
           const updateLabel=node('label'),update=node('input');update.type='checkbox';update.checked=syncGifts.has(entry.id);

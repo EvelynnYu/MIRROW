@@ -13,12 +13,12 @@ class SelectionCatalogTests(unittest.TestCase):
     def test_bound_playlists_from_all_owners_are_readable_candidates(self):
         bindings = [
             {"id": "1", "name": "使用者的歌", "subject": "owner"},
-            {"id": "2", "name": "K 的歌", "subject": "k"},
+            {"id": "2", "name": "AI 的歌", "subject": "k"},
             {"id": "3", "name": "一起听", "subject": "shared"},
         ]
         playlists = {
             "playlist:1": {"songs": [{"id": "11", "name": "共同曲", "artist": "歌手", "duration": 180000}]},
-            "playlist:2": {"songs": [{"id": "22", "name": "K 曲", "artist": "歌手", "duration": 180000}]},
+            "playlist:2": {"songs": [{"id": "22", "name": "AI 曲", "artist": "歌手", "duration": 180000}]},
             "playlist:3": {"songs": [{"id": "11", "name": "共同曲", "artist": "歌手", "duration": 180000}]},
         }
         store = SimpleNamespace(bindings=lambda: bindings, material=lambda key: playlists.get(key))
@@ -33,7 +33,7 @@ class SelectionCatalogTests(unittest.TestCase):
         shelf = [
             {"netease_song_id": "101", "fingerprint": "a", "playlist_memberships": [{"id": "1", "name": "使用者", "subject": "owner"}]},
             {"netease_song_id": "102", "fingerprint": "s", "playlist_memberships": [{"id": "3", "name": "共有", "subject": "shared"}]},
-            {"netease_song_id": "103", "fingerprint": "k", "playlist_memberships": [{"id": "2", "name": "K", "subject": "k"}]},
+            {"netease_song_id": "103", "fingerprint": "k", "playlist_memberships": [{"id": "2", "name": "AI", "subject": "k"}]},
         ]
         merged = merge_shelf_candidates(recent, shelf)
         preview = preview_candidates(merged, recent_fingerprints={"0"}, limit=12)

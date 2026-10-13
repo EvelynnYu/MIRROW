@@ -10,20 +10,20 @@ from .forwarding import normalize_forward_ref, ForwardError
 async def forward_moment(*, actor, moment_id, source_site_id='', site_id='',
                          content='', visibility='private', source_key=None,
                          local_store=None, sites=None, client=None):
-    if actor not in {'aning', 'k'} or visibility not in {'private', 'public'}:
+    if actor not in {'human', 'k'} or visibility not in {'private', 'public'}:
         raise ForwardError('invalid_forward_request')
     from . import get_social_feed_store
     from .public_gateway import PUBLIC_SOCIAL_ORIGIN
     local = local_store or get_social_feed_store()
     registry = sites or get_remote_site_store()
     transport = client or RemoteSocialClient()
-    kind = 'human' if actor == 'aning' else 'ai'
+    kind = 'human' if actor == 'human' else 'ai'
     source = registry.get(source_site_id) if source_site_id else None
     destination = registry.get(site_id) if site_id else None
     if (source_site_id and not source) or (site_id and not destination):
         raise ForwardError('social_site_not_found')
     for home in (source, destination):
-        if home and (not home.enabled or not (home.human_key if actor == 'aning' else home.ai_key)):
+        if home and (not home.enabled or not (home.human_key if actor == 'human' else home.ai_key)):
             raise ForwardError('social_site_identity_unavailable')
     if source:
         item = await transport.request(source, kind, 'GET', '/social/v1/moments/' + quote(moment_id, safe=''))
@@ -41,7 +41,7 @@ async def forward_moment(*, actor, moment_id, source_site_id='', site_id='',
             raise ForwardError('remote_social_public_only')
         me = await transport.request(destination, kind, 'GET', '/social/v1/me')
         if ('forwarding_v1' not in (me.get('capabilities') or [])
-                or me.get('can_manage_avatar') is not (actor == 'aning')):
+                or me.get('can_manage_avatar') is not (actor == 'human')):
             raise ForwardError('remote_social_forwarding_unavailable')
         result = await transport.request(destination, kind, 'POST', '/social/v1/moments',
             payload={'content': comment, 'forward_ref': ref, **({'request_id': source_key} if source_key else {})})
