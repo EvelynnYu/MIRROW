@@ -36,6 +36,8 @@ async def chat_context(store, memory, user_text):
     messages = []
     rows = store.messages()
     for item in rows[:-1]:
+        from mirrow_core.model_provenance import annotate_history
+        item = annotate_history(item)
         # Timestamps and event provenance are frozen on insertion, not rebuilt as "now".
         provenance = f"时间：{item['timestamp']}"
         if item['event_type']:

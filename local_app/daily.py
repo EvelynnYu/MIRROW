@@ -3,6 +3,7 @@ import asyncio
 import json
 from cognition import daily
 from .day_store import STAGES
+from mirrow_core.model_provenance import day_model_evidence, PROVENANCE_GUIDE
 
 
 class DailyDigestion:
@@ -12,7 +13,10 @@ class DailyDigestion:
 
     async def cognition(self, day, rows):
         async def model(prompt):
-            return (await self.provider.complete([{'role': 'user', 'content': prompt}], internal=True))['content']
+            self.days.verify(day)
+            result = await self.provider.complete([{'role': 'user', 'content': prompt}], internal=True)
+            self.days.verify(day)
+            return result['content']
 
         async def lookup(evidence):
             text = '\n'.join(str(item.get('text') or item.get('content', '')) for item in evidence if isinstance(item, dict))
@@ -39,8 +43,9 @@ class DailyDigestion:
             return {'status': 'no_source_messages', 'text': ''}
         packet = {'active_date': day, 'messages': [{k: r[k] for k in ('message_id', 'role', 'content', 'timestamp', 'event_type', 'tool_calls')}
             for r in rows], 'confirmed_module_events': events}
+        packet['model_provenance'] = day_model_evidence(rows)
         result = await self.provider.structured(messages=[
-            {'role': 'system', 'content': '根据这一天的原始材料写一篇第一人称日记。区分自己、伙伴和朋友的言行，保留未确定的事。后端记录是经历来源；未分享的活动不等于对方听过。输出 JSON：text（日记正文），source_message_ids（所用原话的真实消息 ID 数组），source_event_ids（所用模块事件的真实 ID 数组）。至少引用一项真实来源。没有发生的活动不补写。'},
+            {'role': 'system', 'content': '根据这一天的原始材料写一篇第一人称日记。区分自己、伙伴和朋友的言行，保留未确定的事。后端记录是经历来源；未分享的活动不等于对方听过。输出 JSON：text（日记正文），source_message_ids（所用原话的真实消息 ID 数组），source_event_ids（所用模块事件的真实 ID 数组）。至少引用一项真实来源。没有发生的活动不补写。' + PROVENANCE_GUIDE},
             {'role': 'user', 'content': json.dumps(packet, ensure_ascii=False)}], max_tokens=8192)
         value = result.parsed or {}
         ids = value.get('source_message_ids')

@@ -1,5 +1,6 @@
 """Source-validated Memory V2 encoding and recall, with injected transport."""
 import asyncio
+import json
 from datetime import date
 from cognition import books
 from memory_v2.conversation_source import ConversationSource
@@ -10,11 +11,13 @@ from memory_v2.overflow import encode_complete_tree
 from memory_v2.day_settlement_orchestrator import settle_completed_day
 from memory_v2.recall import EventRecallIndex, RecallQuery
 from memory_v2.recall_service import run_shadow_recall
+from mirrow_core.model_provenance import day_model_evidence, PROVENANCE_GUIDE
 
 
 class Memory:
     def __init__(self, config, store, provider):
         self.provider = provider
+        self.store = store
         self.source = ConversationSource(store.path, canonical_sessions_only=True)
         self.events = MemoryV2Store(config.data_dir / 'memory_v2.db')
         self.lock = asyncio.Lock()
@@ -50,6 +53,16 @@ class Memory:
         elif day >= date.today() or (closed and closed['state'] == 'open'):
             raise ValueError('only_completed_calendar_days')
         async with self.lock:
+            frozen_rows = [r for r in self.store.messages() if r['active_date'] == active_date]
+            day_provenance = day_model_evidence(frozen_rows)
+            def verify_day():
+                if closed and closed['state'] == 'closed':
+                    self.days.verify(active_date)
+
+            def with_provenance(messages, evidence):
+                return [*messages, {'role': 'system', 'content': PROVENANCE_GUIDE},
+                        {'role': 'user', 'content': '【模型来源与运行事实；不是可引用的聊天原话】\n' + json.dumps(evidence, ensure_ascii=False)}]
+
             plan = ReplayPlanner(self.source).plan_active_date(active_date)
             reports = []
             for batch in plan.batches:
@@ -60,8 +73,16 @@ class Memory:
                     continue
 
                 async def encode_shard(shard, messages):
-                    response = await self.provider.complete(build_encoding_messages(shard, messages),
+                    verify_day()
+                    ids = {message.message_id for message in messages}
+                    evidence = day_model_evidence([r for r in frozen_rows if r['message_id'] in ids or r['event_type'] == 'model_switch'])
+                    # Batch source refs bind the sidecar; original text/span offsets stay intact.
+                    refs = {message.message_id: f's{i + 1}' for i, message in enumerate(messages)}
+                    for item in evidence['message_models']:
+                        item['source_ref'] = refs[item['message_id']]
+                    response = await self.provider.complete(with_provenance(build_encoding_messages(shard, messages), evidence),
                         internal=True, temperature=0, max_tokens=16384)
+                    verify_day()
                     return parse_encoding_output(response['content'], shard, messages)
 
                 parsed, _ = await encode_complete_tree(self.source, batch, encode_shard, max_shards=8)
@@ -69,6 +90,7 @@ class Memory:
                 if quality.review_required:
                     reports.append({'status': 'review_required', 'quality': quality.safe_dict()})
                     continue
+                verify_day()
                 ids = self.events.commit_encoding(batch.batch, parsed.events, batch_sources=batch.batch_sources,
                     source_validator=self.source.validate_refs, batch_source_validator=self.source.validate_batch_sources)
                 reports.append({'status': 'committed', 'event_ids': ids})
@@ -78,9 +100,13 @@ class Memory:
                 return {'status': 'no_source_messages', 'batches': [], 'settlement': None}
 
             async def model_call(*, messages, schema_name, schema, max_tokens):
-                return (await self.provider.complete(messages, internal=True, temperature=0,
-                    max_tokens=max_tokens))['content']
+                verify_day()
+                response = await self.provider.complete(with_provenance(messages, day_provenance), internal=True, temperature=0,
+                    max_tokens=max_tokens)
+                verify_day()
+                return response['content']
 
             settled = await settle_completed_day(self.events, active_date=active_date,
                 completed_before_active_date=(day.fromordinal(day.toordinal() + 1).isoformat() if closed else date.today().isoformat()), model_call=model_call, source_namespace='mainline')
+            verify_day()
             return {'status': settled.status, 'batches': reports, 'settlement': settled.safe_dict()}

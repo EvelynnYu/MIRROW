@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 from . import books, maintenance, autonomous, other_daily
 from .maintenance_sources import sources
+from mirrow_core.model_provenance import day_model_evidence, PROVENANCE_GUIDE
 
 
 async def _lane(step):
@@ -24,6 +25,11 @@ async def run_daily(rows, llm, *, source_date, session_id, progress_cb=None,
     evidence. ``other_evidence`` contains already-attributed observations from
     another trusted surface, never raw HTTP payloads.
     """
+    call = llm
+    provenance = day_model_evidence(rows)
+    async def llm(prompt):
+        return await call(prompt + '\n\n' + PROVENANCE_GUIDE +
+                          '\n【模型来源与运行事实；不是聊天原话】\n' + json.dumps(provenance, ensure_ascii=False))
     evidence = sources(rows)
     other_evidence = [*evidence, *(other_evidence or [])]
     rid = maintenance.digest({'pipeline':'daily-v2','date':source_date,'session':session_id,

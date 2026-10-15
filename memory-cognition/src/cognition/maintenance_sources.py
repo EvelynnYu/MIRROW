@@ -1,5 +1,6 @@
 """Evidence and extraction contracts, separate from Agent's context ingredients."""
 import json
+from mirrow_core.model_provenance import normalize_model_label
 
 
 def sources(messages, *, include_wander_activities=False):
@@ -58,6 +59,9 @@ def sources(messages, *, include_wander_activities=False):
                            if proactive_k else
                            "固定主私聊通道的 role 映射；不接收群聊或访客材料"
                        )})
+        model = normalize_model_label(get('generation_model')) if role == 'assistant' else ''
+        if model:
+            result[-1]['generation_model'] = model
     return result
 
 
@@ -70,7 +74,8 @@ def model_materials(entries):
     """
     return [{"n": i, "speaker": e.get("speaker", ""), "text": e.get("text", ""),
              "timestamp": e.get("timestamp", ""),
-             "source_kind": e.get("source_kind", "private_chat")}
+             "source_kind": e.get("source_kind", "private_chat"),
+             **({'generation_model': e['generation_model']} if e.get('generation_model') else {})}
             for i, e in enumerate(entries, 1)]
 
 

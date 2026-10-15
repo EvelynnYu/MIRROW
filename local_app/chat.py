@@ -51,11 +51,13 @@ class Chat:
                 self.lifecycle.accepted_message(content)
             try:
                 history = await chat_context(self.store, self.memory, content)
-                result = await self.scheduler.process_message(content, conversation_history=history,
-                    session_id=self.store.session_id)
-                if not result.final_response.strip():
-                    raise ValueError('empty_reply')
-                self.store.finish_request(request_id, result.final_response, result.tool_calls)
+                with self.provider.freeze_model():
+                    result = await self.scheduler.process_message(content, conversation_history=history,
+                        session_id=self.store.session_id)
+                    if not result.final_response.strip():
+                        raise ValueError('empty_reply')
+                    self.store.finish_request(request_id, result.final_response, result.tool_calls,
+                        generation_model=self.provider.response_model)
             except BaseException:
                 self.store.fail_request(request_id)
                 raise

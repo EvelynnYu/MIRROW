@@ -128,7 +128,8 @@ class Sentinel:
                 if self.life.status()['status'] in {'sleeping', 'napping', 'bathing'}:
                     return
                 self.store.append('assistant', text, message_id='sentinel_' + identity,
-                    event_type='sentinel', sentinel=True, active_date=active)
+                    event_type='sentinel', sentinel=True, active_date=active,
+                    generation_model=result.get('generation_model', ''))
                 self.store.set_setting('sentinel_delivery', {'message_id': 'sentinel_' + identity,
                     'state': 'delivered', 'recorded_at': datetime.now().astimezone().isoformat()})
 

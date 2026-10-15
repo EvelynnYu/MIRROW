@@ -150,6 +150,7 @@ class RuntimeShareAdapter:
         )
         payload = {
             "message": content,
+            "generation_model": response.get('generation_model', '') if isinstance(response, dict) else '',
             "reasoning": reasoning,
             "tool_calls": tool_calls,
             "event_type": event_type.value,

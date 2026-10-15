@@ -37,6 +37,10 @@ class DayInput(BaseModel):
     date: date
 
 
+class ModelInput(BaseModel):
+    model: str = Field(min_length=1, max_length=200)
+
+
 def create_app(config=None, transport=None):
     config = config or Config.from_env()
     store = Store(config.data_dir)
@@ -104,6 +108,23 @@ def create_app(config=None, transport=None):
             await wander.stop()
             store.set_setting('profile', body.model_dump())
         return {'saved': True}
+
+    @app.get('/api/local/model')
+    def selected_model():
+        from mirrow_core.model_provenance import normalize_model_label
+        return {'model': provider.selected_model,
+                'label': normalize_model_label(provider.selected_model) or '未知'}
+
+    @app.put('/api/local/model')
+    async def select_model(body: ModelInput):
+        model = body.model.strip()
+        if not model or any(ord(c) < 32 for c in model):
+            raise HTTPException(422, '模型 ID 无效')
+        require_model()
+        async with chat.lock:
+            await life.check_rollover()
+            changed = store.switch_model(model, provider.selected_model)
+        return {**selected_model(), 'changed': changed, 'connectivity_verified': False}
 
     @app.post('/api/local/chat')
     async def send(body: ChatInput):

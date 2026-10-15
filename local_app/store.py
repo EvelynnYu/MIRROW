@@ -6,6 +6,7 @@ import json
 import sqlite3
 import time
 from uuid import uuid4
+from mirrow_core.model_provenance import normalize_model_label
 
 
 class Store:
@@ -30,6 +31,12 @@ class Store:
             columns = {row['name'] for row in db.execute('PRAGMA table_info(conversation_messages)')}
             if 'tool_calls' not in columns:
                 db.execute("ALTER TABLE conversation_messages ADD COLUMN tool_calls TEXT NOT NULL DEFAULT '[]'")
+            if 'generation_model' not in columns:
+                db.execute("ALTER TABLE conversation_messages ADD COLUMN generation_model TEXT NOT NULL DEFAULT ''")
+            db.execute('''CREATE TRIGGER IF NOT EXISTS generation_model_immutable
+                BEFORE UPDATE OF generation_model ON conversation_messages
+                WHEN NEW.generation_model != OLD.generation_model
+                BEGIN SELECT RAISE(ABORT, 'generation_model_immutable'); END''')
             # An interrupted provider call is not silently replayed on restart.
             db.execute("UPDATE chat_requests SET state='interrupted',error='process_restarted' WHERE state='running'")
         if not self.setting('session_id'):
@@ -66,12 +73,12 @@ class Store:
         with self.connection() as db:
             return [dict(row) for row in db.execute('SELECT * FROM conversation_messages WHERE session_id=? ORDER BY id', (self.session_id,))]
 
-    def append(self, role, content, *, message_id=None, event_type='', wander=False, sentinel=False, active_date=None, _db=None):
+    def append(self, role, content, *, message_id=None, event_type='', wander=False, sentinel=False, active_date=None, generation_model='', _db=None):
         if active_date is None:
             active_date = self.active_date_provider() if self.active_date_provider else datetime.now().astimezone().date().isoformat()
         if _db is None:
             with self.connection() as db:
-                return self.append(role, content, message_id=message_id, event_type=event_type, wander=wander, sentinel=sentinel, active_date=active_date, _db=db)
+                return self.append(role, content, message_id=message_id, event_type=event_type, wander=wander, sentinel=sentinel, active_date=active_date, generation_model=generation_model, _db=db)
         message_id = message_id or uuid4().hex
         timestamp = datetime.now().astimezone().isoformat()
         if _db is not None:
@@ -82,8 +89,9 @@ class Store:
                     raise ValueError('message_identity_conflict')
                 return dict(existing)
             db.execute('''INSERT INTO conversation_messages(active_date,calendar_date,session_id,timestamp,
-                role,content,message_id,is_wander,is_sentinel,event_type) VALUES(?,?,?,?,?,?,?,?,?,?)''',
-                (active_date, timestamp[:10], self.session_id, timestamp, role, content, message_id, int(wander), int(sentinel), event_type))
+                role,content,message_id,is_wander,is_sentinel,event_type,generation_model) VALUES(?,?,?,?,?,?,?,?,?,?,?)''',
+                (active_date, timestamp[:10], self.session_id, timestamp, role, content, message_id, int(wander), int(sentinel), event_type,
+                 normalize_model_label(generation_model) if role == 'assistant' else ''))
             return dict(db.execute('SELECT * FROM conversation_messages WHERE message_id=?', (message_id,)).fetchone())
 
     def request(self, request_id):
@@ -100,14 +108,29 @@ class Store:
             self.append('user', content, message_id=request_id, _db=db)
             db.execute("INSERT INTO chat_requests VALUES(?,?,NULL,'running','')", (request_id, request_id))
 
-    def finish_request(self, request_id, content, tool_calls=None):
+    def finish_request(self, request_id, content, tool_calls=None, *, generation_model=''):
         with self.connection() as db:
-            message = self.append('assistant', content, message_id='reply_' + request_id, _db=db)
+            message = self.append('assistant', content, message_id='reply_' + request_id, generation_model=generation_model, _db=db)
             db.execute('UPDATE conversation_messages SET tool_calls=? WHERE message_id=?',
                 (json.dumps(tool_calls or [], ensure_ascii=False), message['message_id']))
             db.execute("UPDATE chat_requests SET state='complete',assistant_message_id=? WHERE request_id=?",
                 (message['message_id'], request_id))
         return message
+
+    def switch_model(self, model, previous):
+        """Atomic setting plus source event; caller owns the foreground lock."""
+        day = self.active_date_provider()
+        with self.connection() as db:
+            current = db.execute("SELECT value FROM local_settings WHERE key='selected_model'").fetchone()
+            old = json.loads(current['value']) if current else previous
+            if old == model:
+                return False
+            db.execute("INSERT INTO local_settings VALUES('selected_model',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                       (json.dumps(model),))
+            before, after = normalize_model_label(old) or '未知', normalize_model_label(model) or '未知'
+            self.append('event', f'用户将主聊天模型从 {before} 切换为 {after}。后台任务使用各自配置，已经开始的调用保留原模型。',
+                        event_type='model_switch', active_date=day, _db=db)
+            return True
 
     def fail_request(self, request_id):
         with self.connection() as db:

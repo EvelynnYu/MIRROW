@@ -9,6 +9,10 @@ STAGES = ('memory', 'cognition', 'diary')
 def source_digest(rows):
     source = [{key: row.get(key) for key in ('message_id', 'role', 'content', 'timestamp', 'active_date', 'event_type', 'tool_calls')}
               for row in rows]
+    from mirrow_core.model_provenance import row_model
+    for item, row in zip(source, rows):
+        if row_model(row):
+            item['generation_model'] = row_model(row)
     return hashlib.sha256(json.dumps(source, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
 
 

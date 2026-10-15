@@ -79,5 +79,13 @@ class ContextSources:
 
 def history_messages(rows):
     from memory_v2.source_projection import memory_source_content
-    return [{'role': row['role'], 'name': 'mirrow_history_' + row['role'], 'content': f"[时间：{row['timestamp']}；来源：{row['event_type'] or 'private_chat'}；消息：{row['message_id']}]\n{memory_source_content(row) or row['content']}"}
-            for row in rows if row['role'] in {'user', 'assistant'}]
+    from mirrow_core.model_provenance import annotate_history
+    result = []
+    for row in rows:
+        if row['role'] not in {'user', 'assistant'} and row.get('event_type') != 'model_switch':
+            continue
+        projected = annotate_history({**row, 'content': memory_source_content(row) or row['content']})
+        result.append({'role': projected['role'],
+            'name': projected.get('name', 'mirrow_history_' + row['role']),
+            'content': f"[时间：{row['timestamp']}；来源：{row['event_type'] or 'private_chat'}；消息：{row['message_id']}]\n{projected['content']}"})
+    return result

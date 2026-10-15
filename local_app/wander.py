@@ -124,7 +124,7 @@ class Wander:
         if self.stopping or (self.lifecycle and not self.lifecycle.can_push()):
             return False
         self.messages.append('assistant', payload['message'], message_id='wander_' + payload['event_id'],
-            event_type=payload['event_type'], wander=True)
+            event_type=payload['event_type'], wander=True, generation_model=payload.get('generation_model', ''))
         return True
 
     async def start(self):
