@@ -47,6 +47,14 @@ async def select(handler, exclude_ids=(), source_mode=None):
     requested = source_mode or handler._source_mode_override
     availability, prepared, candidates = {}, {}, []
     pools = {}
+    try:
+        from .essays import read as read_essays
+        essay_rows = [row for row in read_essays(limit=30)['items'] if row['id'] not in excluded]
+        availability['essays'] = {'status': 'available' if essay_rows else 'empty', 'candidate_count': len(essay_rows)}
+        candidates.extend({'message_id': str(row['id']), 'collected_by': 'essays', 'title': row.get('title') or '',
+                           'preview': row.get('title') or ''} for row in essay_rows)
+    except Exception as exc:
+        availability['essays'] = {'status': 'unavailable', 'error_type': type(exc).__name__}
     for owner in ('k', 'user'):
         try:
             rows, total = handler._load_pool(owner)
@@ -98,13 +106,13 @@ async def select(handler, exclude_ids=(), source_mode=None):
             failed = any(item['status'] == 'unavailable' for item in availability.values())
             return outcome('failed' if failed else 'empty',
                            'source_unavailable' if failed else 'no_readable_material', availability=availability)
-        prompt = ('[MIRROW 本次翻收藏的材料状态]\n'
+        prompt = ('[MIRROW 本次逛书柜的材料状态]\n'
                   'k、user 分别是 AI 与人类伙伴的收藏索引；role 是原发言人，collected_by 是收藏者。'
-                  '历史片段是本次找到的可读材料，尚未阅读。\n'
+                  'essays 是随笔作品目录，title 是作品题目。历史片段和作品都尚未阅读。\n'
                   + json.dumps({'sources': availability, 'bookmarks': candidates}, ensure_ascii=False)
-                  + '\n[本轮选择]\n想读哪条收藏、哪类历史片段，或者就此停下？\n'
-                    '输出 JSON {"source_mode":"existing_bookmark|unbookmarked_anchor|random_day|stop",'
-                    '"message_id":"选收藏时的原ID","collected_by":"选收藏时的k或user"}。')
+                  + '\n[本轮选择]\n想读哪篇随笔、哪条收藏、哪类历史片段，或者就此停下？\n'
+                    '输出 JSON {"source_mode":"existing_bookmark|unbookmarked_anchor|random_day|essays|stop",'
+                    '"message_id":"随笔或收藏在本次目录中的ID","collected_by":"选收藏时的k或user"}。')
         try:
             choice = parse_json_object(await handler._call_llm(prompt))
         except Exception as exc:
@@ -116,15 +124,24 @@ async def select(handler, exclude_ids=(), source_mode=None):
         if mode == 'stop':
             return outcome('stopped', 'chosen_stop', mode='stop', availability=availability)
         if mode == 'existing_bookmark':
-            selected = next((row for row in candidates if row['message_id'] == choice.get('message_id')
+            selected = next((row for row in candidates if row['collected_by'] in ('k', 'user') and row['message_id'] == choice.get('message_id')
                              and row['collected_by'] == choice.get('collected_by')), None)
             if selected is None:
                 return outcome('failed', 'selection_target_invalid', mode=mode, availability=availability)
-    if mode not in ('existing_bookmark', 'unbookmarked_anchor', 'random_day'):
+        if mode == 'essays':
+            selected = next((row for row in candidates if row['collected_by'] == 'essays' and row['message_id'] == choice.get('message_id')), None)
+            if selected is None:
+                return outcome('failed', 'selection_target_invalid', mode=mode, availability=availability)
+    if mode not in ('existing_bookmark', 'unbookmarked_anchor', 'random_day', 'essays'):
         return outcome('failed', 'selection_invalid', availability=availability)
     selected_ref = {key: selected[key] for key in ('message_id', 'collected_by')} if selected else {}
     try:
-        material = handler._existing_material(excluded, selected) if mode == 'existing_bookmark' else prepared.get(mode)
+        if mode == 'existing_bookmark':
+            material = handler._existing_material(excluded, selected)
+        elif mode == 'essays':
+            material = handler._essay_material(selected)
+        else:
+            material = prepared.get(mode)
     except Exception as exc:
         return outcome('failed', 'material_read_failed', mode=mode, availability=availability,
                        selected=selected_ref, error_type=type(exc).__name__)

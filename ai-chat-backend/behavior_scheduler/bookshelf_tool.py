@@ -78,6 +78,8 @@ class BookshelfTool(BaseTool):
     flash_description = '深搜记忆摘要并按需展开原话，或按日期/分区翻生活档案；记忆深搜的 query 只保留问题本身，不复制另列的线索；明确列出的多条线索按序提取为 stage_queries；body 读取身体结构与边界（detail=true 完整）；cognition 按对象/领域浏览认识主题，选 topic_id 后 detail=true 展开现行书页；自己的活动用 source=wander 按日期或大意查，event_id 展开细节；'
     pro_guide = '本轮自动召回是有界候选，不代表全部历史。没有想起来、候选含混、存在多次相似经历或人类伙伴要求列举时，主动深搜同一套 Memory V2 摘要；跨时段回忆需要分开查时，动作中保留完整问题，另用清晰分隔的2—4 条短检索线索按时间顺序列出起点与后续；未列出时只按完整问题深搜。需要原话、原因或过程时说明要展开来源。已知日期的原始私聊可按日期浏览，摘要仍无命中时也可兜底查原文。按事件查本次讨论原话或当时的大纲，按章节查章节计划，或查阅读范围、次数和历次感想。每轮最多展开一章完整正文和摘要。常驻画像是整体认识；更具体的认识可以浏览认知书的主题目录，展开现行书页；想起某个片段时可以描述线索搜索记忆。想回顾自己最近做过什么、当时怎么想，用 wander 按日期或大意查；需要一次活动的来龙去脉时用 event_id 展开。小红书互动可按日期翻本地经历索引，再按该索引展开原帖、评论和自己当时的回复；手机离线也可读取已存来源。'
     parameters_schema = {'type': 'object', 'properties': {'event_id': {'type': 'string', 'description': 'source=experiences, domain=xiaohongshu 可用互动索引ID展开本地原文'}, 'offset': {'type': 'integer', 'minimum': 0}, 'source': {'type': 'string', 'enum': ['all', 'memory', 'cognition', 'body', 'diary', 'calendar', 'events', 'bookmarks', 'conversation', 'open_loops', 'experiences', 'wander'], 'description': 'body=身体结构与能力边界；memory=主动深搜 Memory V2 摘要；cognition=按对象和主题浏览现行认知书；wander=AI 自己的漫想活动（做过什么、当时怎么想）；默认 all=过程记忆与原始档案；其他值限定档案分区'}, 'query': {'type': 'string', 'maxLength': 300, 'description': 'source=memory 时填写问题本身，即使有 stage_queries 也保留；不复制动作前缀或另列的线索清单。其他分区浏览可省略'}, 'domain': {'type': 'string', 'enum': ['music', 'game', 'xiaohongshu'], 'description': '仅 source=experiences 时可选，限定音乐、虚构游戏或小红书来源'}, 'stage_queries': {'type': 'array', 'items': {'type': 'string', 'maxLength': 120}, 'minItems': 2, 'maxItems': 4, 'description': '可选，仅动作明确列出多条检索线索时原样提取；按时间顺序排列，第一条是起点，其余是后续。未列出则省略'}, 'detail': {'type': 'boolean', 'description': 'memory/all：附带首个命中事件的精确原话邻窗；cognition：按 topic_id 展开现行书页；body：展开完整身体说明。默认 false'}, 'date': {'type': 'string', 'description': '日期 YYYY-MM-DD（diary 必选 / conversation 查某天对话 / wander 查某天活动 / experiences+xiaohongshu 查互动索引）'}, 'year': {'type': 'integer', 'description': '年份（calendar 列出某年纪念日，默认今年）'}, 'month': {'type': 'string', 'description': '月份 YYYY-MM（calendar 细化到月，可选）'}, 'collected_by': {'type': 'string', 'description': '收藏来源（bookmarks 过滤，user/k）'}, 'limit': {'type': 'integer', 'minimum': 1, 'maximum': 50, 'description': '浏览或搜索返回上限'}, 'min_score': {'type': 'number', 'minimum': 0, 'maximum': 100, 'description': '搜索强相关分数线，默认55；不是事实概率'}, 'session_id': {'type': 'string', 'description': '会话ID（conversation 翻指定会话，替代按日期）'}, 'subject_id': {'type': 'string', 'description': '仅 cognition：已登记的认识对象 ID；省略则浏览全部对象'}, 'area': {'type': 'string', 'description': '仅 cognition：书页已分类领域；省略也包含未分类旧认识'}, 'knowledge_type': {'type': 'string', 'enum': ['behavior', 'interest', 'belief', 'self_relation', 'knowledge_skill'], 'description': '仅 cognition：认识类型'}, 'topic_id': {'type': 'string', 'description': '仅 cognition：目录返回的主题 ID；detail=true 展开其完整当前书页'}, 'revision': {'type': 'string', 'description': '仅 cognition：可选，核对目录返回的书页版本'}}, 'required': []}
+    parameters_schema['properties']['source']['enum'].append('essays')
+    parameters_schema['properties']['source']['description'] += '；essays=已保存随笔，event_id 读取全文，query 可按题目、正文或灵感词检索'
 
     @property
     def input_schema(self) -> Dict[str, Any]:
@@ -99,6 +101,12 @@ class BookshelfTool(BaseTool):
                 else:
                     data.pop('overview')
                 return ToolResult(status=ToolStatus.SUCCESS, content=json.dumps(data, ensure_ascii=False))
+            if source == 'essays':
+                from wander_manager.essays import read
+                data = await asyncio.to_thread(read, event_id=str(kwargs.get('event_id') or ''), query=query, date=str(kwargs.get('date') or ''), offset=int(kwargs.get('offset') or 0), limit=int(kwargs.get('limit') or 30))
+                if data is None:
+                    return ToolResult(status=ToolStatus.ERROR, content='', error='随笔不存在。')
+                return ToolResult(status=ToolStatus.SUCCESS, content=json.dumps(data, ensure_ascii=False), extra_data={'essays': data})
             if source == 'cognition':
                 if query:
                     return ToolResult(status=ToolStatus.ERROR, content='', error='认知目录按对象、领域或主题浏览；按大意搜索请使用 source=memory。')

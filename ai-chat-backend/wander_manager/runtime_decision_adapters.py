@@ -84,6 +84,8 @@ class SettlementDecision:
     next_plan_at: str = ''
     xhs_share_node_id: str = ''
     xhs_comment_draft: str = ''
+    essay_share_node_id: str = ''
+    reading_picture_node_id: str = ''
 
 @dataclass
 class HorizonReviewDecision:
@@ -476,9 +478,17 @@ class SettlementAdapter(_DecisionAdapterBase):
             if reason == SettlementReason.GAME_STOP:
                 instruction += '\n人类伙伴从机生活结束了本次游玩；按已确认的步骤写阶段心得和存档位置，回到她身边，不把这次收尾写成通关。'
         valid_xhs_nodes = {str(node.get('node_id') or '') for node in nodes if node.get('state') == NodeState.COMPLETED.value and (node.get('source_payload') or {}).get('status') == 'success'} if activity.get('activity_type') == EventType.BROWSE_XIAOHONGSHU.value else set()
+        valid_essay_nodes = {str(node.get('node_id') or '') for node in nodes if node.get('state') == NodeState.COMPLETED.value and node.get('execution_status') == 'succeeded' and (node.get('source_payload') or {}).get('essay_version') == 1}
+        valid_picture_nodes = {str(node.get('node_id') or '') for node in nodes if node.get('state') == NodeState.COMPLETED.value and node.get('execution_status') == 'succeeded' and ((node.get('side_effect_refs') or {}).get('reading_illustration') or {}).get('status') == 'ready'}
         if valid_xhs_nodes:
             runtime_block += '\n[本次实际已读帖子节点]\n' + '\n'.join((f"node_id={node['node_id']}；{str(node.get('source_summary') or '')[:180]}" for node in nodes if str(node.get('node_id') or '') in valid_xhs_nodes))
             instruction += '\n这次若想把其中一篇帖做成卡片寄给人类伙伴，在 xhs_share_node_id 填上面已读节点的准确 node_id；若还想请人类伙伴亲自评论，可填一句 xhs_comment_draft。只想谈感想而不寄卡片时两个字段留空。卡片是否有原帖链接由本地真实链接证据决定；没有链接时评论草稿不会作为邀请寄出。'
+        if valid_essay_nodes:
+            runtime_block += '\n[本次可分享的随笔]\n' + '\n'.join(node['node_id'] + ' ' + str(node['source_payload'].get('title', '')) for node in nodes if node['node_id'] in valid_essay_nodes)
+            instruction += '\n这次若想把已写随笔原文随消息分享，在 essay_share_node_id 填上面成功随笔的准确 node_id；只分享感想则留空。'
+        if valid_picture_nodes:
+            runtime_block += '\n[本次可分享的读后插画]\n' + '\n'.join(node['node_id'] + ' ' + str(node['side_effect_refs']['reading_illustration'].get('quote', '')) for node in nodes if node['node_id'] in valid_picture_nodes)
+            instruction += '\n这次若想把本次读后插画随消息分享，在 reading_picture_node_id 填上面成图节点的准确 node_id；不分享则留空。'
         try:
             messages = await self._messages(context, run, runtime_block, instruction, activity)
         except DecisionContextError as exc:
@@ -490,7 +500,7 @@ class SettlementAdapter(_DecisionAdapterBase):
             self._record_settlement_failure(run, activity, runtime_block, fallback, 'llm_error', type(exc).__name__)
             return fallback
         raw = detailed.parsed if detailed.status == 'ok' and isinstance(detailed.parsed, dict) else None
-        decision = self._normalize_settlement(raw, fallback, valid_xhs_nodes) if raw is not None else fallback
+        decision = self._normalize_settlement(raw, fallback, valid_xhs_nodes, valid_essay_nodes, valid_picture_nodes) if raw is not None else fallback
         completed_ids = {str(node.get('node_id') or '') for node in nodes if node.get('state') == NodeState.COMPLETED.value}
         from memory_v2.experience_contract import impression_text
         decision.retained_impression = impression_text(decision.retained_impression, node_ids={str(node.get('node_id') or '') for node in nodes})
@@ -520,12 +530,18 @@ class SettlementAdapter(_DecisionAdapterBase):
         return decision
 
     @staticmethod
-    def _normalize_settlement(raw: dict[str, Any], fallback: SettlementDecision, valid_xhs_nodes: set[str] | None=None) -> SettlementDecision:
+    def _normalize_settlement(raw: dict[str, Any], fallback: SettlementDecision, valid_xhs_nodes: set[str] | None=None, valid_essay_nodes: set[str] | None=None, valid_picture_nodes: set[str] | None=None) -> SettlementDecision:
         delay, source = normalize_delay_seconds(raw.get('next_run_delay_seconds'))
         selected = str(raw.get('xhs_share_node_id') or '').strip()
         if selected not in (valid_xhs_nodes or set()) or not _as_bool(raw.get('share')):
             selected = ''
-        return SettlementDecision(summary=str(raw.get('summary') or fallback.summary).strip(), retained_impression=str(raw.get('retained_impression') or '').strip(), retained_node_ids=[str(item) for item in raw.get('retained_node_ids', []) if isinstance(item, str)] if isinstance(raw.get('retained_node_ids'), list) else [], share=_as_bool(raw.get('share')), continue_next=_as_bool(raw.get('continue_next')), next_inclination_note=str(raw.get('next_inclination_note') or '').strip(), emotion_effect=_normalize_effect(raw.get('emotion_effect')), next_run_delay_seconds=delay, timing_reason=str(raw.get('timing_reason') or '').strip()[:300], timing_source=source, xhs_share_node_id=selected, xhs_comment_draft=str(raw.get('xhs_comment_draft') or '').strip()[:1000] if selected else '')
+        essay_selected = str(raw.get('essay_share_node_id') or '').strip()
+        if essay_selected not in (valid_essay_nodes or set()) or not _as_bool(raw.get('share')):
+            essay_selected = ''
+        picture_selected = str(raw.get('reading_picture_node_id') or '').strip()
+        if picture_selected not in (valid_picture_nodes or set()) or not _as_bool(raw.get('share')):
+            picture_selected = ''
+        return SettlementDecision(summary=str(raw.get('summary') or fallback.summary).strip(), retained_impression=str(raw.get('retained_impression') or '').strip(), retained_node_ids=[str(item) for item in raw.get('retained_node_ids', []) if isinstance(item, str)] if isinstance(raw.get('retained_node_ids'), list) else [], share=_as_bool(raw.get('share')), continue_next=_as_bool(raw.get('continue_next')), next_inclination_note=str(raw.get('next_inclination_note') or '').strip(), emotion_effect=_normalize_effect(raw.get('emotion_effect')), next_run_delay_seconds=delay, timing_reason=str(raw.get('timing_reason') or '').strip()[:300], timing_source=source, xhs_share_node_id=selected, xhs_comment_draft=str(raw.get('xhs_comment_draft') or '').strip()[:1000] if selected else '', essay_share_node_id=essay_selected, reading_picture_node_id=picture_selected)
 
     @staticmethod
     def _fallback(activity: dict[str, Any], nodes: list[dict[str, Any]], reason: SettlementReason) -> SettlementDecision:

@@ -32,5 +32,7 @@
 **/voice_setup/
 **/models/
 **/model_cache/
+ai-chat-backend/static/essay_illustrations/
+ai-chat-backend/local_essay_illustrator.py
 **/local_settings.json
 **/settings.json

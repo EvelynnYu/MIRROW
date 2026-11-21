@@ -1,6 +1,8 @@
 # MIRROW · 本地单用户源码骨架
 
-本轮源码以 2026-10-24 导出版本为基础，包含 2026-10-25 独立审核后的发布修正；不是私人生产目录的原样镜像。请先阅读 [目录与范围](docs/DIRECTORY_REVIEW.md)、[更新说明](docs/RELEASE_DRAFT.md)、[部署条件](docs/DEPLOYMENT.md) 和 [验证边界](docs/VERIFICATION.md)。
+2026-11-21 更新了漫想随笔。进入「机生活 → 媒体 → 随笔」就能翻阅本机写成的作品。想给随笔或重读的一段原文配图，可以接入自己的插画服务。接入方式见[本次更新记录](docs/RELEASE_20261121_WANDER.md)。
+
+完整源码骨架发布于 2026-10-25。另见[目录与范围](docs/DIRECTORY_REVIEW.md)、[骨架发布记录](docs/RELEASE_DRAFT.md)、[部署条件](docs/DEPLOYMENT.md)和[验证边界](docs/VERIFICATION.md)。
 
 MIRROW 面向各自部署的本地单用户：主聊天、上下文、记忆与认知、感知和行动共同构成持续运行的系统。本包提供实现与接入边界，不附赠已经配置好的模型、人格、记忆或设备。
 

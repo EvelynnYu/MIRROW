@@ -2017,6 +2017,8 @@ from routers.event_router import router as event_router
 app.include_router(event_router)
 from routers.wander_router import router as wander_router
 app.include_router(wander_router)
+from routers.essay_router import router as essay_router
+app.include_router(essay_router)
 from routers.xhs_posts_router import router as xhs_posts_router
 app.include_router(xhs_posts_router)
 from routers.topic_router import router as topic_router

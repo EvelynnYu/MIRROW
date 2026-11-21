@@ -85,61 +85,24 @@ class KeywordExpansionHandler(BaseEventHandler):
     关键词池不再参与漫想事件的选词，也不从本事件回写；关键词的来源
     是可审计的 LLM 判断，而不是固定候选或硬编码兜底。
     """
-    EXPANSION_PROMPT = '你是AI伴侣"AI"，正在胡思乱想。\n{user_status_context}\n\n让一个你此刻突然想到的、与当前状态有关或无关的关键词自然浮现，\n然后写一段围绕它的自言自语。关键词由你当下的联想产生，不来自预设候选。\n这是你自己的私人念头，不属于人类伙伴，也不属于你们共同的经历。\n\n用自己的话写下来。扩写可以只是一个\n观察、疑问、想法或感受，不必强行得出结论。\n\n只输出 JSON 对象，不要 Markdown 代码块或其它文字：\n{{"keyword":"你刚想到的关键词","expansion":"围绕它的自言自语"}}'
-
     async def handle(self, event: WanderEvent) -> WanderEvent:
-        event.description = '关键词生成+主题扩写'
-        try:
-            from neuron_registry import neuron_trace
-            with neuron_trace('wander_keyword_expansion', model='Flash') as trace:
-                prompt = self.EXPANSION_PROMPT.format(user_status_context=get_user_status_context())
-                trace.set_input(prompt[:500])
-                raw = await self._call_llm(prompt)
-                trace.set_output(raw[:300])
-            data = parse_json_object(raw)
-            keyword = str(data.get('keyword', '')).strip() if data else ''
-            expansion = str(data.get('expansion', '')).strip() if data else ''
-            if not keyword or not expansion:
-                raise ValueError('keyword_expansion_contract_invalid')
-            event.details['keyword'] = keyword
-            event.details['expansion'] = expansion
-            event.process_log = f'关键词: {keyword}\n扩写内容: {expansion}'
-            logger.info(f'主题扩写完成: {keyword}')
-        except Exception as e:
-            logger.error(f'关键词扩写失败: {e}')
-            event.process_log = f'关键词扩写失败: {str(e)}'
-            event.details['error'] = str(e)
+        event.description = '随笔'
+        payload = await self.fetch_one_expansion()
+        if payload:
+            event.details.update(payload)
+            event.process_log = f"写下随笔《{payload['title']}》"
+        else:
+            event.details['error'] = 'essay_generation_failed'
+            event.process_log = '随笔尚未写成'
         return event
 
     async def fetch_one_expansion(self, exclude_keywords=None) -> Optional[dict]:
-        """取一个关键词 + 扩写（open_ended 会话的单节点步进）。
-
-        胡思乱想会话化：不再 single-shot 静默执行，循环取关键词扩写 + 节点边界判断（感想/继续/分享）。
-
-        Returns:
-            {keyword, expansion} 或 None（取词/扩写失败）。
-        """
-        exclude = {str(item).strip() for item in exclude_keywords or [] if str(item).strip()}
+        """Keep the historical activity identifier while creating an essay."""
+        from .essays import generate
         try:
-            recent_text = ''
-            if exclude:
-                recent_text = '\n近期已经出现过的关键词（仅作为事实记录）：' + '、'.join(sorted(exclude)[:20])
-            from neuron_registry import neuron_trace
-            with neuron_trace('wander_keyword_expansion', model='Flash') as trace:
-                prompt = self.EXPANSION_PROMPT.format(user_status_context=get_user_status_context()) + recent_text
-                trace.set_input(prompt[:500])
-                raw = await self._call_llm(prompt)
-                trace.set_output(raw[:300])
-            data = parse_json_object(raw)
-            keyword = str(data.get('keyword', '')).strip() if data else ''
-            expansion = str(data.get('expansion', '')).strip() if data else ''
-            if not keyword or not expansion or keyword in exclude:
-                logger.warning('关键词扩写未取得新的结构化关键词')
-                return None
-            logger.info(f'胡思乱想关键词: {keyword}')
-            return {'keyword': keyword, 'expansion': expansion}
+            return await generate(self._call_llm, exclude_keywords or ())
         except Exception as exc:
-            logger.warning('关键词扩写节点失败: %s', type(exc).__name__)
+            logger.warning('随笔生成失败: %s', type(exc).__name__)
             return None
 
 class MemoryFetchHandler(BaseEventHandler):
@@ -870,13 +833,38 @@ class BrowseBookmarksHandler(BaseEventHandler):
     @staticmethod
     def _source_label(material: dict[str, Any]) -> str:
         mode = material.get('source_mode')
+        if mode == 'essays':
+            return '书柜中的随笔'
         if mode == 'existing_bookmark':
             return f"{material.get('owner') or '收藏夹'}的收藏"
         if mode == 'unbookmarked_anchor':
             return f"历史场景 {str(material.get('active_date') or '未知日期')[:10]}"
         return f"历史日期 {str(material.get('active_date') or '未知日期')[:10]}"
 
+    @staticmethod
+    def _essay_material(selected: Optional[dict]) -> Optional[dict[str, Any]]:
+        if not selected:
+            return None
+        from .essays import read
+        work = read(event_id=str(selected.get('message_id') or ''))
+        if not work:
+            return None
+        row = {'message_id': work['id'], 'timestamp': work.get('created_at') or '',
+               'date': str(work.get('created_at') or '')[:10], 'role': 'assistant',
+               'content': work['content']}
+        return {'source_mode': 'essays', 'browse_mode': 'deep', 'owner': '书柜',
+                'active_date': row['date'], 'snapshot': [row], 'candidates': [row],
+                'bookshelf_items': [{'source': 'essays', 'id': work['id'], 'title': work['title'], 'content': work['content']}],
+                'bookmark_count': 1}
+
     def _prompt_material(self, material: dict[str, Any]) -> str:
+        if material.get('source_mode') == 'essays':
+            from memory_v2.experience_material import capture_reading
+            frozen = capture_reading(material)
+            material['_reading_snapshot'] = frozen
+            work = material['bookshelf_items'][0]
+            excerpt = '\n'.join(row['text'] for row in frozen['messages'])
+            return f"随笔《{work['title']}》\n{excerpt}"
         from memory_v2.experience_material import prepare_reading
         prompt, frozen = prepare_reading(material, self._role_label)
         material['_reading_snapshot'] = frozen
@@ -889,6 +877,8 @@ class BrowseBookmarksHandler(BaseEventHandler):
         if not self.call_llm:
             return ('', {'status': 'none', 'requested': 'none', 'reason': 'llm_unavailable'}, '')
         prompt = self.ACTION_PROMPT.format(source_label=source_label, material=prompt_material)
+        if material.get('source_mode') == 'essays':
+            prompt += '\n这是随笔作品，不对它执行收藏动作。若有一幕想画下来，可加 illustration，quote 必须摘一句刚读到的原文，scene 写想画的画面。原句必须在这次材料中唯一出现。'
         try:
             response = await self._call_llm(prompt)
             if not str(response or '').strip():
@@ -898,7 +888,14 @@ class BrowseBookmarksHandler(BaseEventHandler):
             if not isinstance(parsed, dict):
                 return (str(response or '')[:500], {'status': 'rejected', 'requested': 'none', 'reason': 'action_result_not_json'}, 'action_result_not_json')
             reflection = str(parsed.get('reflection') or '')[:500]
-            action_evidence = await self._actions().apply_async(parsed.get('bookmark_action') or {'type': 'none'}, material, source_key=source_key)
+            if material.get('source_mode') == 'essays' and parsed.get('illustration'):
+                from .reading_illustrations import bind
+                picture = bind(parsed['illustration'], material.get('bookshelf_items') or [])
+                visible = material['_reading_snapshot']['messages']
+                if picture and any(row['message_id'] == picture.get('work_id') and picture['quote'] in row['text'] for row in visible):
+                    material['reading_picture'] = picture
+            requested_action = {'type': 'none'} if material.get('source_mode') == 'essays' else (parsed.get('bookmark_action') or {'type': 'none'})
+            action_evidence = await self._actions().apply_async(requested_action, material, source_key=source_key)
             return (reflection, action_evidence, str(parsed.get('reason') or '')[:240])
         except Exception as exc:
             logger.warning('[browse_bookmarks] reflection/action failed: %s', exc)
@@ -1125,6 +1122,8 @@ class BrowseBookmarksHandler(BaseEventHandler):
                 return {'material_selection': outcome('failed', 'material_evidence_missing', mode=material.get('source_mode', '')).receipt, 'reading_received': False}
             from memory_v2.experience_material import reading_receipt
             payload = {'material_selection': selection.receipt, 'owner': material.get('owner') or '历史对话', 'original_msg_id': str(first.get('message_id') or ''), 'source_mode': material.get('source_mode') or '', 'scene_id': str(material.get('scene_id') or ''), 'active_date': str(material.get('active_date') or first.get('date') or '')[:10], 'browse_mode': material.get('browse_mode'), 'collected_by': material.get('collected_by') or '', 'reflection': reflection[:500], 'bookmark_action': action, **reading_receipt(material)}
+            if material.get('reading_picture'):
+                payload['reading_picture'] = material['reading_picture']
             if reason:
                 payload['action_reason'] = reason
             return payload

@@ -1,0 +1,15 @@
+.essay-share-card { border: 1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius: 12px; margin: 10px 0; overflow: hidden; }
+.essay-share-card summary { cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 14px; list-style: none; }
+.essay-share-card summary>span:nth-child(2) { flex: 1; min-width: 0; }
+.essay-share-card strong { display: block; font-size: 15px; overflow-wrap: anywhere; }
+.essay-share-card small { display: block; margin-top: 5px; font-size: 12px; opacity: .65; }
+.essay-share-card summary>span:last-child { font-size: 12px; opacity: .65; }
+.essay-share-card summary>span:last-child::after { content: '展开'; }
+.essay-share-card[open] summary>span:last-child::after { content: '收起'; }
+.essay-share-body { padding: 0 18px 18px; line-height: 1.85; overflow-wrap: anywhere; }
+.essay-share-body .chat-markdown { font-size: 14px; }
+.essay-illustration { display: block; max-width: 100%; max-height: 72vh; width: auto; height: auto; margin: 1em auto 0; border-radius: 6px; }
+.essay-picture-status { display: block; margin-top: 1em; opacity: .7; }
+.reading-picture { margin: 1em 0; }
+.reading-picture figcaption { font-size: .88em; }
+.reading-picture blockquote { margin: .6em 0; padding-inline-start: .8em; border-inline-start: 2px solid currentColor; }

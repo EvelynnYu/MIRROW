@@ -148,6 +148,16 @@ class NodeExecutionAdapter:
         refreshed = self._required_activity(node.activity_id)
         if refreshed['interrupt_requested']:
             result.side_effect_refs['interrupted_after_execution'] = True
+        if result.status == NodeExecutionStatus.SUCCEEDED and event_type in {EventType.KEYWORD_EXPANSION, EventType.BROWSE_BOOKMARKS}:
+            key, source = ('essay_illustration', {}) if event_type == EventType.KEYWORD_EXPANSION else ('reading_illustration', result.payload.pop('reading_picture', {}) or {})
+            request = result.payload.pop('illustration_request', None) if event_type == EventType.KEYWORD_EXPANSION else source.pop('scene', None)
+            if request:
+                result.side_effect_refs[key] = {**source, 'status': 'interrupted' if refreshed['interrupt_requested'] else 'requested'}
+                self._finish(run, refreshed, node, result)
+                if not refreshed['interrupt_requested']:
+                    from .essay_illustration import attach
+                    result.side_effect_refs = await attach(self.store, node.node_id, request, key, source)
+                return result
         return self._finish(run, refreshed, node, result)
 
     async def _execute_supported(self, event_type, handler, seen_nodes, *, activity_id, node_id='', decision_context=None) -> NodeExecutionResult:
@@ -161,7 +171,7 @@ class NodeExecutionAdapter:
             excluded = {item['source_payload'].get('keyword') for item in seen_nodes if item['source_payload'].get('keyword')}
             payload = await handler.fetch_one_expansion(exclude_keywords=excluded)
             valid = bool(payload and payload.get('keyword') and payload.get('expansion'))
-            return self._material_result(valid, payload, f"关键词「{payload.get('keyword')}」的联想" if valid else '关键词扩写未取得有效内容')
+            return self._material_result(valid, payload, (f"写下随笔《{payload['title']}》" if payload and payload.get('essay_version') == 1 else f"关键词「{payload.get('keyword')}」的联想") if valid else '随笔尚未写成')
         if event_type == EventType.MEMORY_FETCH:
             excluded = {item['source_payload'].get('memory_id') for item in seen_nodes if item['source_payload'].get('memory_id')}
             payload = await handler.fetch_one_memory(exclude_ids=excluded)
@@ -272,7 +282,7 @@ class NodeExecutionAdapter:
                 return NodeExecutionResult(NodeExecutionStatus.FAILED, summary=describe(reason), payload={**payload, 'public_error': describe(reason)}, error=reason, retry_safe=False)
             if valid and action_status == 'failed':
                 return NodeExecutionResult(NodeExecutionStatus.FAILED, summary='收藏夹材料已读取，但收藏动作失败', payload=payload, error=str(action.get('reason') or 'bookmark_action_failed')[:200], retry_safe=False)
-            return self._material_result(valid, payload, f"回看{payload.get('active_date')}的历史对话" if valid and payload.get('source_mode') in {'unbookmarked_anchor', 'random_day'} else f'翻看{owner}收藏夹中的一条收藏' if valid else '未取得新收藏')
+            return self._material_result(valid, payload, f"回看{payload.get('active_date')}的历史对话" if valid and payload.get('source_mode') in {'unbookmarked_anchor', 'random_day'} else '逛书柜读了一篇随笔' if valid and payload.get('source_mode') == 'essays' else f'翻看{owner}收藏夹中的一条收藏' if valid else '未取得新收藏')
         if event_type == EventType.LISTEN_MUSIC:
             excluded = {item['source_payload'].get('fingerprint') for item in seen_nodes if item['source_payload'].get('fingerprint')}
             excluded |= {_song_identity_key(item.get('source_payload')) for item in seen_nodes if _song_identity_key(item.get('source_payload'))}

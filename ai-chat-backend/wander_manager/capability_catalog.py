@@ -25,6 +25,15 @@ def _event_records() -> list[dict[str, Any]]:
 def get_capability_records() -> tuple[dict[str, Any], ...]:
     """Return a fresh factual snapshot for self-reflection and documentation."""
     records = [copy.deepcopy(record) for record in _BASE_CATALOG]
+    records.append({
+        'domain': '漫想书册',
+        'capability': '随笔创作、重读与插画分享',
+        'state': 'available_with_optional_illustrator',
+        'details': '写成的随笔保存在本地漫想记录里，可按题目、关键词或正文查找。重读随笔时，读后插画可关联到实际读到的一句原文。',
+        'source': 'wander_manager.essays + wander_manager.reading_illustrations',
+        'freshness': 'persisted work and illustration receipts',
+        'limit': '成图取决于本机配置的插画服务。书册保存与聊天分享分别记录。',
+    })
     events = _event_records()
     if events:
         for record in records:

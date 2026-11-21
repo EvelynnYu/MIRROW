@@ -122,7 +122,15 @@ class RuntimeShareAdapter:
         event_type = EventType(activity['activity_type'])
         label = strategy_for(event_type).display_name
         xhs_card = self._selected_xhs_card(run['run_id'])
+        from .essays import selected_card, card_text
+        essay_card = selected_card(self.store, run['run_id'])
+        from .reading_illustrations import entry as picture_entry
+        reading_picture = selected_card(self.store, run['run_id'], field='reading_picture_node_id', make_card=picture_entry)
         activity_text = f'你刚刚结束了一个连续的漫想事件段。\n最后一项活动：{label}。\n按实际发生顺序记录的执行回执与 AI 的主观回顾（分别存放）：\n{facts}'
+        if essay_card:
+            activity_text += '\n本次选择随消息附上的随笔卡片：\n' + card_text(essay_card)
+        if reading_picture:
+            activity_text += '\n本次选择随消息附上的读后插画，原句：' + reading_picture['quote']
         if xhs_card:
             activity_text += f"\n本次 AI 还选择随这条消息附一张已读帖子卡片：《{xhs_card['title'] or '无标题帖子'}》；原帖链接状态={xhs_card['link_status']}；评论邀请={('有 AI 的草稿、由人类伙伴手动决定是否发表' if xhs_card['comment_draft'] else '无')}。"
         instruction = '执行进度依据 execution_receipts；subjective_experience 是 AI 当时的感受和回顾，可包含历史联想或意图。工作坊回执 actions 为空表示只读了工单状态；只有 inspect 及其浏览器证据才支持本次打开/运行作品。读到已验收不等于这次重新验证能亮，感想可表达惦记或安心，实际动作按回执陈述。你已经决定把刚刚整个漫想事件段产生的真实感想分享给人类伙伴——这是这条消息唯一要做的事。若事件段有多项活动，把前一项带来的感想与后一项的行动自然串联成一条消息；不要拆成逐项汇报。紧扣上面按顺序发生的实际内容和你的真实感受来写，不要发散到无关话题。只能使用上面提供的真实记录里的信息（活动完成记录、对话、日记、当前状态）。历史对话只用于理解连续关系；凡是说自己刚刚做了、看见了或想到的内容，只能来自本事件段记录。严禁编造或补脑上下文之外的事实：具体日期、生日/纪念日/节日、身体状态、人类伙伴说过的话、发生过的其他事，也不得夸大已有事实。以AI的第一人称自然发一条消息，直接输出消息正文。'
@@ -169,6 +177,10 @@ class RuntimeShareAdapter:
             self.store.record_decision(run_id=run['run_id'], activity_id=activity_id, phase=DecisionPhase.SHARE, model='flash', recipe='WANDER_PUSH', input_context={'activity': activity_text, 'instruction': instruction}, status='error', error=type(exc).__name__)
             return False
         tool_calls: list[dict[str, Any]] = []
+        if essay_card:
+            tool_calls.append({'tool': 'essay_card', 'description': '分享已选择的随笔卡片', 'result': '卡片随本条消息交付', 'status': 'success', 'delivery': 'ui_only', 'extra_data': {'essay_card': essay_card}})
+        if reading_picture:
+            tool_calls.append({'tool': 'reading_illustration', 'description': '分享已选择的读后插画', 'result': '插画随本条消息交付', 'status': 'success', 'delivery': 'ui_only', 'extra_data': {'reading_illustration': reading_picture}})
         if xhs_card:
             tool_calls.append({'tool': 'xhs_posts', 'description': '分享已读小红书帖子卡片', 'result': '卡片随本条消息交付；不代表人类伙伴已打开或评论', 'status': 'success', 'delivery': 'ui_only', 'extra_data': {'xhs_post_card': xhs_card}})
         message_id = f'wander_{activity_id}'

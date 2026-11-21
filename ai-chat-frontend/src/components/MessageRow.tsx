@@ -1,4 +1,6 @@
 
+import EssayCard from './EssayCard';
+import { ReadingPicture } from './ReadingIllustrations';
 import MusicCard from './music/MusicCard';
 import AsyncMusicCard from './music/AsyncMusicCard';
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -225,6 +227,7 @@ const TOOL_ICONS: Record<string, string> = {
   'GLM-4V场景分析': '👀',
   '关键词联想': '💡',
   '关键词扩写': '💡',
+  '随笔': '✍️',
   '记忆检索': '🧠',
   '回看记忆': '🧠',
   '网上搜索': '📰',
@@ -233,6 +236,7 @@ const TOOL_ICONS: Record<string, string> = {
   '自省': '🪞',
   '翻看收藏夹': '⭐',
   '翻收藏夹': '⭐',
+  '逛书柜': '📚',
   '刷小红书': '🍠',
   '自己听歌': '🎧',
   '听歌': '🎧',
@@ -812,7 +816,7 @@ export default function MessageRow({
     : [];
   const supportingShare = workshopGifts.length > 0 && workshopGifts.every(tc => tc.extra_data!.workshop.artifacts.every((item:{name:string}) => !/\.(png|jpe?g|webp|gif|html?|txt|md)$/i.test(item.name)));
   const ordinaryToolCalls = message.role === 'assistant'
-    ? (message.toolCalls || []).filter(tc => !workshopGifts.includes(tc) && tc.tool !== 'send_voice' && tc.tool !== 'ambient_event_link' && tc.extra_data?.xhs_comment !== true && !tc.extra_data?.lounge_visit && !tc.extra_data?.music_card && !tc.extra_data?.xhs_post_card && tc.extra_data?.attachment_kind !== 'music')
+    ? (message.toolCalls || []).filter(tc => !workshopGifts.includes(tc) && tc.tool !== 'send_voice' && tc.tool !== 'ambient_event_link' && tc.extra_data?.xhs_comment !== true && !tc.extra_data?.lounge_visit && !tc.extra_data?.music_card && !tc.extra_data?.xhs_post_card && !tc.extra_data?.essay_card && !tc.extra_data?.reading_illustration && tc.extra_data?.attachment_kind !== 'music')
     : [];
 
   // A receipt with no prose/media/reasoning is not an empty chat message.
@@ -945,11 +949,15 @@ export default function MessageRow({
               
               const musicCards = message.toolCalls!.filter(tc => tc.extra_data?.music_card || tc.extra_data?.attachment_kind === 'music');
               const xhsPostCards = message.toolCalls!.filter(tc => tc.extra_data?.xhs_post_card);
+              const essayCards = message.toolCalls!.filter(tc => tc.extra_data?.essay_card);
+              const readingPictures = message.toolCalls!.filter(tc => tc.extra_data?.reading_illustration);
               
               return (
                 <>
                   {musicCards.map((tc, i) => tc.extra_data?.attachment_kind === 'music' ? <AsyncMusicCard key={tc.extra_data.generation_id || 'music-' + i} attachment={tc.extra_data} /> : <MusicCard key={'music-' + i} song={tc.extra_data!.music_card} />)}
                   {xhsPostCards.map((tc, i) => <XhsPostCard key={`xhs-post-${i}`} card={tc.extra_data!.xhs_post_card} messageId={message.id} sessionId={currentSessionId || ''} />)}
+                  {essayCards.map((tc, i) => <EssayCard key={`essay-${i}`} card={tc.extra_data!.essay_card} />)}
+                  {readingPictures.map((tc, i) => <ReadingPicture key={`reading-${i}`} picture={tc.extra_data!.reading_illustration} />)}
                   
                   
                   <VoicePlayer voiceTracks={voiceTracks} />

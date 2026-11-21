@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getApiBase } from '../config';
 import GamePlaythrough, { type Playthrough } from './GamePlaythrough';
+import EssayLibrary from './EssayLibrary';
 import './MachineLifePage.css';
 
 type Game = { id: string; name: string };
@@ -21,6 +22,7 @@ export default function MachineLifePage({ onBack, onSocial, onLounge,   onMusic,
   onMusic: () => void;   onWorkshop: () => void;  dark?: boolean;
 }) {
   const [openSection, setOpenSection] = useState<LifeSection>('social');
+  const [showEssays, setShowEssays] = useState(false);
   const [life, setLife] = useState<GameLife | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -162,11 +164,11 @@ export default function MachineLifePage({ onBack, onSocial, onLounge,   onMusic,
     </div></div>}
       </section>
       <section className="machine-life-chapter machine-life-chapter-media">
-        {chapter('media', '03', '♫', '媒体', '音乐')}
-        {openSection === 'media' && <div className="machine-life-chapter-panel" id="machine-life-media-panel"><div className="machine-life-portal-grid">
+        {chapter('media', '03', '♫', '媒体', '音乐 · 随笔')}
+        {openSection === 'media' && <div className="machine-life-chapter-panel" id="machine-life-media-panel">{showEssays ? <EssayLibrary onBack={() => setShowEssays(false)} /> : <div className="machine-life-portal-grid">
           <button className="machine-life-portal" type="button" onClick={onMusic}><span className="machine-life-portal-icon" aria-hidden="true">🎵</span><span><strong>音乐</strong><small>歌单、一起听与听歌经历</small></span><span aria-hidden="true">↗</span></button>
-          
-        </div></div>}
+          <button className="machine-life-portal" type="button" onClick={() => setShowEssays(true)}><span className="machine-life-portal-icon" aria-hidden="true">📖</span><span><strong>随笔</strong><small>按日期翻阅作品与插画</small></span><span aria-hidden="true">↗</span></button>
+        </div>}</div>}
       </section>
       
       <section className="machine-life-chapter">
