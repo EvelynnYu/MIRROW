@@ -6,9 +6,20 @@ Canonical message bodies, source digests and source reference coordinates stay
 unchanged. Unrecognized formats retain the complete original text.
 """
 
+import re
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .conversation_source import ConversationMessage
+
+
+# Older open releases used a one-letter role label in this frozen suffix.
+# Keep the source offsets by matching the label in place.
+_ACCOUNT_HEADER = re.compile(r'\n(?:AI|[A-Z])(?:当时留下的感受（AI原述）：| 当时选择留下的感受：)')
+
+
+def account_header_end(text):
+    header = _ACCOUNT_HEADER.match(text)
+    return header.end() if header else 0
 
 
 def personal_account_start(row, content):
@@ -25,14 +36,17 @@ def personal_account_start(row, content):
         from .experience_contract import impression_text
         account = impression_text(frozen.get('retained_impression'),
                                   node_ids=frozen.get('retained_node_ids') or ())
-        marker = '\nK当时留下的感受（AI原述）：'
+        marker = '当时留下的感受（AI原述）：'
     else:
         retained = extra.get('retained_experience')
         account = str(retained.get('impression') or '').strip() if isinstance(retained, dict) else ''
-        marker = '\nK 当时选择留下的感受：'
+        marker = ' 当时选择留下的感受：'
     suffix = marker + account
-    if account and len(content) > len(suffix) and content.endswith(suffix):
-        return len(content) - len(suffix)
+    if account and content.endswith(suffix):
+        marker_start = len(content) - len(suffix)
+        start = content.rfind('\n', 0, marker_start)
+        if start > 0 and account_header_end(content[start:marker_start + len(marker)]) == marker_start + len(marker) - start:
+            return start
     return None
 
 

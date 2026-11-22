@@ -19,6 +19,9 @@ from .node_execution_adapter import NodeExecutionStatus
 from .runtime_models import DecisionPhase, NodeState, WanderNode
 from .runtime_store import WanderRuntimeStore, redact_sensitive
 from .context_projection import activity_history_scope
+from .runtime_decision_adapters import SettlementDecision, EmotionEffect
+from .decision_contracts import CLOSEOUT_FIELDS
+from affect.self_contract import WANDER_FEELING_INSTRUCTION
 
 
 SELF_BOOK_CATEGORIES = {
@@ -105,6 +108,7 @@ class SelfReflectionDecision:
     self_observations: list[SelfObservationCandidate] = field(default_factory=list)
     share_candidate: ShareCandidate = field(default_factory=ShareCandidate)
     validation_rejections: list[str] = field(default_factory=list)
+    closeout: Optional[SettlementDecision] = None
 
 
 _OUTPUT_INSTRUCTION = """仅输出 JSON 对象：
@@ -112,13 +116,14 @@ _OUTPUT_INSTRUCTION = """仅输出 JSON 对象：
   "overall_reflection":"这次自省的总体感受",
   "capabilities":[{"statement":"我能……","evidence":["可验证事实"],"confidence":0.0}],
   "wish_action":{"type":"none|create|reaffirm|retain_impossible|delete_impossible","wish_id":null,"title":"新愿望标题","reason":"这次具体依据或理由","basis":"支持这次动作的新增事实"},
-  "comment_reply":{"wish_id":null,"reply_to_comment_id":null,"content":"对人类伙伴评论的回复"},
-  "share_candidate":{"should_share":false,"reason":"","summary":""}
+  "comment_reply":{"wish_id":null,"reply_to_comment_id":null,"content":"对人类伙伴评论的回复"}
 }
 能力必须来自可验证能力目录；每次最多一个 wish_action 和一个 comment_reply。
 先阅读许愿板快照：create 只用于现有愿望、已实现历史和删除记录均未覆盖的新具体愿望；reaffirm 必须使用快照里的稳定 wish_id，且只有新的具体依据才增加次数；不要输出 fulfilled。
 人类伙伴标记天方夜谭的愿望只能用 retain_impossible 或 delete_impossible，并使用稳定 wish_id。没有动作时使用 none。没有想回复的评论时将 comment_reply 设为 null；一旦回复，reply_to_comment_id 必须引用快照中同一愿望的真实人类伙伴留言。历史留言不会因已有 AI 留言而失效，请结合留言时间和已有直接回复时间自由判断是否需要补充。
-本次负责能力自查与许愿，不生成自我书候选；自我书由每日交流聚合维护。share_candidate 只是分享候选，不会直接推送。"""
+本次负责能力自查与许愿；自我书由每日交流聚合维护。"""
+_OUTPUT_INSTRUCTION += ('\n本次自省在这一步收尾，同一 JSON 填写 closeout；summary 留空沿用 overall_reflection，'
+                        '分享决定使用 closeout.share。\n' + CLOSEOUT_FIELDS + '\n' + WANDER_FEELING_INSTRUCTION)
 
 
 def _as_bool(value: Any) -> bool:
@@ -165,6 +170,7 @@ class SelfReflectionAdapter:
         self.store = store
         self.llm_caller = llm_caller
         self.context_builder = context_builder
+        self.clock = datetime.now
 
     async def generate(
         self,
@@ -184,6 +190,7 @@ class SelfReflectionAdapter:
         node.execution_status = NodeExecutionStatus.RUNNING.value
         self.store.save_node(node)
         runtime_block = self._runtime_block(run, activity, context)
+        runtime_block += '\n[当前节点身份]\nnode_id=' + node.node_id
         try:
             messages = await self._messages(run, activity, context, runtime_block)
         except ValueError as exc:
@@ -207,6 +214,11 @@ class SelfReflectionAdapter:
 
         raw = detailed.parsed if detailed.status == "ok" and isinstance(detailed.parsed, dict) else None
         decision = self._normalize(raw, valid_node_ids) if raw is not None else None
+        if decision is not None:
+            from .review_closeout import normalize_closeout
+            decision.closeout = normalize_closeout(raw.get('closeout'),
+                reflection=decision.overall_reflection, effect=EmotionEffect(), activity=activity,
+                nodes=[{'node_id': node.node_id, 'execution_status': 'succeeded'}], anchor=self.clock())
         status = detailed.status if decision is not None else (
             "validation_error" if raw is not None else detailed.status
         )

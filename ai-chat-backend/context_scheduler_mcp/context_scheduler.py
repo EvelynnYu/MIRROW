@@ -571,7 +571,7 @@ class ContextScheduler:
                         logger.warning('长文卡片历史注入跳过: %s', type(_card_exc).__name__)
                 if msg.get('event_type') == 'rift_game':
                     _content = f'[裂隙档案·虚构共同游玩] {_content}'
-                memory = MemoryItem(id=f"conversation_{session_id}_{i}_{hashlib.md5(str(msg.get('content', '')).encode()).hexdigest()[:8]}", content=f"{msg.get('role', 'unknown')}: {_content}", similarity=similarity, importance=0.6, bucket='short_term', source='conversation', metadata={'role': msg.get('role'), 'timestamp': msg.get('timestamp'), 'session_id': session_id, 'message_id': msg_id, 'is_active_topic': True, 'reasoning_content': reasoning_content, 'tool_summary': msg.get('tool_summary'), 'tool_calls': msg.get('tool_calls'), 'is_wander': bool(msg.get('is_wander')) or str(msg_id).startswith('wander_'), 'is_sentinel': bool(msg.get('is_sentinel')) or str(msg_id).startswith('sentinel_'), 'is_reminder': bool(msg.get('is_reminder')) or str(msg_id).startswith('reminder_'), 'event_type': str(msg.get('event_type') or ''), 'notification_projection': bool(msg.get('notification_projection')), 'provider_internal': bool(msg.get('_provider_internal')), 'voice_attachment': _va_meta})
+                memory = MemoryItem(id=f"conversation_{session_id}_{i}_{hashlib.md5(str(msg.get('content', '')).encode()).hexdigest()[:8]}", content=f"{msg.get('role', 'unknown')}: {_content}", similarity=similarity, importance=0.6, bucket='short_term', source='conversation', metadata={'role': msg.get('role'), 'timestamp': msg.get('timestamp'), 'session_id': session_id, 'message_id': msg_id, 'is_active_topic': True, 'reasoning_content': reasoning_content, 'tool_summary': msg.get('tool_summary'), 'tool_calls': msg.get('tool_calls'), 'is_wander': bool(msg.get('is_wander')) or str(msg_id).startswith('wander_'), 'is_sentinel': bool(msg.get('is_sentinel')) or str(msg_id).startswith('sentinel_'), 'is_reminder': bool(msg.get('is_reminder')) or str(msg_id).startswith('reminder_'), 'event_type': str(msg.get('event_type') or ''), 'notification_projection': bool(msg.get('notification_projection')), 'wander_identity': msg.get('_wander_identity'), 'provider_internal': bool(msg.get('_provider_internal')), 'voice_attachment': _va_meta})
                 memories.append(memory)
             logger.info(f'获取了 {len(memories)} 条当前活跃话题消息（短期记忆），会话ID: {session_id}')
         except ImportError as e:
@@ -1145,127 +1145,6 @@ class ContextScheduler:
             logger.warning(f'Snapshot capture failed: {e}', exc_info=True)
             pass
         return ContextResult(user_message=user_message, persona=persona, user_profile=user_profile, memories=memories[:max_memories], formatted_context=formatted_context, formatted_messages=formatted_messages, stats=stats)
-
-    async def build_lightweight_context(self, session_id: str, persona: str='', user_profile: str='', world_book_summaries: str='', diary_summary: str='') -> ContextResult:
-        """
-        构建轻量上下文，专供漫想模式使用。
-
-        包含：人设 + 时间 + 用户状态 + 生理期 + 活跃话题最近消息
-        可选：用户画像 + 世界书摘要（轮换）+ 最近日记摘要
-        不包含：Memory V2 记忆检索、日记、事件纪、trigger 检测、query 规划
-        """
-        await self.initialize()
-        conversation_memories = await self._get_conversation_memories(session_id, '')
-        time_section = self._build_time_section()
-        timeline_anchor = self._build_timeline_anchor()
-        period_section = self._build_period_section()
-        status_section = self._build_user_status_section()
-        parts = []
-        if persona:
-            parts.append(f'系统角色: {persona}')
-        if user_profile:
-            parts.append(f'用户资料: {user_profile}')
-        from context_builder.ingredients import build_wander_mode_text
-        parts.append(build_wander_mode_text('push'))
-        parts.append(time_section)
-        parts.append(timeline_anchor)
-        if period_section:
-            parts.append(period_section)
-        if status_section:
-            parts.append(status_section)
-        if diary_summary:
-            parts.append(f'最近日记: {diary_summary}')
-        if world_book_summaries:
-            parts.append(f'你知道关于她的事:\n{world_book_summaries}')
-        if conversation_memories:
-            user_msgs = [m for m in conversation_memories if m.metadata.get('role') == 'user' and (not m.metadata.get('is_wander'))]
-            assistant_msgs = [m for m in conversation_memories if m.metadata.get('role') != 'user' and (not m.metadata.get('is_wander'))]
-            wander_msgs = [m for m in conversation_memories if m.metadata.get('is_wander')]
-            if user_msgs:
-                last_user_ts = user_msgs[-1].metadata.get('timestamp', '')
-                if last_user_ts:
-                    try:
-                        dt = datetime.fromisoformat(last_user_ts)
-                        if dt.tzinfo is not None:
-                            dt = dt.astimezone().replace(tzinfo=None)
-                        diff = datetime.now() - dt
-                        away_secs = diff.total_seconds()
-                        away_section = self._build_away_info_section(away_secs, '')
-                        if away_section:
-                            parts.append(away_section)
-                        try:
-                            from wander_manager.user_status import format_status_timeline_since
-                            timeline = format_status_timeline_since(dt)
-                            if timeline:
-                                parts.append(f'## 你离开期间的状态变化\n{timeline}\n（离开总时长只是距上次回复的时间，别把它当成单一状态的持续时长来理解。）')
-                        except Exception:
-                            pass
-                    except Exception:
-                        pass
-            recent_conv = user_msgs[-5:] + assistant_msgs[-5:]
-            recent_conv.sort(key=lambda m: parse_ts(m.metadata.get('timestamp', '')))
-            if recent_conv:
-                lines = ['\n## 人类伙伴离开前的真实对话']
-                for mem in recent_conv:
-                    if mem.metadata.get('role') == 'system':
-                        lines.append(mem.content.removeprefix('system: '))
-                        continue
-                    role_label = '人类伙伴' if mem.metadata.get('role') == 'user' else '你(AI)'
-                    content = mem.content
-                    role_prefix = mem.metadata.get('role', '') + ': '
-                    if content.startswith(role_prefix):
-                        content = content[len(role_prefix):]
-                    if mem.metadata.get('role') == 'assistant':
-                        content = strip_internal_history_markers(content)
-                        from tool_action_protocol import strip_tool_protocol_text
-                        content = strip_tool_protocol_text(content)
-                    time_label = self._format_relative_time(mem.metadata.get('timestamp', ''))
-                    _cvc = get_truncation_limit('conv_msg_cap')
-                    _cvc = _cvc if _cvc > 0 else 10 ** 9
-                    time_suffix = f'（{time_label}）' if time_label else ''
-                    lines.append(f'{role_label}{time_suffix}：{content[:_cvc]}')
-                    fact = build_tool_history_fact(mem.metadata.get('role', ''), mem.metadata.get('tool_summary'), mem.metadata.get('tool_calls'), mem.metadata.get('event_type', ''))
-                    if fact:
-                        lines.append(fact)
-                parts.append('\n'.join(lines))
-            if wander_msgs:
-                recent_wanders = wander_msgs[-5:]
-                lines = ['\n## AI 刚才通过漫想推送通道发出的消息（不是人类伙伴的发言；行动触发方式见对应事件记录）']
-                for mem in recent_wanders:
-                    content = mem.content
-                    role_prefix = mem.metadata.get('role', '') + ': '
-                    if content.startswith(role_prefix):
-                        content = content[len(role_prefix):]
-                    time_label = self._format_relative_time(mem.metadata.get('timestamp', ''))
-                    _cvc2 = get_truncation_limit('conv_msg_cap')
-                    _cvc2 = _cvc2 if _cvc2 > 0 else 10 ** 9
-                    time_prefix = f'{time_label} ' if time_label else ''
-                    lines.append(f'你{time_prefix}说：{content[:_cvc2]}')
-                    fact = build_tool_history_fact(mem.metadata.get('role', ''), mem.metadata.get('tool_summary'), mem.metadata.get('tool_calls'), mem.metadata.get('event_type', ''))
-                    if fact:
-                        lines.append(fact)
-                parts.append('\n'.join(lines))
-        formatted_context = '\n\n'.join(parts)
-        formatted_messages = [{'role': 'system', 'content': formatted_context}] if formatted_context else []
-        try:
-            from context_builder import record_recipe_call, estimate_tokens
-            _secs = {}
-            if persona:
-                _secs['persona'] = persona
-            _secs['time'] = time_section
-            _secs['timeline_anchor'] = timeline_anchor
-            if status_section:
-                _secs['user_status'] = status_section
-            if period_section:
-                _secs['period'] = period_section
-            if diary_summary:
-                _secs['diary_summary'] = diary_summary
-            if world_book_summaries:
-                _secs['world_book_summaries'] = world_book_summaries
-            record_recipe_call('漫想轻量', 'LIGHTWEIGHT', sections=_secs, total_chars=len(formatted_context), total_tokens=estimate_tokens(formatted_context))
-        except Exception:
-            pass
-        return ContextResult(user_message='', persona=persona, user_profile=user_profile, memories=conversation_memories, formatted_context=formatted_context, formatted_messages=formatted_messages, stats={'context_length': len(formatted_context), 'conversation_messages': len(conversation_memories), 'lightweight': True})
 
     async def schedule_context(self, user_message: str, persona: str='', user_profile: str='', force_retrieve: bool=False, session_id: str='', is_new_topic: bool=False, inject_yesterday: bool=False, away_duration_seconds: Optional[float]=None, away_reason: Optional[str]=None, group_chat_active_seconds_ago: Optional[float]=None, night_mode: bool=False, phone_browse_mode: bool=False, music_cochlea: bool=False, time_awareness_hint: Optional[str]=None, current_message_id: Optional[str]=None, is_wander_active: bool=False) -> ContextResult:
         """

@@ -21,9 +21,15 @@ def constrain_unexecuted(decision, activity, nodes, reason):
     if not unexecuted(activity, nodes, reason):
         return decision
     from .runtime_decision_adapters import EmotionEffect
-    decision.summary = '本次活动尚未执行即结束（' + reason.value + '）；没有新增行动经历。'
+    no_new = (activity.get('activity_type') == 'check_xiaohongshu_interactions' and bool(nodes)
+              and all(n.get('execution_status') == 'skipped'
+                      and (n.get('source_payload') or {}).get('status') == 'no_pending_interactions'
+                      for n in nodes))
+    decision.summary = ('没有新评论或艾特，本次查看已结束。' if no_new
+                        else '本次尚未执行就结束了，没有新增经历。')
     decision.retained_impression = ''
     decision.retained_node_ids = []
+    decision.purpose_outcome = None
     decision.emotion_effect = EmotionEffect()
     decision.share = False
     return decision

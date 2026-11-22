@@ -12,7 +12,7 @@ export function ReadingPicture({ picture }: { picture: Picture }) {
   </figure>;
 }
 
-export default function ReadingIllustrations({ workId }: { workId: string }) {
+export default function ReadingIllustrations({ workId, nodeId }: { workId: string; nodeId?: string }) {
   const [pictures, setPictures] = useState<Picture[]>([]);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -26,7 +26,8 @@ export default function ReadingIllustrations({ workId }: { workId: string }) {
     return () => controller.abort();
   }, [workId]);
   if (failed) return <small>读后插画暂时无法读取</small>;
-  if (!pictures.length) return null;
-  return <details><summary>夹在书里的插画 · {pictures.length}</summary>
-    {pictures.map(picture => <ReadingPicture key={picture.node_id} picture={picture} />)}</details>;
+  const visiblePictures = nodeId ? pictures.filter(picture => picture.node_id === nodeId) : pictures;
+  if (!visiblePictures.length) return null;
+  return <details><summary>夹在书里的插画 · {visiblePictures.length}</summary>
+    {visiblePictures.map(picture => <ReadingPicture key={picture.node_id} picture={picture} />)}</details>;
 }

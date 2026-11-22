@@ -94,14 +94,6 @@ def _declare_all():
          source_file="silicon_perception/analysis/sentinel_summarizer.py",
          emoji="🛡️")
 
-    _reg("wander_message_generator",
-         name="漫想消息生成", category="cognitive", subsystem="wander_manager",
-         consumer="AI漫想", recipe="WANDER_PUSH", is_llm=True, llm_model="deepseek-v4-flash",
-         trigger_desc="漫想事件 + 扰动判断通过 → Flash",
-         description="根据漫想事件生成推送到聊天的自然语言消息",
-         source_file="wander_manager/message_generator.py",
-         emoji="💭")
-
     _reg("wander_keyword_expansion",
          name="漫想关键词扩展", category="cognitive", subsystem="wander_manager",
          is_llm=True, llm_model="deepseek-v4-flash",
@@ -292,13 +284,6 @@ def _declare_all():
          description="三级触发体系：10条L1+2条L2+1条L3，决定是否唤醒Flash",
          source_file="silicon_perception/analysis/trigger_detector.py",
          emoji="⚙️")
-
-    _reg("disturb_judgment",
-         name="扰动判断", category="reflex", subsystem="wander_manager",
-         trigger_desc="漫想周期 → 一致性检查",
-         description="判断用户状态与手机数据是否一致，连续2次不一致→复查管道",
-         source_file="wander_manager/disturb_judgment.py",
-         emoji="🚦")
 
     _reg("daily_aggregator",
          name="每日聚合", category="reflex", subsystem="silicon_perception",

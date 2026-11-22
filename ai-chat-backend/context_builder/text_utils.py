@@ -145,6 +145,10 @@ def build_tool_history_fact(role: str, tool_summary: Optional[str], tool_calls: 
     if not isinstance(parsed_calls, list) or not parsed_calls:
         return ''
     facts = build_tool_behavior_facts(parsed_calls)
+    from wander_manager.essays import shared_work_fact
+    works = [text for call in parsed_calls if (text := shared_work_fact(call))]
+    if works:
+        return '\n'.join(part for part in [facts, *works] if part)
     choices = []
     for call in parsed_calls:
         if isinstance(call, dict) and call.get('tool') == 'book_choices':

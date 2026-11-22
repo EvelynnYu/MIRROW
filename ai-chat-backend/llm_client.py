@@ -22,7 +22,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel
 from time_utils import now_iso
 from token_tracker import log_token_usage
-from shared_state import get_context_scheduler, get_latest_session_id, get_active_session_id, get_latest_persona_prompt
+from shared_state import get_latest_session_id, get_active_session_id, get_latest_persona_prompt
 logger = logging.getLogger(__name__)
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY', '')
 DEEPSEEK_API_URL = os.getenv('DEEPSEEK_API_URL', 'https://api.deepseek.com/v1/chat/completions')
@@ -703,16 +703,6 @@ async def call_llm_for_wander(messages: List[Dict[str, Any]], with_reasoning: bo
         logger.warning('WANDER_LLM: %s recipe build failed: %s', recipe_name, traceback.format_exc())
     if not ctx_injected and recipe_name in {'WANDER_ACTIVITY', 'WANDER_MUSIC_SELECTION'}:
         return {'content': '', 'reasoning': ''} if with_reasoning else ''
-    if not ctx_injected:
-        cs2 = get_context_scheduler()
-        if cs2 and session_id:
-            try:
-                ctx = await cs2.build_lightweight_context(session_id=session_id, persona=get_latest_persona_prompt() or '')
-                if ctx.formatted_context:
-                    enriched_messages = [{'role': 'system', 'content': get_latest_persona_prompt() or '你是 AI。'}, {'role': 'system', 'content': ctx.formatted_context}] + enriched_messages
-                    ctx_injected = True
-            except Exception:
-                pass
     if not ctx_injected and get_latest_persona_prompt():
         enriched_messages.insert(0, {'role': 'system', 'content': get_latest_persona_prompt()})
         try:

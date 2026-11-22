@@ -36,6 +36,6 @@ def experience(value):
           'preparing':'准备过程未确认完成'}.get(state,'发布状态未知')
     return ('AI的小红书创作记录：'+verb+'；任务='+value['task_id']+
         '；账号='+str(value.get('account',{}).get('account_name',''))+
-        '\nK创作的标题：'+str(value.get('title',''))+'\nK创作的正文：'+str(value.get('body',''))+
-        '\nK创作的文字封面：'+str(value.get('cover_text',''))+
+        '\nAI创作的标题：'+str(value.get('title',''))+'\nAI创作的正文：'+str(value.get('body',''))+
+        '\nAI创作的文字封面：'+str(value.get('cover_text',''))+
         ('\n执行阻碍：'+value['error'] if value.get('error') else ''))

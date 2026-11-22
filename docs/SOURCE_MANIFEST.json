@@ -1,13 +1,13 @@
 {
-  "frozen_at_utc": "2026-11-21T13:08:14.387082+00:00",
-  "baseline_commit": "8299e033be5631530cfbd0add66abca8b224759c",
+  "frozen_at_utc": "2026-11-22T11:22:17.717133+00:00",
+  "baseline_commit": "e09844b41e4573b6d9fb728780d51255ca6ad10e",
   "method": "SHA-256 of files in the Git source archive, excluding this manifest. Comparison is by path and bytes against the previous public commit.",
   "files": [
     {
       "path": ".gitignore",
       "bytes": 594,
       "sha256": "96d479def0729c0ad90575b5032157bce24d6035654b3059ad45e6ea8705b4f5",
-      "comparison": "updated"
+      "comparison": "unchanged"
     },
     {
       "path": "LICENSE",
@@ -35,8 +35,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 4395,
-      "sha256": "2f135d5baae046d296aede04480d4eeff3e40946c2506ebf947b0501d6e85b19",
+      "bytes": 4635,
+      "sha256": "d241837ad1c7f0269f4fb96df148994302268549928bc5b42e2e7d1c7178d130",
       "comparison": "updated"
     },
     {
@@ -119,9 +119,9 @@
     },
     {
       "path": "ai-chat-backend/affect/self_contract.py",
-      "bytes": 3144,
-      "sha256": "b9147c79dc6cb5dd3d740b69a6c7ac65f71743eae6938f7bb4724f78f3389da1",
-      "comparison": "unchanged"
+      "bytes": 2820,
+      "sha256": "be73bf55dac3597d67b2a2ec84ba89d97b381c82a3118b304cd6eefb09974bca",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/affect/service.py",
@@ -257,9 +257,9 @@
     },
     {
       "path": "ai-chat-backend/api_sources/catalog.py",
-      "bytes": 12567,
-      "sha256": "04462acf6df8f8bf02e5fc89dd69cf6da6088019687f2698b78f51d77dfbefbf",
-      "comparison": "unchanged"
+      "bytes": 12144,
+      "sha256": "500b2c21b3b2b5e29c7cabddd7afc93fcd4d3f52099a46de1044dfaf243464ac",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/api_sources/config.py",
@@ -365,9 +365,9 @@
     },
     {
       "path": "ai-chat-backend/api_sources/runner.py",
-      "bytes": 16454,
-      "sha256": "ce109d4ebfeb51243cb8d7be455dbef86e0b91b9263f6427c5161493560c716b",
-      "comparison": "unchanged"
+      "bytes": 16401,
+      "sha256": "09250f8cd16d7bd41113db98eac3af00deac295b7e6097ab53418f9091067d8e",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/api_sources/scope.py",
@@ -673,7 +673,7 @@
       "path": "ai-chat-backend/behavior_scheduler/bookshelf_tool.py",
       "bytes": 29305,
       "sha256": "96a17496b9b55d3e4acf1bed1dd03e3885d8daa65ac288d4868fcdcde551b2ba",
-      "comparison": "updated"
+      "comparison": "unchanged"
     },
     {
       "path": "ai-chat-backend/behavior_scheduler/bookshelf_wander.py",
@@ -719,9 +719,9 @@
     },
     {
       "path": "ai-chat-backend/behavior_scheduler/intent_parser.py",
-      "bytes": 12515,
-      "sha256": "c5fcdac2611960f42ec960889fe26a01f3137f7e779c0b7184c56c3a7fd34912",
-      "comparison": "unchanged"
+      "bytes": 12492,
+      "sha256": "031c7f49fbebc88c9977ddd006f2db683065c200c8e2cdfcf74ae47c8465553a",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/behavior_scheduler/llm_wrapper.py",
@@ -1319,9 +1319,9 @@
     },
     {
       "path": "ai-chat-backend/cognition/maintenance_sources.py",
-      "bytes": 14669,
-      "sha256": "8ae80485a6b7aeffb51bb8bc6dea57452e3a08b14ac6a36462e74816b435d125",
-      "comparison": "unchanged"
+      "bytes": 14726,
+      "sha256": "b29e30753312a236a7c57c9a1c20a1f08bc0ff264c823681240e01a25849bde9",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/cognition/maintenance_status.py",
@@ -1679,9 +1679,9 @@
     },
     {
       "path": "ai-chat-backend/context_builder/active_day_scene_context.py",
-      "bytes": 9389,
-      "sha256": "630cd0026cbf6b09298b02f7641a58871ae4d712cb0c976eeb0f7f0427795541",
-      "comparison": "unchanged"
+      "bytes": 10928,
+      "sha256": "b3d7425aff246960343f49bc9f30dffa1dc9301d3f1b8e0e42f573705a1f89ed",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/context_builder/assembly.py",
@@ -1697,15 +1697,21 @@
     },
     {
       "path": "ai-chat-backend/context_builder/builder.py",
-      "bytes": 72508,
-      "sha256": "c31f592583729c4b85764c6e55e527d22f05ac6d8fa18e36576ea258c60d0380",
-      "comparison": "unchanged"
+      "bytes": 67752,
+      "sha256": "04f140ba30a8a686110bdffc771cb04c7e44e8ebf3d95ca859e29d32ca8cb3f0",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/context_builder/channel_projection.py",
       "bytes": 7924,
       "sha256": "16328cf78fa5e59ae65bdfaf5cd9896e8da2e0763919aea37c8b38360a7a87b5",
       "comparison": "unchanged"
+    },
+    {
+      "path": "ai-chat-backend/context_builder/conversation_history.py",
+      "bytes": 12095,
+      "sha256": "46eba66fe0bb8ed75351827321fa4348b9fdeb720c7b0bd7a009803a0e86cdda",
+      "comparison": "added"
     },
     {
       "path": "ai-chat-backend/context_builder/cross_day_memory.py",
@@ -1727,9 +1733,9 @@
     },
     {
       "path": "ai-chat-backend/context_builder/event_history_adapter.py",
-      "bytes": 6386,
-      "sha256": "81706e10b6b4d8fe021ae4126c53b514ea86bad39979f63abcf29fd49a04715c",
-      "comparison": "unchanged"
+      "bytes": 6309,
+      "sha256": "a1ba0a71d393cbbc7ab852118b0cf85f332d9e6214cd23e49a0ca62f8a523932",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/context_builder/event_language.py",
@@ -1781,9 +1787,9 @@
     },
     {
       "path": "ai-chat-backend/context_builder/recipes.py",
-      "bytes": 19829,
-      "sha256": "c823c8b0a2f9a452cc85522696d619f2b9868c37ff858e1c03a1f6704077b871",
-      "comparison": "unchanged"
+      "bytes": 19038,
+      "sha256": "9030a472b4405148a0d6f3bd35692cb314fd2c074ec66c5df9e8d32d09c2a6b7",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/context_builder/sentinel_scene_context.py",
@@ -1805,9 +1811,9 @@
     },
     {
       "path": "ai-chat-backend/context_builder/text_utils.py",
-      "bytes": 9877,
-      "sha256": "3c79da77094becc0224c4ee283f295d4bf356e9c56fee7f6680f958822355252",
-      "comparison": "unchanged"
+      "bytes": 10097,
+      "sha256": "252de6d7d4e6c26164071b388aebca97555ebb8949543fc0ee40bed2ea14cf23",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/context_builder/tool_event_projection.py",
@@ -1817,9 +1823,15 @@
     },
     {
       "path": "ai-chat-backend/context_builder/wander_event_projection.py",
-      "bytes": 11081,
-      "sha256": "c6a18b866ecdfcc0c2b853ef6a111d48c48332ccf97645bff884f75e35befd2e",
-      "comparison": "unchanged"
+      "bytes": 21297,
+      "sha256": "6fec7b2497045fd30b4db7303b5e181e92d6756f94650738a11048e4fde04a33",
+      "comparison": "updated"
+    },
+    {
+      "path": "ai-chat-backend/context_builder/wander_narration.py",
+      "bytes": 1614,
+      "sha256": "03b3bb88e17042152aedee29d4e99f853a89b504bbc181f22a6f4ab44f481921",
+      "comparison": "added"
     },
     {
       "path": "ai-chat-backend/context_builder/workshop_material_projection.py",
@@ -1853,9 +1865,9 @@
     },
     {
       "path": "ai-chat-backend/context_scheduler_mcp/context_scheduler.py",
-      "bytes": 107667,
-      "sha256": "f4180a36439fc550800010711c42db5a28a17a153c11ed5cae1fe6cad0ec018b",
-      "comparison": "unchanged"
+      "bytes": 100169,
+      "sha256": "0c6905b5cee28d91410e42d4d1326f63fdf5760fdc744d50a0ac61b586fe470b",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/context_scheduler_mcp/memory_fusion.py",
@@ -2141,9 +2153,9 @@
     },
     {
       "path": "ai-chat-backend/llm_client.py",
-      "bytes": 51418,
-      "sha256": "95fac0cec0ed43fea9b427bbaf91d7b80b9f57268406debec1dd620436375490",
-      "comparison": "unchanged"
+      "bytes": 50824,
+      "sha256": "9916e3f90fd50bb2ce5fcba7df35d1932a1a94d91838cda97c30740758a20dde",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/llm_usage.py",
@@ -2189,8 +2201,8 @@
     },
     {
       "path": "ai-chat-backend/main.py",
-      "bytes": 245772,
-      "sha256": "d132364e67126b6a82c5e1c6e3b2d1936e3eb061772f973df40c802781d88f2f",
+      "bytes": 240457,
+      "sha256": "c8bcfadbd9103188e02bc56fe49421edda6b73790783df1eacf6a5cff28f1575",
       "comparison": "updated"
     },
     {
@@ -2501,15 +2513,15 @@
     },
     {
       "path": "ai-chat-backend/memory_v2/experience_contract.py",
-      "bytes": 10694,
-      "sha256": "8105f52e241641a76f7dab104dc36224d482658b9bd139427f004b81237ba9b0",
-      "comparison": "unchanged"
+      "bytes": 17958,
+      "sha256": "3fa8ca79720e365fe93dd473798e93c4bffc0d464ec797697f968a7c334dce5e",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/memory_v2/experience_material.py",
-      "bytes": 8636,
-      "sha256": "73e3e775e16baff8366cb9f0aea3cb5e960f2ff8d486ec5c35143652b6d18e1a",
-      "comparison": "unchanged"
+      "bytes": 10071,
+      "sha256": "fc1a86b29f30910879da16ec1bb837a9a79d82cc012a3977c03ac89fb3637366",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/memory_v2/experience_summary_contract.py",
@@ -2633,9 +2645,9 @@
     },
     {
       "path": "ai-chat-backend/memory_v2/recall.py",
-      "bytes": 38021,
-      "sha256": "815e106badb1311742991191a6a2c8301e9a5453a95b71dedbd4114922ea651c",
-      "comparison": "unchanged"
+      "bytes": 38161,
+      "sha256": "7780717508bf5a30f9cdef6089518d97d79dc09c721636b779145a55e75f666c",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/memory_v2/recall_admission.py",
@@ -2741,15 +2753,15 @@
     },
     {
       "path": "ai-chat-backend/memory_v2/retained_account_candidate.py",
-      "bytes": 8429,
-      "sha256": "62e6819655b637b1d2130b05d0944d4af4bcb461c618b901f6ab06adbe54d455",
-      "comparison": "unchanged"
+      "bytes": 8460,
+      "sha256": "74618f6266f08a15975ef20bbb15240f16d0d574c81f8e7b41ff0ea2b6c6e27c",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/memory_v2/retrieval.py",
-      "bytes": 5471,
-      "sha256": "cbf4f81cfcaae6c3a38d993fddbda019a4bf20dd4ad30b948f1d5808fe27a25d",
-      "comparison": "unchanged"
+      "bytes": 6048,
+      "sha256": "5a087df1cb9e0fdc9f45b0c176ca9325915c65aab4e8c28b422e244dde8b7c6a",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/memory_v2/scene_anchors.py",
@@ -2927,9 +2939,9 @@
     },
     {
       "path": "ai-chat-backend/memory_v2/source_projection.py",
-      "bytes": 8847,
-      "sha256": "507b92d374f2e5caa123e660483c64cfcf03fe8ca74bccfa7a357f0c7272a0d8",
-      "comparison": "unchanged"
+      "bytes": 9820,
+      "sha256": "ed2446b5284dcbf664524c09e39353e0bca83a05f554b3c191c444fbbe21ab75",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/memory_v2/source_reviews.py",
@@ -2945,9 +2957,9 @@
     },
     {
       "path": "ai-chat-backend/memory_v2/source_sections.py",
-      "bytes": 4967,
-      "sha256": "63790e3adf0975c384cf7570287e565b59380461c982170f8b27c805ddfaa76a",
-      "comparison": "unchanged"
+      "bytes": 5640,
+      "sha256": "0c847c5274aed96d1c4f163cd19cb1e74a3292b13434fd2a9f206cf3389d4910",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/memory_v2/source_time.py",
@@ -3371,9 +3383,9 @@
     },
     {
       "path": "ai-chat-backend/neuron_registry.py",
-      "bytes": 27391,
-      "sha256": "bd886716a7208238efe820b9decdd5d4e8a81433876ed0d32efc9415f1fd87e1",
-      "comparison": "unchanged"
+      "bytes": 26580,
+      "sha256": "adfec5248489be674758a72ef00ec2226a9b7ad406851d855d5c088f9d397e57",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/notification_service.py",
@@ -3613,7 +3625,7 @@
       "path": "ai-chat-backend/routers/essay_router.py",
       "bytes": 1242,
       "sha256": "86386d1679e871bc3c1cbfb2d96ec89afb0dc0006b8c71a2db74e3f008e13ac7",
-      "comparison": "added"
+      "comparison": "unchanged"
     },
     {
       "path": "ai-chat-backend/routers/event_router.py",
@@ -3761,9 +3773,9 @@
     },
     {
       "path": "ai-chat-backend/routers/wander_router.py",
-      "bytes": 22723,
-      "sha256": "53f32cd66ac6eac927cd4dba8a2e3c211ad45f02e486b2e6ec68d054aa5e7f74",
-      "comparison": "unchanged"
+      "bytes": 21101,
+      "sha256": "2923a8a6c5cac444faf9ee422ff8fa2f86c097497849679db096e0b5c3bac0f1",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/routers/world_book_router.py",
@@ -4825,7 +4837,7 @@
       "path": "ai-chat-backend/tests/test_public_essay_illustrations.py",
       "bytes": 3423,
       "sha256": "fe4c75dadbeaf2f73376978a0008ec8584b9d2a76bca707f8dabda29ecff0d5c",
-      "comparison": "added"
+      "comparison": "unchanged"
     },
     {
       "path": "ai-chat-backend/tests/test_public_review_repairs.py",
@@ -4838,6 +4850,12 @@
       "bytes": 3907,
       "sha256": "95029417768e7286bf443b85c6bd3f6b5bb5abcf808ef5f44a03bbb77fe09762",
       "comparison": "unchanged"
+    },
+    {
+      "path": "ai-chat-backend/tests/test_public_wander_history.py",
+      "bytes": 9023,
+      "sha256": "7771a3664300510f1c895641d23d4cde2caf163331683c9b6c3b6c40311fcabf",
+      "comparison": "added"
     },
     {
       "path": "ai-chat-backend/time_utils.py",
@@ -5099,21 +5117,15 @@
     },
     {
       "path": "ai-chat-backend/wander_manager/__init__.py",
-      "bytes": 6013,
-      "sha256": "f70d607c90c09f6ced5c029e24b837c1d881cc9d8d2c75303c79d437a5de8222",
-      "comparison": "unchanged"
+      "bytes": 4120,
+      "sha256": "5f9e95a9fd90d95ebe36c087df11dc252d0151a53a9cfad205c75aeccc909923",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/wander_manager/activity_context.py",
-      "bytes": 3209,
-      "sha256": "b0d7fa0b5856fd73a32cbe679591b33680cd38f83ad2ad398126e175c07d385e",
-      "comparison": "unchanged"
-    },
-    {
-      "path": "ai-chat-backend/wander_manager/activity_engine.py",
-      "bytes": 24346,
-      "sha256": "173eeb4098d32cf2f7e4422575583144fc4ef4e0e62418105ed15a7159e69a2b",
-      "comparison": "unchanged"
+      "bytes": 3681,
+      "sha256": "d7617c5287c3fe37c9d09b2508471514aa83832d8cb7309c6687b10420f6bef3",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/wander_manager/activity_opportunities.py",
@@ -5122,10 +5134,16 @@
       "comparison": "unchanged"
     },
     {
-      "path": "ai-chat-backend/wander_manager/activity_session.py",
-      "bytes": 7338,
-      "sha256": "ed3b4bc6e5f510824e0297ec9058ceb224f1a3a272110d0631ce0d3516453a02",
-      "comparison": "unchanged"
+      "path": "ai-chat-backend/wander_manager/activity_purpose.py",
+      "bytes": 3028,
+      "sha256": "e51e4d93caf1f5138a6b503c8a8f5e1865b61baee8dedbeb28d4b51088ecbf6d",
+      "comparison": "added"
+    },
+    {
+      "path": "ai-chat-backend/wander_manager/admission.py",
+      "bytes": 4089,
+      "sha256": "e80c2e5e293de0fe0ea2e4c4085d099f148b717f403ea98ef875fe8e53bdd995",
+      "comparison": "added"
     },
     {
       "path": "ai-chat-backend/wander_manager/affect_bridge.py",
@@ -5135,8 +5153,8 @@
     },
     {
       "path": "ai-chat-backend/wander_manager/body_knowledge.py",
-      "bytes": 4367,
-      "sha256": "2cc68dbaed06baa34742aaf87faf3a4114330e4922d306b7873193ecec9192da",
+      "bytes": 4580,
+      "sha256": "ecc4813cf9a01a12703b629b710fa6e078315fd0c0a4c39ad63ecdfb2141484f",
       "comparison": "updated"
     },
     {
@@ -5147,9 +5165,21 @@
     },
     {
       "path": "ai-chat-backend/wander_manager/bookmark_selection.py",
-      "bytes": 8897,
-      "sha256": "4041d379d5c4b8cb50529a4e44b0a80da0cf0c025c54881f86fc98db3fd2119c",
+      "bytes": 10958,
+      "sha256": "12308186383456e8e9ae5fb7ac916a969bb35bb54f0837618c85b4dc2bbba157",
       "comparison": "updated"
+    },
+    {
+      "path": "ai-chat-backend/wander_manager/bookshelf_actions.py",
+      "bytes": 1740,
+      "sha256": "a79138245b46990b14cae45664daec0f2b943cc08c55a0db294d1890bf44545d",
+      "comparison": "added"
+    },
+    {
+      "path": "ai-chat-backend/wander_manager/bookshelf_roam.py",
+      "bytes": 6552,
+      "sha256": "982367aac1e80d04e66faa8972ff774b2ac03b5e7f97a3473755f93689dd1b9f",
+      "comparison": "added"
     },
     {
       "path": "ai-chat-backend/wander_manager/brain_architecture.py",
@@ -5165,8 +5195,8 @@
     },
     {
       "path": "ai-chat-backend/wander_manager/capability_catalog.py",
-      "bytes": 13568,
-      "sha256": "66235cd99ccc56f6f9ed3c465a57c426282f41fb76ec1332e3ce213a0276224b",
+      "bytes": 13736,
+      "sha256": "888313ee22976affacb924d6f48fb47a9facd7db3665c027d0f7952f2877c266",
       "comparison": "updated"
     },
     {
@@ -5213,15 +5243,21 @@
     },
     {
       "path": "ai-chat-backend/wander_manager/config.py",
-      "bytes": 9105,
-      "sha256": "6d43cf9d0929ab5d855bada5fa2f4a0db180073b8d9a3cee35ba7e3b5b589844",
-      "comparison": "unchanged"
+      "bytes": 6043,
+      "sha256": "ea2e3ce46393112de240ed20bc542580e9508e9cb9ab8916f7756b52517c5376",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/wander_manager/context_projection.py",
-      "bytes": 10531,
-      "sha256": "db3c297136aca1888187f36589684c18753edb645e5209cbda90fc331ea927ca",
-      "comparison": "unchanged"
+      "bytes": 13665,
+      "sha256": "2a03d0e254a854e9be77dc8a0a0b4572c1adfa56a49c29bcc850654dc107d930",
+      "comparison": "updated"
+    },
+    {
+      "path": "ai-chat-backend/wander_manager/decision_contracts.py",
+      "bytes": 4639,
+      "sha256": "e800eb06e26855439b4ea06c4b60ba9cf072f16102caff1f12bef394d7c010b1",
+      "comparison": "added"
     },
     {
       "path": "ai-chat-backend/wander_manager/delivery_gate.py",
@@ -5230,33 +5266,27 @@
       "comparison": "unchanged"
     },
     {
-      "path": "ai-chat-backend/wander_manager/disturb_judgment.py",
-      "bytes": 30230,
-      "sha256": "e3540e5bc8c87b717f13f1cb81da1a5d93b8b73e503fdd0efc949135c6753cb5",
-      "comparison": "unchanged"
-    },
-    {
       "path": "ai-chat-backend/wander_manager/essay_illustration.py",
       "bytes": 2791,
       "sha256": "81f2854d6203d05faf765dc148008cc6627986cc0008dda4469d7b0e0ff2cf3c",
-      "comparison": "added"
+      "comparison": "unchanged"
     },
     {
       "path": "ai-chat-backend/wander_manager/essays.py",
-      "bytes": 6088,
-      "sha256": "989a3bc1ae86341f01657bdea3caf89cbed9391bcc741e3a07cf289abadaa400",
-      "comparison": "added"
+      "bytes": 7798,
+      "sha256": "d05affe1a646ce7894398d9f71ca74c754c3f085f758eb203a0dd13e5dade1ad",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/wander_manager/event_catalog.py",
-      "bytes": 9157,
-      "sha256": "49cabcd4374daf57fe051495487f995154bec5de4e5cdd591ea1c1a5293f9626",
+      "bytes": 10967,
+      "sha256": "b218ec9a76d54ecdf096c869eacd20abd4d87ef3aa975ffd09982699fccb0b15",
       "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/wander_manager/event_handlers.py",
-      "bytes": 118578,
-      "sha256": "bbe6b368f2a2a74ec3864d66a179150dfdb9702c2558f32854ff1134bf6a024f",
+      "bytes": 122480,
+      "sha256": "2c606990f59fc07affa7efa044b3f2b615ce73a1b2aa6bdf2c96a2a2afef1bca",
       "comparison": "updated"
     },
     {
@@ -5273,9 +5303,9 @@
     },
     {
       "path": "ai-chat-backend/wander_manager/experience_presentation.py",
-      "bytes": 8573,
-      "sha256": "ce9bfab50fd66c01d4c47297f126dbc96de98e0994e45f1bff1aeb825cdef9cc",
-      "comparison": "unchanged"
+      "bytes": 9708,
+      "sha256": "3452883a2668f6816449463a3cc192ab3c691f81b456115515be74bf66e4b7ec",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/wander_manager/flash_structured.py",
@@ -5314,6 +5344,12 @@
       "comparison": "unchanged"
     },
     {
+      "path": "ai-chat-backend/wander_manager/game_results.py",
+      "bytes": 5888,
+      "sha256": "9c70acb32ea1d759fc46cdb1dfaa8c5a96e0877403f75524c0ea128c4562c8d9",
+      "comparison": "added"
+    },
+    {
       "path": "ai-chat-backend/wander_manager/goal_policy.py",
       "bytes": 4282,
       "sha256": "1c5305905186a7ba2f1626fd0951762223cd04b1804ea22a608aa3a0a6d482d1",
@@ -5339,20 +5375,20 @@
     },
     {
       "path": "ai-chat-backend/wander_manager/manager.py",
-      "bytes": 40060,
-      "sha256": "c19155f520d0d67c7ab52fe249f8c236a6f883c57bc381ae6cc01ce3c3b1a4a3",
-      "comparison": "unchanged"
+      "bytes": 17489,
+      "sha256": "8dd57a14e58215a44487a179ce1c64df72da131ead829ddb39c7e3fa8f38ef72",
+      "comparison": "updated"
+    },
+    {
+      "path": "ai-chat-backend/wander_manager/memory_fetch_result.py",
+      "bytes": 1246,
+      "sha256": "5b9bb182d8195b757512ff56508f05510222305fadede3801171562b16c2d1b3",
+      "comparison": "added"
     },
     {
       "path": "ai-chat-backend/wander_manager/message_classification.py",
       "bytes": 246,
       "sha256": "49edd3582fa0415ca28ad382e5545352d3efa6574797bc0846035c64951cb97a",
-      "comparison": "unchanged"
-    },
-    {
-      "path": "ai-chat-backend/wander_manager/message_generator.py",
-      "bytes": 16413,
-      "sha256": "cd8000cddf5a1dfe3175d85c7f803dad73e89f9439a7fd4a7d6f1dac9ca4f5e2",
       "comparison": "unchanged"
     },
     {
@@ -5386,28 +5422,22 @@
       "comparison": "unchanged"
     },
     {
-      "path": "ai-chat-backend/wander_manager/node_boundary.py",
-      "bytes": 9410,
-      "sha256": "0b994f87979f999fdb0136985b2e0c51846a62a08054ef11c9e52ccc87e0007c",
-      "comparison": "unchanged"
+      "path": "ai-chat-backend/wander_manager/node_account.py",
+      "bytes": 1441,
+      "sha256": "d410cdf0c15ef94b6ba4235f0387bad2d98ea5f72ac04ac22991c29c7d3d3ca4",
+      "comparison": "added"
     },
     {
       "path": "ai-chat-backend/wander_manager/node_execution_adapter.py",
-      "bytes": 43054,
-      "sha256": "b91926cfe7100a1b3e04604632500b3ac38fb8a03f8a8740f5dbbf25d5df390e",
+      "bytes": 45450,
+      "sha256": "dc4aa5896429438f96472397a4c263b5880178c686a8555d751937d9255754e7",
       "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/wander_manager/plan_decision_adapter.py",
-      "bytes": 16736,
-      "sha256": "50e4136d9abf78bb5a1305a117385513a5e4cefceda6c1ebaaee61a00e32ace5",
-      "comparison": "unchanged"
-    },
-    {
-      "path": "ai-chat-backend/wander_manager/planner.py",
-      "bytes": 8709,
-      "sha256": "bf99b8191b3ca9dbc5a8c2b461b2c0652728fdfb9b5a9839ade28cfa87e69511",
-      "comparison": "unchanged"
+      "bytes": 17897,
+      "sha256": "2e9e1258b409ca58b34292db6eaf602fccdeedc310124eba3c58635f3144c282",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/wander_manager/planning_context.py",
@@ -5417,9 +5447,9 @@
     },
     {
       "path": "ai-chat-backend/wander_manager/reading_illustrations.py",
-      "bytes": 3106,
-      "sha256": "ca484328207b02e0ddf05fd80f1db8e6be82cba9474fa8b946a5fa59236af8a8",
-      "comparison": "added"
+      "bytes": 3775,
+      "sha256": "728b7bf10e0a8654cbe92f335cf701cc895e08233d2591c8fdb504b8d0f59c7a",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/wander_manager/request_projection.py",
@@ -5428,15 +5458,21 @@
       "comparison": "unchanged"
     },
     {
+      "path": "ai-chat-backend/wander_manager/review_closeout.py",
+      "bytes": 4869,
+      "sha256": "090b0b3c2e7023be0e5b393d192270afb49824c84f54c0db840ec981a18a30da",
+      "comparison": "added"
+    },
+    {
       "path": "ai-chat-backend/wander_manager/runtime_controller.py",
-      "bytes": 28348,
-      "sha256": "768b5589db8b90ed4f28c2b260f868f9bdd1832a2afbfe6e80a98091d0a9143a",
-      "comparison": "unchanged"
+      "bytes": 28718,
+      "sha256": "02862631336bd92148212aac131f36ac5367462a8f7d4c9afe9beee65d1f2d3c",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/wander_manager/runtime_decision_adapters.py",
-      "bytes": 57208,
-      "sha256": "55d57a7bb0dab5008242d70aad92d58ff422f028f3b322cb45791a297a2c6265",
+      "bytes": 59004,
+      "sha256": "680b6047dc02472a5b7a48ee7a3a72af15b2fde29f0f4de6318157bcc898bdc5",
       "comparison": "updated"
     },
     {
@@ -5447,33 +5483,39 @@
     },
     {
       "path": "ai-chat-backend/wander_manager/runtime_runner.py",
-      "bytes": 61764,
-      "sha256": "94fadacc7a072e6c3aab838aaad6bb86a573203a837ffcf8cd6bffd80d4b15f3",
-      "comparison": "unchanged"
-    },
-    {
-      "path": "ai-chat-backend/wander_manager/runtime_share_adapter.py",
-      "bytes": 26447,
-      "sha256": "e5ae479c86e29c7961957e992c965ef15f3531f26a55da212439151de1857d87",
+      "bytes": 75857,
+      "sha256": "b66278eacf1f38e2b97d4d1f0ec127e83babdb3bebaea27b71ee10a21cbad80b",
       "comparison": "updated"
     },
     {
+      "path": "ai-chat-backend/wander_manager/runtime_share_adapter.py",
+      "bytes": 32225,
+      "sha256": "91eb7d3b9dd86213e4716114ec7d230e9321b7a0211f963582eaa4fa15e8a325",
+      "comparison": "updated"
+    },
+    {
+      "path": "ai-chat-backend/wander_manager/runtime_state_readings.py",
+      "bytes": 1779,
+      "sha256": "ec4072ee80f79e035d4ccc43f9e48a79038f5ce9aae4fadb83e804d690af2398",
+      "comparison": "added"
+    },
+    {
       "path": "ai-chat-backend/wander_manager/runtime_store.py",
-      "bytes": 90568,
-      "sha256": "a4c20aa57fa6c69f372f6ee7e86d81c29905ee9d960d4bd855aedaddf0a4f4a1",
-      "comparison": "unchanged"
+      "bytes": 94086,
+      "sha256": "2a94d9bdca3ad4b911b66fcbc2087e554d4681688ec232c63f435011451b9ddd",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/wander_manager/self_reflection_adapter.py",
-      "bytes": 23962,
-      "sha256": "cb1ef7530292778553fb07a4e14d5196bcce18fe7cba10d3e158b813b0388cbe",
-      "comparison": "unchanged"
+      "bytes": 24783,
+      "sha256": "b3bb09cacf143d9af45c5cadb258afeb9f95e80ef21f098534c04cd7e0cff53c",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/wander_manager/settlement_outcome.py",
-      "bytes": 1411,
-      "sha256": "207fe970604fce16c13ee5d9a1fe3ad19b9479407c6e9da50e39d4a6978b18a6",
-      "comparison": "unchanged"
+      "bytes": 1804,
+      "sha256": "7966fc2881a4099ab549d430b6baf793184123eb56d8f92c2a730d9a86362df2",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/wander_manager/social_circle_visit.py",
@@ -5492,6 +5534,12 @@
       "bytes": 1716,
       "sha256": "47e01ae150a9743c092ec5b120ef967f8e5d1cb2d3f5c60b7897f69f8c284eb0",
       "comparison": "unchanged"
+    },
+    {
+      "path": "ai-chat-backend/wander_manager/stop_reason.py",
+      "bytes": 1860,
+      "sha256": "1c419d927238655debce388935e6e6cd00ccf1d44ebc104c40379ec34378b972",
+      "comparison": "added"
     },
     {
       "path": "ai-chat-backend/wander_manager/timing_policy.py",
@@ -5513,27 +5561,9 @@
     },
     {
       "path": "ai-chat-backend/wander_manager/wander_creator.py",
-      "bytes": 34518,
-      "sha256": "bd6a14662c41cf942972e8f8f7167684a3214f1366392b885793297bc00b0152",
-      "comparison": "unchanged"
-    },
-    {
-      "path": "ai-chat-backend/wander_manager/wander_journal.py",
-      "bytes": 7502,
-      "sha256": "89f862373a7fe2cc4a8101208282954d1ac86c80778cbe0ac468514c1d4500dc",
-      "comparison": "unchanged"
-    },
-    {
-      "path": "ai-chat-backend/wander_manager/wander_log.py",
-      "bytes": 12849,
-      "sha256": "9ff6c79e03038515fdbd954063582f3841729f61b10d0acfad25e016bcdac6b6",
-      "comparison": "unchanged"
-    },
-    {
-      "path": "ai-chat-backend/wander_manager/wander_log_sqlite.py",
-      "bytes": 6400,
-      "sha256": "b7075f15b9bd4aec313f0c21790d46cb512fe14be7000ff6f2a9e80eaf722899",
-      "comparison": "unchanged"
+      "bytes": 17394,
+      "sha256": "d3c9e58c43f6925a89842d714448fb7407ea95d78cb50657999d2f202179364c",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/wander_manager/wish_board_service.py",
@@ -5597,9 +5627,9 @@
     },
     {
       "path": "ai-chat-backend/wander_manager/xhs_request.py",
-      "bytes": 7217,
-      "sha256": "d7baed599eb318b99a12025188893f134b70a55162da5b327d10e09e904e0ae1",
-      "comparison": "unchanged"
+      "bytes": 8766,
+      "sha256": "4c7b0643f04215c6f8327f00103048a76d21acc8b117a405961fc08a89170973",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/wander_manager/xiaohongshu_adb.py",
@@ -5741,9 +5771,9 @@
     },
     {
       "path": "ai-chat-backend/workshop/decisions.py",
-      "bytes": 5170,
-      "sha256": "3c6e3e731c7579919cb7e4ff4a3f939981ba8464363bdefce364dd51e3fb4850",
-      "comparison": "unchanged"
+      "bytes": 5254,
+      "sha256": "e9d4188ed97ef3686dde0275753380e269d7133f5aa3ef57a07aa4a3122e4af9",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/workshop/delivery_brief.py",
@@ -6083,9 +6113,9 @@
     },
     {
       "path": "ai-chat-backend/xhs_interactions/service.py",
-      "bytes": 9212,
-      "sha256": "7c22c2424ed3409bb258a61a92f3c10aa1bf1e61d08da3b3a2ac47d7c45e3056",
-      "comparison": "unchanged"
+      "bytes": 9386,
+      "sha256": "229faab2c3b80a38672185ae05b123d13993a8679391022a6792483d2a147120",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/xhs_interactions/signals.py",
@@ -6149,9 +6179,9 @@
     },
     {
       "path": "ai-chat-backend/xhs_publish/service.py",
-      "bytes": 2522,
-      "sha256": "be8aca5e242e050a283ef49aa6234567cde9e28f79ab34b3401a4d7bb43b80a8",
-      "comparison": "unchanged"
+      "bytes": 2566,
+      "sha256": "2fd716ac5150e65cf4e32d2ca666ec36033a1f68afa32709373fc110ac220154",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-backend/xhs_publish/store.py",
@@ -7039,30 +7069,18 @@
       "path": "ai-chat-frontend/src/components/EssayCard.css",
       "bytes": 1313,
       "sha256": "fc3326ca9ae4667d2dc51764ad4224f61b5dab75b2fc466c3133060c8393c4f3",
-      "comparison": "added"
+      "comparison": "unchanged"
     },
     {
       "path": "ai-chat-frontend/src/components/EssayCard.tsx",
       "bytes": 1528,
       "sha256": "67fe77fee39dc12f61c0bcd571aa80b53d0e8cda71604ce29697ce2f5314e104",
-      "comparison": "added"
+      "comparison": "unchanged"
     },
     {
       "path": "ai-chat-frontend/src/components/EventRowShell.tsx",
       "bytes": 1921,
       "sha256": "191077dd3e5c325985318c76b43a2941d039f1bafe3409e5a5f76209579b7432",
-      "comparison": "unchanged"
-    },
-    {
-      "path": "ai-chat-frontend/src/components/FederatedRoomNotices.css",
-      "bytes": 678,
-      "sha256": "b90ddae8c517cddf4a1b4ca846115283826b90db6996394b4970b756b0110172",
-      "comparison": "unchanged"
-    },
-    {
-      "path": "ai-chat-frontend/src/components/FederatedRoomVisitCard.css",
-      "bytes": 1802,
-      "sha256": "00f4f6e1806aff6859282e79fdbae51bcb6d23210323d7f84f660745610683d7",
       "comparison": "unchanged"
     },
     {
@@ -7205,8 +7223,8 @@
     },
     {
       "path": "ai-chat-frontend/src/components/MessageRow.tsx",
-      "bytes": 57115,
-      "sha256": "8fff0bcaefdefb77e9465619a68d243f10fd87919af2738ddc2d4c329bc2a441",
+      "bytes": 57088,
+      "sha256": "63b32d3dd63323e66bda014f93d7e5d01b1070faa7f9e0ce603e7d538d931613",
       "comparison": "updated"
     },
     {
@@ -7318,16 +7336,16 @@
       "comparison": "unchanged"
     },
     {
-      "path": "ai-chat-frontend/src/components/QQExperienceCard.css",
-      "bytes": 2242,
-      "sha256": "151bd008d36a44d3645f6878116cee71d81868b00f3c98e99c1508d01d3bbfb9",
-      "comparison": "unchanged"
+      "path": "ai-chat-frontend/src/components/ReadableReceiptValue.tsx",
+      "bytes": 1781,
+      "sha256": "7bb82b4c9229fa7b1dd62448dcc2368aa32e3f968a64a2b11655344291a1a930",
+      "comparison": "added"
     },
     {
       "path": "ai-chat-frontend/src/components/ReadingIllustrations.tsx",
-      "bytes": 1677,
-      "sha256": "7bb5849bf26ee62d835f1fda562acd12387fb7e61e1126d7c019276a34ff3590",
-      "comparison": "added"
+      "bytes": 1825,
+      "sha256": "b8ad0401543dc44ddbc55dcaa5576a86f1dfe053e2db7e5e468d8f281f651bde",
+      "comparison": "updated"
     },
     {
       "path": "ai-chat-frontend/src/components/RemoteSocialAvatar.tsx",
@@ -7586,6 +7604,12 @@
       "bytes": 3320,
       "sha256": "e08f1823570e03efbd081bf3886df53c3b80e4d74830200d659215d1f9510697",
       "comparison": "unchanged"
+    },
+    {
+      "path": "ai-chat-frontend/src/components/WanderReceiptDetails.tsx",
+      "bytes": 1619,
+      "sha256": "341f2631fefefcae721b432d0e842d05a1d906d0674644d6a6e5f9082e03b806",
+      "comparison": "added"
     },
     {
       "path": "ai-chat-frontend/src/components/WishBoardModal.css",
@@ -8092,6 +8116,12 @@
       "comparison": "unchanged"
     },
     {
+      "path": "ai-chat-frontend/src/lib/wanderReceipt.ts",
+      "bytes": 9392,
+      "sha256": "fcb195f7693a3e4028076cc73cee11ebb9e70c6cd3b50e9edb215bb1fd66ec88",
+      "comparison": "added"
+    },
+    {
       "path": "ai-chat-frontend/src/main.tsx",
       "bytes": 1039,
       "sha256": "3dc27e9c425defd8fe0f0195ffefe847c219b3bc099249c3409b4bc3dfabbcc3",
@@ -8125,13 +8155,13 @@
       "path": "ai-chat-frontend/src/pages/EssayLibrary.css",
       "bytes": 1905,
       "sha256": "9e0cf9c101a56aecc6f13d0275feffd744f9a47ce6ae5640f6bc267c9500530f",
-      "comparison": "added"
+      "comparison": "unchanged"
     },
     {
       "path": "ai-chat-frontend/src/pages/EssayLibrary.tsx",
       "bytes": 3649,
       "sha256": "dd20bfbd7c15e1731ee9716041967be747b9be4858de5bc6ad56c034b5e020f4",
-      "comparison": "added"
+      "comparison": "unchanged"
     },
     {
       "path": "ai-chat-frontend/src/pages/EventChroniclePage.tsx",
@@ -8167,12 +8197,6 @@
       "path": "ai-chat-frontend/src/pages/MachineLifePage.tsx",
       "bytes": 13305,
       "sha256": "6d3ad2a0c91bfa55e9d3884e6f4c0be8260f93a2a54df5b5f899b73ab7aa4a11",
-      "comparison": "updated"
-    },
-    {
-      "path": "ai-chat-frontend/src/pages/QQPage.css",
-      "bytes": 2168,
-      "sha256": "404653b496004e65db54109c529f7c900597402e591590543e21b3bcd79b40cd",
       "comparison": "unchanged"
     },
     {
@@ -8657,8 +8681,8 @@
     },
     {
       "path": "docs/ARCHITECTURE_BASELINE.md",
-      "bytes": 2765,
-      "sha256": "13209501a7f1aafbd75525b57cb7fc119dc651cb80fe993db8b4b2b293e3443f",
+      "bytes": 3066,
+      "sha256": "47c981f36aef03ba6844c3d649fa1763419d2a094dd74af0c76637afaa965abd",
       "comparison": "updated"
     },
     {
@@ -8677,6 +8701,12 @@
       "path": "docs/RELEASE_20261121_WANDER.md",
       "bytes": 2361,
       "sha256": "e870919349b6f084d69676060f6265be908494d3d50f7e3df988194f55e3574d",
+      "comparison": "unchanged"
+    },
+    {
+      "path": "docs/RELEASE_20261122_WANDER.md",
+      "bytes": 2587,
+      "sha256": "916f56fae4bcd58ae0bc8a9ad4d7cc0be4993678cee1eca8d3b8b1d9082e171b",
       "comparison": "added"
     },
     {

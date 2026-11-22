@@ -38,11 +38,15 @@ def _record(document, score: float, *, hit=None, max_chars=1_200) -> dict:
                 "related_records_are_confirmed_continuations": False,
                 "rendered_event_ids": [point.node.event_id for point in points],
                 "excerpt": cut,
+                "reading_document_ids": ([f'event:{eid}' for eid in document.event_ids]
+                                         if document.source_layer == 'event' else [document.document_id]),
+                "excerpt": cut,
                 "derived_legacy_summary": document.source_layer == "legacy"}}
 
 
 def search_records_sync(query: str, *, limit=8, reference_date=None,
-                        date_from="", date_to="", max_record_chars=1_200) -> list[dict]:
+                        date_from="", date_to="", max_record_chars=1_200,
+                        exclude_ids=()) -> list[dict]:
     from .recall import RecallQuery
     from .recall_routing import apply_recall_routing_hints, route_recall_query
     from .process_reading import search_reading
@@ -50,9 +54,10 @@ def search_records_sync(query: str, *, limit=8, reference_date=None,
         return []
     with recall_service_snapshot() as (service, excluded):
         routed = apply_recall_routing_hints(
-            RecallQuery(query, date_from=date_from, date_to=date_to, exclude_message_ids=excluded),
+            RecallQuery(query, date_from=date_from, date_to=date_to, exclude_message_ids=excluded,
+                        exclude_document_ids=tuple(exclude_ids)),
             route_recall_query(query, reference_date=reference_date or date.today()))
-        result = search_reading(service.index, routed, limit=max(1, min(int(limit), 10)))
+        result = search_reading(service.index, routed, limit=max(1, min(int(limit), 20)), source=service.source)
         records = []
         seen_events = set()
         for hit in result.hits:
@@ -79,23 +84,25 @@ async def search_memory_items(query: str, *, limit=8, **kwargs):
                        source="memory_v2", metadata=item["metadata"]) for item in records]
 
 
-def browse_records_sync(*, limit=5, min_importance=0.3) -> list[dict]:
+def browse_records_sync(*, limit=5, min_importance=0.3, exclude_ids=()) -> list[dict]:
     import random
     with recall_service_snapshot() as (service, excluded):
         documents = [item for item in service.index.load_documents()
                      if item.source_layer in {"event", "period", "legacy", "group"}
                      and item.importance >= min_importance
+                     and item.document_id not in exclude_ids
                      and not set(item.source_message_ids).intersection(excluded)]
         current = [item for item in documents if item.source_layer != "legacy"]
         documents = current or documents
         return [_record(item, 0.0) for item in random.sample(documents, min(len(documents), max(1, limit)))]
 
 
-async def get_wander_memories(min_importance=0.3, query=None, top_k=5):
-    records = (await search_records(query, limit=top_k) if query
+async def get_wander_memories(min_importance=0.3, query=None, top_k=5, exclude_ids=()):
+    records = (await search_records(query, limit=top_k, exclude_ids=exclude_ids) if query
                else await asyncio.to_thread(browse_records_sync, limit=top_k,
-                                            min_importance=min_importance))
+                                            min_importance=min_importance, exclude_ids=exclude_ids))
     return [{"id": item["id"], "topic": item["content"][:40],
+             "reading_document_ids": item['metadata']['reading_document_ids'],
              "event": item["content"], "timestamp": item["metadata"]["source_date"],
              "importance_score": item["metadata"]["importance"],
              "domain": item["metadata"]["domain"], "tags": [],

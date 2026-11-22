@@ -54,3 +54,20 @@ def for_work(source, work_id, db_path=None):
             AND json_extract(n.side_effect_refs,'$.reading_illustration.source')=?
             AND json_extract(n.side_effect_refs,'$.reading_illustration.work_id')=? ORDER BY n.created_at,n.node_id""", (source, work_id))
         return [card for node_id, data in rows if (card := entry({"node_id": node_id, "execution_status": "succeeded", "side_effect_refs": {"reading_illustration": json.loads(data)}}))]
+
+
+def fact(card):
+    chapter = f' · {card["chapter_title"]}' if card.get('chapter_title') else ''
+    return f'《{card["title"]}》{chapter}的读后插画，原句「{card["quote"]}」，构思是「{card["scene"]}」。'
+
+
+def choices(nodes):
+    return '\n'.join(f'{c["node_id"]} · {fact(c)}' for n in nodes if (c := entry(n)))
+
+
+def share_option(nodes):
+    return '\n' + SHARE if any(entry(n) for n in nodes) else ''
+
+SHARE = '想随消息送出一张读后插画时，可在收尾填写 reading_picture_node_id 和 share=true。'
+
+OPTION = '可用 illustration 描述想画的场景，quote 必须是这次确实读到的随笔原句，scene 描述画面。'

@@ -140,6 +140,8 @@ class RecallQuery:
     context_text: str = ""
     automatic: bool = False
 
+    exclude_document_ids: tuple[str, ...] = ()
+
     def __post_init__(self) -> None:
         if not self.text.strip():
             raise ValueError("recall query text must not be empty")
@@ -580,6 +582,8 @@ class EventRecallIndex:
 
     @staticmethod
     def _matches_filters(document: RecallDocument, query: RecallQuery) -> bool:
+        if document.document_id in query.exclude_document_ids:
+            return False
         if query.exclude_message_ids and set(query.exclude_message_ids).intersection(
             document.source_message_ids
         ):

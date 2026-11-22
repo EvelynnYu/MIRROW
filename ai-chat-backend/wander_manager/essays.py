@@ -87,7 +87,10 @@ def read(*, event_id="", query="", date="", limit=30, offset=0, db_path=None):
 
 
 def card_text(card):
-    return f'[AI 分享的随笔作品｜《{card.get("title", "")}》]\n{card.get("content", "")}'
+    picture = card.get('illustration') or {}
+    caption = f'\n[随笔附图，创作时选的画面：{picture.get("scene", "")}]' if picture.get('status') == 'ready' else ''
+    return (f'[AI 分享的随笔作品｜{card.get("created_at", "")}｜《{card.get("title", "")}》]\n'
+            f'{card.get("content", "")}{caption}\n[作品结束；故事情节不等于现实经历。书柜 source=essays，event_id={card.get("id", "")}]')
 
 
 def selected_card(store, run_id, *, field="essay_share_node_id", make_card=entry):
@@ -107,3 +110,31 @@ def selected_card(store, run_id, *, field="essay_share_node_id", make_card=entry
             if node.get("node_id") == node_id and (card := make_card(node)):
                 return card
     return None
+
+
+def index_text(items):
+    return '\n'.join(f'写下随笔《{item["title"]}》。书柜索引：source=essays，event_id={item["id"]}；关键词：{item["keyword"]}。'
+                     for item in items)
+
+REVIEW_INSTRUCTION = ('\n当前材料是你刚写的作品，故事人物和情节属于创作；写作感受另行简记。'
+    '收尾 summary 简记写了哪篇，正文保存在书柜。想把一篇原文卡片分享给人类伙伴时，'
+    '在 closeout 填 essay_share_node_id 为该篇 node_id，同时 share=true；不分享则留空。')
+
+
+def shared_work_fact(call):
+    if not isinstance(call, dict) or call.get('status') != 'success':
+        return ''
+    extra = call.get('extra_data')
+    if not isinstance(extra, dict):
+        return ''
+    if call.get('tool') == 'essay_card':
+        work = extra.get('essay_card')
+        if isinstance(work, dict) and isinstance(work.get('content'), str) and work.get('title'):
+            return card_text(work)
+    if call.get('tool') == 'reading_illustration':
+        picture = extra.get('reading_illustration')
+        if isinstance(picture, dict) and all(isinstance(picture.get(key), str)
+                                              for key in ('title', 'quote', 'scene')):
+            from .reading_illustrations import fact
+            return 'AI 分享了' + fact(picture)
+    return ''

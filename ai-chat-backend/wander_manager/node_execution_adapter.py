@@ -173,10 +173,30 @@ class NodeExecutionAdapter:
             valid = bool(payload and payload.get('keyword') and payload.get('expansion'))
             return self._material_result(valid, payload, (f"写下随笔《{payload['title']}》" if payload and payload.get('essay_version') == 1 else f"关键词「{payload.get('keyword')}」的联想") if valid else '随笔尚未写成')
         if event_type == EventType.MEMORY_FETCH:
-            excluded = {item['source_payload'].get('memory_id') for item in seen_nodes if item['source_payload'].get('memory_id')}
+            excluded = {
+                item["source_payload"].get("memory_id")
+                for item in seen_nodes
+                if item["source_payload"].get("memory_id")
+            }
+            excluded.update(identity for item in seen_nodes
+                            for identity in item['source_payload'].get('reading_document_ids') or [])
             payload = await handler.fetch_one_memory(exclude_ids=excluded)
-            valid = bool(payload and payload.get('memory_id'))
-            return self._material_result(valid, payload, f"关于「{payload.get('topic', '未命名')}」的回忆" if valid else '未取得新记忆')
+            if payload and payload.get('memory_fetch_version') == 1 and payload.get('outcome') != 'found':
+                from .memory_fetch_result import description
+                empty = payload['outcome'] == 'no_result'
+                return NodeExecutionResult(
+                    NodeExecutionStatus.SKIPPED if empty else NodeExecutionStatus.FAILED,
+                    summary=description(payload), payload=payload,
+                    error='' if empty else payload['reason'],
+                    memory_material={'version': 1, 'kind': 'none', 'origin': 'execution_receipt'},
+                )
+            valid = bool(payload and payload.get("memory_id"))
+            return self._material_result(
+                valid,
+                payload,
+                f"关于「{payload.get('topic', '未命名')}」的回忆" if valid else "未取得新记忆",
+            )
+
         if event_type == EventType.BROWSE_NEWS:
             payload = await handler.fetch_one_news()
             if payload and payload.get('status') == 'no_search_tool':
@@ -253,14 +273,31 @@ class NodeExecutionAdapter:
             actions = [str(row.get('action') or '') for row in payload.get('action_results') or [] if row.get('status') == 'success'] if payload else []
             return NodeExecutionResult(NodeExecutionStatus.SUCCEEDED if valid else NodeExecutionStatus.FAILED, completion_signal=('social_feed_visit_complete' if payload.get('exit') else 'social_feed_node_complete') if valid else '', summary=f"读了共友圈 {len(payload.get('viewed_moment_ids') or [])} 条动态；执行 {len(actions)} 项互动；{str(payload.get('reflection') or '')[:140]}" if valid else '朋友圈浏览没有完成可靠决策', payload=payload or {}, side_effect_refs={'action_refs': [dict(row) for row in (payload.get('action_results') or [])[:5]] if payload else []}, error='' if valid else status or 'social_feed_visit_failed', retry_safe=False, audit_model='wander_flash', audit_input={'event_type': event_type.value, 'activity_reason': activity.get('reason') or ''}, audit_raw_output={'status': status, 'actions': actions})
         if event_type == EventType.BROWSE_BOOKMARKS:
-            excluded = {item['source_payload'].get('original_msg_id') for item in seen_nodes if item['source_payload'].get('original_msg_id')}
+            excluded = {
+                item["source_payload"].get("original_msg_id")
+                for item in seen_nodes
+                if item["source_payload"].get("original_msg_id")
+            }
+            excluded.update(item['id'] for node in seen_nodes
+                            for item in (node['source_payload'].get('bookshelf_snapshot') or {}).get('items', [])
+                            if item.get('source') in {'bookmarks', 'essays'})
             activity = self._required_activity(activity_id)
             fetch = handler.fetch_one_bookmark
-            fetch_kwargs = {'exclude_ids': excluded}
+            fetch_kwargs = {"exclude_ids": excluded}
+            # v3 handlers receive the complete identity chain so bookmark
+            # actions can derive a stable idempotency key.  Tiny legacy/test
+            # handlers keep their old one-argument API.
             try:
                 parameters = inspect.signature(fetch).parameters
-                accepts_kwargs = any((parameter.kind == inspect.Parameter.VAR_KEYWORD for parameter in parameters.values()))
-                for name, value in (('run_id', activity.get('run_id', '')), ('activity_id', activity_id), ('node_id', node_id)):
+                accepts_kwargs = any(
+                    parameter.kind == inspect.Parameter.VAR_KEYWORD
+                    for parameter in parameters.values()
+                )
+                for name, value in (
+                    ("run_id", activity.get("run_id", "")),
+                    ("activity_id", activity_id),
+                    ("node_id", node_id),
+                ):
                     if accepts_kwargs or name in parameters:
                         fetch_kwargs[name] = value
             except (TypeError, ValueError):
@@ -271,18 +308,54 @@ class NodeExecutionAdapter:
                 from .bookmark_selection import describe
                 reason = str(selection.get('reason') or 'material_read_failed')
                 summary = describe(reason)
-                return NodeExecutionResult(NodeExecutionStatus.SKIPPED if selection.get('status') in {'empty', 'stopped'} else NodeExecutionStatus.FAILED, summary=summary, payload={**payload, 'public_error': summary}, error=reason, retry_safe=False)
-            valid = bool(payload and payload.get('original_msg_id') and (payload.get('content') or payload.get('displayed_message_count')) and payload.get('reading_received', True))
-            owner = payload.get('owner', '未知') if payload else '未知'
-            action = payload.get('bookmark_action') if isinstance(payload, dict) else None
-            action_status = str(action.get('status') or '') if isinstance(action, dict) else ''
-            if selection and (not valid):
-                reason = 'reading_call_failed' if not payload.get('reading_received') else 'material_evidence_missing'
+                return NodeExecutionResult(
+                    NodeExecutionStatus.SKIPPED if selection.get('status') in {'empty', 'stopped'}
+                    else NodeExecutionStatus.FAILED,
+                    summary=summary, payload={**payload, 'public_error': summary},
+                    error=reason, retry_safe=False,
+                )
+            valid = bool(
+                payload
+                and payload.get("original_msg_id")
+                and (payload.get("content") or payload.get("displayed_message_count"))
+                and payload.get('reading_received', True)
+            )
+            shelf = (payload or {}).get('bookshelf_snapshot')
+            from .bookshelf_roam import brief as shelf_brief
+            if shelf:
+                valid = bool(shelf.get('items') and payload.get('reading_received'))
+            owner = payload.get("owner", "未知") if payload else "未知"
+            action = payload.get("bookmark_action") if isinstance(payload, dict) else None
+            action_status = str(action.get("status") or "") if isinstance(action, dict) else ""
+            if selection and not valid:
+                reason = ('reading_call_failed' if not payload.get('reading_received')
+                          else 'material_evidence_missing')
                 from .bookmark_selection import describe
-                return NodeExecutionResult(NodeExecutionStatus.FAILED, summary=describe(reason), payload={**payload, 'public_error': describe(reason)}, error=reason, retry_safe=False)
-            if valid and action_status == 'failed':
-                return NodeExecutionResult(NodeExecutionStatus.FAILED, summary='收藏夹材料已读取，但收藏动作失败', payload=payload, error=str(action.get('reason') or 'bookmark_action_failed')[:200], retry_safe=False)
-            return self._material_result(valid, payload, f"回看{payload.get('active_date')}的历史对话" if valid and payload.get('source_mode') in {'unbookmarked_anchor', 'random_day'} else '逛书柜读了一篇随笔' if valid and payload.get('source_mode') == 'essays' else f'翻看{owner}收藏夹中的一条收藏' if valid else '未取得新收藏')
+                return NodeExecutionResult(
+                    NodeExecutionStatus.FAILED, summary=describe(reason),
+                    payload={**payload, 'public_error': describe(reason)}, error=reason, retry_safe=False,
+                )
+            if valid and action_status == "failed":
+                return NodeExecutionResult(
+                    NodeExecutionStatus.FAILED,
+                    summary="收藏夹材料已读取，但收藏动作失败",
+                    payload=payload,
+                    error=str(action.get("reason") or "bookmark_action_failed")[:200],
+                    retry_safe=False,
+                )
+            return self._material_result(
+                valid,
+                payload,
+                (
+                    shelf_brief(shelf)
+                    if valid and shelf else
+                    f"回看{payload.get('active_date')}的历史对话"
+                    if valid and payload.get("source_mode") in {"unbookmarked_anchor", "random_day"}
+                    else f"翻看{owner}收藏夹中的一条收藏"
+                    if valid else "未取得新收藏"
+                ),
+            )
+
         if event_type == EventType.LISTEN_MUSIC:
             excluded = {item['source_payload'].get('fingerprint') for item in seen_nodes if item['source_payload'].get('fingerprint')}
             excluded |= {_song_identity_key(item.get('source_payload')) for item in seen_nodes if _song_identity_key(item.get('source_payload'))}

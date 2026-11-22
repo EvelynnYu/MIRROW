@@ -72,7 +72,7 @@ def answer(store, job, args):
             raise ValueError('answer_each_current_question')
         record.update(status='answered',answers=answers,answered_at=now(),source='k')
         db.execute('UPDATE commands SET result=? WHERE key=?',(json.dumps(record,ensure_ascii=False),'decision:'+decision_id))
-        text='\n'.join(question['title']+'\nK：'+text for question,text in zip(record['questions'],answers))
+        text='\n'.join(question['title']+'\nAI：'+text for question,text in zip(record['questions'],answers))
         db.execute('INSERT INTO messages(job_id,role,body,created_at) VALUES(?,?,?,?)',(job['id'],'k',text,now()))
         queued=job['state']=='awaiting_input' and job['reason']=='k_decision_required'
         db.execute('UPDATE jobs SET pending_text=?,state=?,reason=?,updated_at=? WHERE id=?',

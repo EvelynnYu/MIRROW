@@ -970,51 +970,8 @@ async def startup_event():
             print(f'异步附件回调注册失败: {e}')
     from memory_v2.retrieval import get_wander_memories as get_memories_for_wander
 
-    async def get_recent_user_messages(limit: int=3) -> list:
-        """获取当前活跃话题内的最近用户消息（从 SQLite 高效查询）。"""
-        try:
-            sm = get_global_session_manager()
-            if not sm:
-                return []
-            sessions = await sm.get_all_sessions()
-            if not sessions:
-                return []
-            latest_session = max(sessions, key=lambda s: s.updatedAt if s.updatedAt else '')
-            session_id = latest_session.id
-            topic_start_time = None
-            try:
-                from summary import topic_state_machine
-                topic = await topic_state_machine.get_topic_status(session_id)
-                if topic.get('is_active') and topic.get('start_time'):
-                    topic_start_time = topic['start_time']
-            except Exception:
-                logger.exception('unexpected error in get_recent_user_messages')
-                pass
-            from event_chronicle import get_global_chronicle
-            chronicle = get_global_chronicle()
-            all_msgs = chronicle.get_messages_by_session_id(session_id, limit=500, desc=True)
-            user_messages = []
-            for m in all_msgs:
-                if m.get('role') != 'user':
-                    continue
-                ts = m.get('timestamp', '')
-                if topic_start_time and ts and (ts < topic_start_time):
-                    continue
-                user_messages.append(m.get('content', ''))
-            return user_messages[-limit:] if user_messages else []
-        except Exception as e:
-            logger.warning(f'获取最近用户消息失败: {e}')
-            return []
     if WANDER_MANAGER_AVAILABLE:
         try:
-            disturb_llm_func = None
-            lightweight_llm_enabled = os.getenv('LIGHTWEIGHT_LLM_ENABLED', 'false').lower() == 'true'
-            if lightweight_llm_enabled and INTENT_PARSER_API_KEY and create_lightweight_caller:
-                disturb_llm_func = create_lightweight_caller(INTENT_PARSER_API_KEY)
-                print('轻量级 LLM 调用器已创建 (DisturbJudgment → DeepSeek Flash)')
-            else:
-                print('轻量级 LLM 调用器未启用，DisturbJudgment 使用主 LLM 后备')
-
             async def _web_search_for_wander(query: str) -> str:
                 """异步调用 web_search 工具，返回结果文本"""
                 try:
@@ -1048,7 +1005,7 @@ async def startup_event():
                 _music_mcp = get_mcp_client()
             except Exception:
                 pass
-            wander_manager = init_wander_manager(idle_threshold=10 * 60, event_interval=15 * 60, push_threshold=0.6, call_llm_func=call_llm_for_wander, song_selection_llm_func=lambda messages, activity_context=None: call_llm_for_wander(messages, route_label='music_song_selection', enable_thinking=False, activity_context=activity_context), share_llm_func=lambda messages: call_llm_api_flash(messages, enable_thinking=True, temperature=0.7, usage_tag='wander_share'), disturb_llm_func=disturb_llm_func, on_push_to_user=_push_wander_message, on_activity_event=_record_wander_activity_event, on_notification=_emit_ui_notification, on_status_change=_on_wander_status_change_sync, web_search_func=_web_search_for_wander, persistence_enabled=True, get_recent_user_messages_func=get_recent_user_messages, get_memories_func=get_memories_for_wander, song_cache=_song_cache, k_self_book=_k_self_book, music_mcp_client=_music_mcp)
+            wander_manager = init_wander_manager(idle_threshold=10 * 60, event_interval=15 * 60, call_llm_func=call_llm_for_wander, song_selection_llm_func=lambda messages, activity_context=None: call_llm_for_wander(messages, route_label='music_song_selection', enable_thinking=False, activity_context=activity_context), share_llm_func=lambda messages: call_llm_api_flash(messages, enable_thinking=True, temperature=0.7, usage_tag='wander_share'), on_push_to_user=_push_wander_message, on_activity_event=_record_wander_activity_event, on_notification=_emit_ui_notification, on_status_change=_on_wander_status_change_sync, web_search_func=_web_search_for_wander, get_memories_func=get_memories_for_wander, song_cache=_song_cache, k_self_book=_k_self_book, music_mcp_client=_music_mcp)
             set_wander_manager(wander_manager)
             if behavior_scheduler is not None:
                 from behavior_scheduler.tools import inject_social_feed_dependencies
@@ -1414,10 +1371,8 @@ async def startup_event():
                         sid = session_id or _latest_session_id or ''
                         await tm.inject_inconsistency_check(status_text, activity_description, status_mismatch_detail, sid)
                 from wander_manager.event_handlers import UserTrackingHandler
-                from wander_manager.disturb_judgment import DisturbJudgment
                 UserTrackingHandler.set_inconsistency_callback(_on_inconsistency)
-                DisturbJudgment.set_inconsistency_callback(_on_inconsistency)
-                print('不一致查岗回调已注册（gaming复判 + 非gaming不一致 → 复查管道）')
+                print('不一致查岗回调已注册（复查管道）')
         except Exception as e:
             print(f'定时任务管理器初始化失败: {e}')
     try:
@@ -2663,7 +2618,7 @@ async def websocket_behavior_chat(websocket: WebSocket):
                     topic_status = await topic_state_machine.get_topic_status(session_id)
                     topic_start_time = topic_status.get('start_time')
                     from event_chronicle import get_global_chronicle
-                    from context_builder.event_history_adapter import adapt_history_for_context
+                    from context_builder.conversation_history import fallback_history
                     chronicle = get_global_chronicle()
                     if topic_start_time:
                         from time_utils import filter_topic_history
@@ -2674,44 +2629,9 @@ async def websocket_behavior_chat(websocket: WebSocket):
                         if not active_day:
                             active_day = chronicle.get_last_active_date() or _dt.now().strftime('%Y-%m-%d')
                         source_rows = [r for r in chronicle.get_messages_by_date(active_day) or [] if r.get('session_id') == session_id]
-                    for r in adapt_history_for_context([row for row in source_rows if not (user_message_id and row.get('message_id') == user_message_id)]):
-                        if r.get('role') not in {'user', 'assistant', 'system'}:
-                            continue
-                        unsummarized.append(SimpleNamespace(role=r.get('role'), content=r.get('content', ''), timestamp=r.get('timestamp', ''), reasoning_content=r.get('reasoning_content'), long_text_card=r.get('long_text_card'), is_wander=bool(r.get('is_wander')), is_sentinel=bool(r.get('is_sentinel')), is_reminder=bool(r.get('is_reminder'))))
-                    try:
-                        from context_builder.ingredients import format_relative_time
-                    except Exception:
-                        format_relative_time = None
-                    for msg in unsummarized:
-                        if msg.role not in {'user', 'assistant', 'system'}:
-                            continue
-                        content = str(msg.content)
-                        if msg.role == 'user' and getattr(msg, 'long_text_card', None):
-                            try:
-                                from long_text_cards import card_for_history
-                                from settings_manager import get_setting
-                                _fallback_card = getattr(msg, 'long_text_card')
-                                if isinstance(_fallback_card, str):
-                                    _fallback_card = json.loads(_fallback_card)
-                                _fallback_card_text = card_for_history(_fallback_card, bool(get_setting('longTextCardFullContext')))
-                                if _fallback_card_text:
-                                    content = f'{content}\n{_fallback_card_text}' if content else _fallback_card_text
-                            except Exception as _fallback_card_exc:
-                                logger.warning('WS 回退长文卡片注入跳过: %s', type(_fallback_card_exc).__name__)
-                        tl = format_relative_time(msg.timestamp) if format_relative_time else ''
-                        if getattr(msg, 'is_sentinel', False):
-                            content = f'[🛡️ {tl}] {content}' if tl else f'[🛡️] {content}'
-                        elif getattr(msg, 'is_reminder', False):
-                            content = f'[⏰ {tl}] {content}' if tl else f'[⏰] {content}'
-                        elif getattr(msg, 'is_wander', False):
-                            content = f'[💭 {tl}] {content}' if tl else f'[💭] {content}'
-                        elif tl:
-                            content = f'[{tl}] {content}'
-                        hist_msg = {'role': msg.role, 'content': content}
-                        rc = getattr(msg, 'reasoning_content', None)
-                        if rc:
-                            hist_msg['reasoning_content'] = rc
-                        conversation_history.append(hist_msg)
+                    rows = [r for r in source_rows if not user_message_id or r.get('message_id') != user_message_id]
+                    for item in fallback_history(rows, session_id):
+                        conversation_history.append({key: item[key] for key in ('role', 'name', 'content') if key in item})
                     topic_status = await topic_state_machine.get_topic_status(session_id)
                     is_inactive = not topic_status.get('is_active', False) or topic_status.get('message_count', 0) == 0
                     if is_inactive and _diary_injected_date != datetime.now().strftime('%Y-%m-%d'):

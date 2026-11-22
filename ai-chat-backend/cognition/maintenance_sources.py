@@ -74,13 +74,13 @@ def sources(messages, *, include_wander_activities=False):
                 content = build_notification_context_fact(message)
                 source_kind, event_speaker = ('ambient_observation', 'observation')
             elif wander_activity:
-                from context_builder.wander_event_projection import format_wander_activity_event
-                content = format_wander_activity_event(content, get('tool_calls'), mid, level='experience')
+                from context_builder.wander_event_projection import wander_activity_summary_text
+                content = wander_activity_summary_text(content, get('tool_calls'), mid, timestamp=str(get('timestamp') or ''))
                 source_kind = 'wander_activity'
             if source_kind == 'event_fact':
                 if event == 'wander_activity':
-                    from context_builder.wander_event_projection import format_wander_activity_event
-                    content = format_wander_activity_event(content, get('tool_calls'), mid, level='experience')
+                    from context_builder.wander_event_projection import wander_activity_summary_text
+                    content = wander_activity_summary_text(content, get('tool_calls'), mid, timestamp=str(get('timestamp') or ''))
                 else:
                     from memory_v2.source_projection import memory_source_content
                     content = memory_source_content(message)
@@ -107,8 +107,8 @@ def sources(messages, *, include_wander_activities=False):
             continue
         seen.add(mid)
         if wander_activity:
-            from context_builder.wander_event_projection import format_wander_activity_event
-            content = format_wander_activity_event(content, get('tool_calls'), mid, level='experience')
+            from context_builder.wander_event_projection import wander_activity_summary_text
+            content = wander_activity_summary_text(content, get('tool_calls'), mid, timestamp=str(get('timestamp') or ''))
         if ambient_observation and role == 'event':
             from context_builder.notification_projection import build_notification_context_fact
             content = build_notification_context_fact({'event_type': event, 'tool_calls': get('tool_calls')})

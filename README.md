@@ -1,5 +1,7 @@
 # MIRROW · 本地单用户源码骨架
 
+2026-11-22 同步了漫想 V3 的规划、事件存储和上下文。使用 10 月版的部署者可在[本次更新记录](docs/RELEASE_20261122_WANDER.md)查看旧入口和升级后的读取方式。
+
 2026-11-21 更新了漫想随笔。进入「机生活 → 媒体 → 随笔」就能翻阅本机写成的作品。想给随笔或重读的一段原文配图，可以接入自己的插画服务。接入方式见[本次更新记录](docs/RELEASE_20261121_WANDER.md)。
 
 完整源码骨架发布于 2026-10-25。另见[目录与范围](docs/DIRECTORY_REVIEW.md)、[骨架发布记录](docs/RELEASE_DRAFT.md)、[部署条件](docs/DEPLOYMENT.md)和[验证边界](docs/VERIFICATION.md)。

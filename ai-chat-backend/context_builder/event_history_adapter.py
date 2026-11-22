@@ -29,7 +29,7 @@ def event_context_fact(row: Mapping[str, Any], *, wander_level: str='experience'
         return '\n'.join(filter(None, (project_tool_event(call) for call in _calls(row.get('tool_calls') or row.get('toolCalls')))))
     if event_type == 'wander_activity':
         from .wander_event_projection import format_wander_activity_event
-        return format_wander_activity_event(str(row.get('content') or ''), row.get('tool_calls') or row.get('toolCalls'), str(row.get('message_id') or row.get('id') or ''), level=wander_level, timestamp=str(row.get('timestamp') or ''))
+        return format_wander_activity_event(str(row.get('content') or ''), row.get('tool_calls') or row.get('toolCalls'), str(row.get('message_id') or row.get('id') or ''), level=wander_level, timestamp=str(row.get('timestamp') or ''), live_reading=True)
     known = build_notification_context_fact(row)
     if known:
         return known
@@ -89,20 +89,20 @@ def adapt_history_for_context(rows: list[dict[str, Any]], *, wander_level: str='
         selected = [originals[mid] for item in projected if (mid := str(item.get('message_id') or '')) in originals]
         texts = {str(item.get('message_id') or ''): str(item.get('content') or '') for item in projected}
         overrides = {}
-        if compact_linked_sources:
+        if compact_linked_sources and wander_level == 'detail':
             from .workshop_material_projection import projection_overrides as workshop_overrides
             overrides.update(workshop_overrides(selected, db_path=Path(__file__).resolve().parents[1] / 'events' / 'wander_runtime.db', provided_texts=texts))
         for item in projected:
             mid = str(item.get('message_id') or '')
-            if mid in overrides:
+            from .wander_narration import identity
+            source = originals.get(mid, item)
+            item['_wander_identity'] = identity(source)
+            if item.get('event_type') == 'wander_activity' and wander_level in {'daily', 'experience'}:
+                from .wander_event_projection import inner_event_text
+                item['content'] = inner_event_text(source, frozen_only=wander_level == 'experience',
+                    include_completed_review=wander_level == 'daily')
+            elif mid in overrides:
                 item['content'] = overrides[mid]
-            elif item.get('event_type') == 'wander_activity' and wander_level not in {'fact', 'daily'}:
-                raw_calls = _calls(originals.get(mid, {}).get('tool_calls'))
-                first = raw_calls[0] if raw_calls else {}
-                extra = first.get('extra_data') or {}
-                frozen = extra.get('memory_experience') if isinstance(extra, Mapping) else None
-                if isinstance(frozen, Mapping) and frozen.get('version') == 2:
-                    item['content'] = '当时收束的漫想：' + str(first.get('description') or '一次内在活动') + '。\n' + experience_text(frozen)
             if item.get('notification_projection') or item.get('event_type') == 'tool_event':
                 view = fact_message(item, str(item.get('content') or ''))
                 item.update(view)

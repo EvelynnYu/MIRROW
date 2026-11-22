@@ -101,6 +101,7 @@ def render_active_day_scene_context(material, *, speaker='AI', exclude_message_i
     if any((ref.get('source_event_type') in {'wander_activity'} for _, ref, _ in raw_units.values())):
         from pathlib import Path
         ordered = [raw_units[unit.ordinal][0] for unit in units if unit.kind == 'raw']
+        by_id = {}
         try:
             if source_rows is None:
                 from contextlib import closing
@@ -108,27 +109,50 @@ def render_active_day_scene_context(material, *, speaker='AI', exclude_message_i
                 source_rows = []
                 if path.is_file():
                     ids = [row['message_id'] for row in ordered]
-                    with closing(sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True, timeout=1)) as conn:
+                    with closing(sqlite3.connect(path.resolve().as_uri()+'?mode=ro', uri=True, timeout=1)) as conn:
                         conn.row_factory = sqlite3.Row
                         conn.execute('PRAGMA query_only=ON')
                         for start in range(0, len(ids), 400):
-                            batch = ids[start:start + 400]
-                            source_rows.extend((dict(row) for row in conn.execute('SELECT message_id,session_id,role,event_type,timestamp,content,tool_calls FROM conversation_messages WHERE message_id IN (' + ','.join(('?' for _ in batch)) + ')', batch)))
+                            batch = ids[start:start+400]
+                            source_rows.extend(dict(row) for row in conn.execute(
+                                'SELECT message_id,session_id,role,event_type,timestamp,content,tool_calls FROM conversation_messages WHERE message_id IN ('
+                                + ','.join('?' for _ in batch) + ')', batch))
             by_id = {row['message_id']: row for row in source_rows}
+            from memory_v2.source_projection import memory_source_content
+            selected = {message['message_id']: (message, ref) for message, ref, _ in raw_units.values()}
+            by_id = {mid: row for mid, row in by_id.items() if mid in selected and (
+                selected[mid][1].get('source_event_type') != 'wander_activity' or (
+                    row.get('timestamp') == selected[mid][0].get('timestamp')
+                    and row.get('role') == selected[mid][0].get('role')
+                    and row.get('event_type') == selected[mid][1].get('source_event_type')
+                    and (not selected[mid][1].get('session_id') or row.get('session_id') == selected[mid][1]['session_id'])
+                    and memory_source_content(row) == selected[mid][0].get('content')))}
             raw = [by_id[row['message_id']] for row in ordered if row['message_id'] in by_id]
-            overrides = {}
-            from .workshop_material_projection import projection_overrides as workshop_overrides
-            overrides.update(workshop_overrides(raw, db_path=wander_db_path or Path(__file__).resolve().parents[1] / 'events' / 'wander_runtime.db', provided_texts={row['message_id']: row['content'] for row in ordered}))
+            from .wander_event_projection import inner_event_text
+            overrides = {row['message_id']: inner_event_text(row, frozen_only=True)
+                         for row in raw if row.get('event_type') == 'wander_activity'}
         except (OSError, ValueError, TypeError, sqlite3.Error):
-            overrides = {}
+            overrides = {}  # Original admitted material is the safe fallback.
         for index, unit in enumerate(units):
             if unit.kind != 'raw':
                 continue
             message, ref, label = raw_units[unit.ordinal]
             replacement = overrides.get(message['message_id'])
             if replacement:
+                if ref.get('source_event_type') == 'wander_activity':
+                    label = label.replace('原文', '来源记录') + '｜漫想简记，详情可查'
                 view = {**message, 'content': replacement}
-                units[index] = _Unit(unit.timestamp, unit.ordinal, 'raw', f'[{label}]\n' + _raw_text(view, ref, speaker=speaker))
+                units[index] = _Unit(unit.timestamp, unit.ordinal, 'raw',
+                                     f'[{label}]\n' + _raw_text(view, ref, speaker=speaker))
+        from .wander_narration import identity, connection
+        previous = None
+        for index, unit in enumerate(units):
+            current = (identity(by_id.get(raw_units[unit.ordinal][0]['message_id'], {}))
+                       if unit.kind == 'raw' else None)
+            prefix = connection(previous, current)
+            if prefix:
+                units[index] = _Unit(unit.timestamp, unit.ordinal, unit.kind, prefix + '\n' + unit.text)
+            previous = current
     if not units:
         return ''
     raw_count = sum((unit.kind == 'raw' for unit in units))

@@ -165,7 +165,7 @@ def experience(value):
                 + '\n原帖：' + str(target.get('note_title', ''))
                 + '\n原评论作者：' + str(target.get('actor_name', ''))
                 + '\n原评论：' + str(target.get('comment_text', ''))
-                + '\nK写的回复：' + str(reply.get('text', '')))
+                + '\nAI写的回复：' + str(reply.get('text', '')))
     item = value.get('interaction')
     if isinstance(item, dict) and item.get('target'):
         import json

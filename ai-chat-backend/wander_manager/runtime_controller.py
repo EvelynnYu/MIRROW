@@ -200,7 +200,8 @@ class WanderRuntimeController:
                              goal_reason: str = "",
                              switch_goal: Optional[dict] = None,
                              account_source: str = "",
-                             goal_assessment: Optional[dict] = None) -> RuntimeAction:
+                             goal_assessment: Optional[dict] = None,
+                             closeout_ready: bool = False) -> RuntimeAction:
         node = self._node_required(node_id)
         if node.state != NodeState.RUNNING:
             raise ValueError("only a running node can be reviewed")
@@ -242,7 +243,7 @@ class WanderRuntimeController:
                     policies = run.context_snapshot["autonomy"]["activity_goal_policies"]
                     policy = dict(policies.get(activity.activity_id) or policy)
                     policy["extensions_total"] = int(policy.get("extensions_total") or 0) + extension
-                    policy["reason"] = goal_reason[:300]
+                    policy["reason"] = goal_reason
                     policies[activity.activity_id] = policy
                     count_reached = False
         open_limit = activity.goal_mode == GoalMode.OPEN_ENDED and not autonomous_goal and node.round_index >= self.max_open_nodes
@@ -275,6 +276,9 @@ class WanderRuntimeController:
             else:
                 successor = None
             self._move_to_settling(run, activity, reason, save=False)
+            if closeout_ready and not execution_failed:
+                node.side_effect_refs = dict(node.side_effect_refs or {})
+                node.side_effect_refs['closeout_from_review'] = True
             self.store.save_plan(run, [activity, *([successor] if successor else [])], reviewed_node=node)
             return RuntimeAction(RuntimeActionType.SETTLE, run.run_id, activity.activity_id, reason=reason)
         activity.transition_to(ActivityState.ACTIVE_WAIT)
@@ -313,10 +317,12 @@ class WanderRuntimeController:
         timing = (run.context_snapshot or {}).get("timing")
         return "estimate" if isinstance(timing, dict) and timing.get("horizon_mode") == "estimate" else "deadline"
 
-    def request_interrupt(self, activity_id: str) -> None:
+    def request_interrupt(self, activity_id: str, *, source: str = '') -> None:
         activity = self._activity_required(activity_id)
         run = self._run_required(activity.run_id)
         activity.interrupt_requested = True
+        if source in {'user_message', 'manual_stop'}:
+            activity.abort_reason = source
         snapshot = dict(run.context_snapshot or {})
         if (snapshot.get("game_end_request") or {}).get("activity_id") == activity_id:
             snapshot.pop("game_end_request", None)

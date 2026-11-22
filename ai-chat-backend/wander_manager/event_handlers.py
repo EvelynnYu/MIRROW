@@ -363,7 +363,12 @@ class MemoryFetchHandler(BaseEventHandler):
             reason = '有值得保留的印象' if should_anchor else '暂时没有足够强烈的印象'
         return (reflection, should_anchor, reason)
 
-    async def _handle_iceberg_recall(self, event: WanderEvent, exclude_scene_ids: Optional[set[str]]=None) -> Optional[WanderEvent]:
+    async def _handle_iceberg_recall(
+        self,
+        event: WanderEvent,
+        exclude_scene_ids: Optional[set[str]] = None,
+        require_source: bool = False,
+    ) -> Optional[WanderEvent]:
         """Recall one old unanchored scene and optionally mark it.
 
         ``None`` means the branch could not produce a scene and is the caller's
@@ -372,18 +377,31 @@ class MemoryFetchHandler(BaseEventHandler):
         3 promotion side effect.
         """
         from scene_manager import add_recollection, get_scene_messages, pick_iceberg_scene
+
         bucket_result = self._load_iceberg_memory_buckets()
-        memory_buckets = await bucket_result if inspect.isawaitable(bucket_result) else bucket_result
-        pick_kwargs = {'min_age_days': self._iceberg_min_age_days()}
+        memory_buckets = (
+            await bucket_result if inspect.isawaitable(bucket_result) else bucket_result
+        )
+        if require_source and memory_buckets is None:
+            raise RuntimeError('scene_anchor_source_unavailable')
+        pick_kwargs = {
+            "min_age_days": self._iceberg_min_age_days(),
+        }
+        # ``None`` means the optional bucket snapshot was unavailable.  Let
+        # scene_manager perform its own synchronous best-effort lazy join in
+        # that case; it fails closed if the source remains unavailable.  An
+        # empty list is a valid, fully loaded “no buckets” snapshot.
         if memory_buckets is not None:
-            pick_kwargs['memory_buckets'] = memory_buckets
+            pick_kwargs["memory_buckets"] = memory_buckets
         if exclude_scene_ids:
-            pick_kwargs['exclude_scene_ids'] = exclude_scene_ids
+            pick_kwargs["exclude_scene_ids"] = exclude_scene_ids
         try:
             scene = pick_iceberg_scene(**pick_kwargs)
             if inspect.isawaitable(scene):
                 scene = await scene
         except TypeError:
+            # Keep lightweight test/adaptor implementations that expose the
+            # original one-argument helper compatible with the richer join.
             try:
                 scene = pick_iceberg_scene(min_age_days=self._iceberg_min_age_days())
                 if inspect.isawaitable(scene):
@@ -398,37 +416,77 @@ class MemoryFetchHandler(BaseEventHandler):
         if inspect.isawaitable(messages):
             messages = await messages
         if not messages:
+            if require_source:
+                raise RuntimeError('scene_messages_unavailable')
             return None
-        scene_id = str(scene.get('id') or '')
+
+        scene_id = str(scene.get("id") or "")
         if not scene_id:
             return None
         scene_label = self._iceberg_scene_label(scene)
         scene_text = self._format_iceberg_messages(messages)
         current_topic = self._build_topic_context_line(event)
-        prompt = self.ICEBERG_RECALL_PROMPT.format(user_status_context=get_user_status_context(), current_topic_context=current_topic, scene_label=scene_label, scene_id=scene_id, scene_messages=scene_text)
+        prompt = self.ICEBERG_RECALL_PROMPT.format(
+            user_status_context=get_user_status_context(),
+            current_topic_context=current_topic,
+            scene_label=scene_label,
+            scene_id=scene_id,
+            scene_messages=scene_text,
+        )
+
         from neuron_registry import neuron_trace
-        with neuron_trace('wander_iceberg_recall', model='Flash') as trace:
+        with neuron_trace("wander_iceberg_recall", model="Flash") as trace:
             trace.set_input(prompt[:500])
             raw_reflection = await self._call_llm(prompt)
-            trace.set_output(str(raw_reflection or '')[:300])
+            trace.set_output(str(raw_reflection or "")[:300])
+        if require_source and not str(raw_reflection or '').strip():
+            raise RuntimeError('scene_reflection_unavailable')
         reflection, should_anchor, reason = self._parse_iceberg_reflection(raw_reflection)
+
         details = event.details if isinstance(event.details, dict) else {}
         event.details = details
-        first_user = next((str(message.get('content') or '').strip() for message in messages if str(message.get('role') or '') == 'user' and str(message.get('content') or '').strip()), '')
-        topic = first_user[:80] if first_user else f'{scene_label} 的一段对话'
-        event.description = '冰山回溯'
-        event.details.update({'iceberg_recall': True, 'found': True, 'scene_id': scene_id, 'source_scene_id': scene_id, 'scene_start_ts': str(scene.get('start_ts') or ''), 'scene_end_ts': str(scene.get('end_ts') or ''), 'source_ts': str(scene.get('start_ts') or ''), 'scene_label': scene_label, 'memory_topic': topic, 'memory_time_ago': f'{scene_label}（过去的对话）', 'reflection': reflection, 'should_anchor': should_anchor, 'reason': reason})
+        first_user = next(
+            (str(message.get("content") or "").strip() for message in messages
+             if str(message.get("role") or "") == "user" and str(message.get("content") or "").strip()),
+            "",
+        )
+        topic = first_user[:80] if first_user else f"{scene_label} 的一段对话"
+        event.description = "冰山回溯"
+        event.details.update({
+            "iceberg_recall": True,
+            "found": True,
+            "scene_id": scene_id,
+            "source_scene_id": scene_id,
+            "scene_start_ts": str(scene.get("start_ts") or ""),
+            "scene_end_ts": str(scene.get("end_ts") or ""),
+            "source_ts": str(scene.get("start_ts") or ""),
+            "scene_label": scene_label,
+            "memory_topic": topic,
+            "memory_time_ago": f"{scene_label}（过去的对话）",
+            "reflection": reflection,
+            "should_anchor": should_anchor,
+            "reason": reason,
+        })
+
         if should_anchor:
             updated = add_recollection(scene_id)
             if inspect.isawaitable(updated):
                 updated = await updated
-            event.details['anchor_added'] = bool(updated)
+            event.details["anchor_added"] = bool(updated)
             if updated:
-                event.details['recollection_count'] = int(updated.get('recollection_count') or 0)
+                event.details["recollection_count"] = int(updated.get("recollection_count") or 0)
         else:
-            event.details['anchor_added'] = False
-        event.process_log = f"冰山回溯: {scene_label} ({scene_id})\n感受: {reflection}\nshould_anchor={str(should_anchor).lower()}；回忆锚点: {('是' if should_anchor else '否')}；理由: {reason}"
-        logger.info('冰山回溯完成: scene=%s should_anchor=%s', scene_id, should_anchor)
+            event.details["anchor_added"] = False
+
+        event.process_log = (
+            f"冰山回溯: {scene_label} ({scene_id})\n"
+            f"感受: {reflection}\n"
+            f"should_anchor={str(should_anchor).lower()}；"
+            f"回忆锚点: {'是' if should_anchor else '否'}；理由: {reason}"
+        )
+        logger.info(
+            "冰山回溯完成: scene=%s should_anchor=%s", scene_id, should_anchor
+        )
         return event
 
     async def _get_memories_with_importance(self) -> list:
@@ -442,61 +500,100 @@ class MemoryFetchHandler(BaseEventHandler):
             memories = self.get_memories(min_importance=0.3)
         return memories or []
 
-    async def fetch_one_memory(self, exclude_ids=None, query: str='') -> Optional[dict]:
+    async def fetch_one_memory(self, exclude_ids=None, query: str = "") -> Optional[dict]:
         """取一条记忆（区间式 open_ended 会话的单节点步进）。
 
         语义搜索或随机拉取 → 排除已翻过的 → 按年龄加权选一条。
         反思由节点边界 LLM 负责（本方法不生成）。
 
         Returns:
-            {memory_id, topic, content, emotion, time_ago} 或 None（记忆库空/已翻完）。
+            已取得材料或明确的无结果／读取失败回执。
         """
+        # The v2/v3 session engines use this bounded fetch API instead of the
+        # legacy ``handle()`` path.  Run the same Phase 3 branch here so the
+        # persistent runtime can actually reach an
+        # iceberg scene; all failures continue into the original bucket path.
         from .activity_context import current
+        from .memory_fetch_result import result
         selected_mode = ''
         if current() is not None:
-            choice = parse_json_object(await self._call_llm('这次想沿什么线索回忆，还是随手翻一段旧对话？输出 JSON {"mode":"search或scene","query":"search时填写想回忆的具体线索"}。')) or {}
+            raw_choice = await self._call_llm(
+                '这次想沿什么线索回忆，还是随手翻一段旧对话？输出 JSON '
+                '{"mode":"search或scene","query":"search时填写想回忆的具体线索"}。')
+            choice = parse_json_object(raw_choice) or {}
             selected_mode = choice.get('mode')
             query = str(choice.get('query') or '').strip()
-            if selected_mode not in {'search', 'scene'} or (selected_mode == 'search' and (not query)):
-                return None
-        if selected_mode == 'scene' or (not selected_mode and (not query) and self._should_try_iceberg()):
+            if selected_mode not in {'search', 'scene'} or (selected_mode == 'search' and not query):
+                return result('failed', reason='invalid_choice' if raw_choice else 'selection_unavailable')
+        if selected_mode == 'scene' or (not selected_mode and not query and self._should_try_iceberg()):
             try:
-                iceberg_event = WanderEvent(event_type=EventType.MEMORY_FETCH, details={'_runtime_memory_fetch': True})
-                excluded_scene_ids = {str(memory_id)[len('scene_'):] for memory_id in exclude_ids or [] if str(memory_id).startswith('scene_')}
-                handled = await self._handle_iceberg_recall(iceberg_event, exclude_scene_ids=excluded_scene_ids)
-                if handled is not None and handled.details.get('iceberg_recall'):
+                iceberg_event = WanderEvent(
+                    event_type=EventType.MEMORY_FETCH,
+                    details={"_runtime_memory_fetch": True},
+                )
+                excluded_scene_ids = {
+                    str(memory_id)[len("scene_"):]
+                    for memory_id in (exclude_ids or [])
+                    if str(memory_id).startswith("scene_")
+                }
+                handled = await self._handle_iceberg_recall(
+                    iceberg_event,
+                    exclude_scene_ids=excluded_scene_ids,
+                    require_source=True,
+                )
+                if handled is not None and handled.details.get("iceberg_recall"):
                     details = handled.details
-                    scene_id = str(details.get('scene_id') or '')
+                    scene_id = str(details.get("scene_id") or "")
                     if scene_id:
-                        return {'memory_id': f'scene_{scene_id}', 'topic': details.get('memory_topic', '过去的一段对话'), 'content': details.get('reflection', '')[:300], 'emotion': '', 'time_ago': details.get('memory_time_ago', '过去'), 'iceberg_recall': True, 'scene_id': scene_id, 'source_scene_id': scene_id, 'source_ts': details.get('source_ts', ''), 'reflection': details.get('reflection', ''), 'should_anchor': bool(details.get('should_anchor')), 'reason': details.get('reason', '')}
+                        # ``NodeExecutionAdapter`` needs a bounded material ID
+                        # for node de-duplication.  This is an in-memory scene
+                        # reference, not an OB_Rev bucket and is intentionally
+                        # ignored by the normal bucket write-back when absent.
+                        return {
+                            **result('found', mode='scene'),
+                            "memory_id": f"scene_{scene_id}",
+                            "topic": details.get("memory_topic", "过去的一段对话"),
+                            "content": details.get("reflection", "")[:300],
+                            "emotion": "",
+                            "time_ago": details.get("memory_time_ago", "过去"),
+                            "iceberg_recall": True,
+                            "scene_id": scene_id,
+                            "source_scene_id": scene_id,
+                            "source_ts": details.get("source_ts", ""),
+                            "reflection": details.get("reflection", ""),
+                            "should_anchor": bool(details.get("should_anchor")),
+                            "reason": details.get("reason", ""),
+                        }
             except Exception as exc:
-                logger.warning('[memory_fetch] scene recall failed: %s', type(exc).__name__)
+                logger.warning("[memory_fetch] scene recall failed: %s", type(exc).__name__)
+                return result('failed', mode='scene', reason='scene_unavailable')
+
             if selected_mode == 'scene':
-                return None
+                return result('no_result', mode='scene', reason='no_scene', candidate_count=0)
+
         try:
             import asyncio as _asyncio, random as _random
             if not self.get_memories:
-                return None
+                return result('failed', mode='search', query=query, reason='retrieval_unavailable')
+
             memories = None
             if query:
-                memories = await self.get_memories(min_importance=0.3, query=query[:200])
-                if not memories:
-                    return None
+                memories = await self.get_memories(min_importance=0.3, query=query, exclude_ids=exclude_ids or ())
             else:
-                memories = await self.get_memories(min_importance=0.3)
+                memories = await self.get_memories(min_importance=0.3, exclude_ids=exclude_ids or ())
             if not memories:
-                return None
-            exclude = set(exclude_ids or [])
-            pool = [m for m in memories if (m.get('id') or '') not in exclude]
-            if not pool:
-                return None
+                return result('no_result', mode='search', query=query,
+                              reason='no_unread_match', candidate_count=0)
+            pool = memories
+
+            # 按记忆年龄加权：越旧权重越高
             now = datetime.now()
             weights = []
             for m in pool:
                 try:
-                    ts = m.get('timestamp', '')
+                    ts = m.get("timestamp", "")
                     if ts:
-                        dt = datetime.fromisoformat(str(ts).replace('Z', '+00:00'))
+                        dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
                         age_days = max(0, (now - dt.replace(tzinfo=None)).total_seconds() / 86400)
                     else:
                         age_days = 0
@@ -504,28 +601,39 @@ class MemoryFetchHandler(BaseEventHandler):
                     age_days = 0
                 weights.append(min(age_days, 30) + 1)
             memory = pool[0] if query else _random.choices(pool, weights=weights, k=1)[0]
-            time_ago = '很久以前'
+
+            # 相对时间
+            time_ago = "很久以前"
             try:
-                ts = memory.get('timestamp', '')
+                ts = memory.get("timestamp", "")
                 if ts:
-                    dt = datetime.fromisoformat(str(ts).replace('Z', '+00:00'))
+                    dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
                     age_days = max(0, (now - dt.replace(tzinfo=None)).total_seconds() / 86400)
                     if age_days < 1:
-                        time_ago = '今天'
+                        time_ago = "今天"
                     elif age_days < 2:
-                        time_ago = '昨天'
+                        time_ago = "昨天"
                     elif age_days < 7:
-                        time_ago = f'{int(age_days)}天前'
+                        time_ago = f"{int(age_days)}天前"
                     elif age_days < 30:
-                        time_ago = f'{int(age_days / 7)}周前'
+                        time_ago = f"{int(age_days / 7)}周前"
                     elif age_days < 365:
-                        time_ago = f'{int(age_days / 30)}个月前'
+                        time_ago = f"{int(age_days / 30)}个月前"
             except Exception:
                 pass
-            return {'memory_id': memory.get('id', ''), 'topic': memory.get('topic', '未知'), 'content': str(memory.get('event', memory.get('topic', '无内容')))[:300], 'emotion': memory.get('emotion', ''), 'time_ago': time_ago}
+
+            return {
+                **result('found', mode='search', query=query, candidate_count=len(pool)),
+                "memory_id": memory.get("id", ""),
+                "reading_document_ids": memory.get('reading_document_ids') or [memory.get('id', '')],
+                "topic": memory.get("topic", "未知"),
+                "content": str(memory.get("event", memory.get("topic", "无内容")))[:300],
+                "emotion": memory.get("emotion", ""),
+                "time_ago": time_ago,
+            }
         except Exception as e:
-            logger.warning(f'[memory_fetch] fetch_one 失败: {e}')
-            return None
+            logger.warning('[memory_fetch] retrieval failed: %s', type(e).__name__)
+            return result('failed', mode='search', query=query, reason='retrieval_unavailable')
 
 class BrowseNewsHandler(BaseEventHandler):
     """
@@ -793,51 +901,77 @@ class BrowseBookmarksHandler(BaseEventHandler):
             rows = [{'message_id': message_id, 'session_id': session_id, 'timestamp': bookmark.get('original_timestamp') or '', 'active_date': str(bookmark.get('original_timestamp') or '')[:10], 'role': bookmark.get('role') or 'assistant', 'content': bookmark.get('content') or ''}]
         return self._reader().bound_snapshot(rows, source_date=str(bookmark.get('original_timestamp') or '')[:10])
 
-    def _existing_material(self, exclude_ids: set[str], selected: Optional[dict]=None) -> Optional[dict[str, Any]]:
-        collected_by = selected['collected_by'] if selected else self._rng.choice(['k', 'user'])
+    def _existing_material(
+        self,
+        exclude_ids: set[str],
+        selected: Optional[dict] = None,
+    ) -> Optional[dict[str, Any]]:
+        collected_by = selected['collected_by'] if selected else 'k'
         pool, total = self._load_pool(collected_by)
-        pool = [row for row in pool if str(row.get('original_msg_id') or row.get('id') or '') not in exclude_ids]
+        pool = [
+            row for row in pool
+            if str(row.get("original_msg_id") or row.get("id") or "") not in exclude_ids
+        ]
         if not pool:
             return None
-        mode = 'deep' if selected else self._choose_browse_mode(total)
-        count = 1 if mode == 'deep' else self._rng.randint(_bookmark_skim_min, _bookmark_skim_max)
-        picked = [row for row in pool if str(row.get('original_msg_id')) == selected['message_id']] if selected else self._rng.sample(pool, min(count, len(pool)))
+        mode = selected.get('depth', 'deep') if selected else 'deep'
+        picked = ([row for row in pool if str(row.get('original_msg_id')) == selected['message_id']]
+                  if selected else pool[:1])
         snapshot: list[dict[str, Any]] = []
         candidates: list[dict[str, Any]] = []
         degraded = False
         for bookmark in picked:
-            context_rows = self._bookmark_context_rows(bookmark) if mode == 'deep' else self._reader().bound_snapshot([bookmark])
+            context_rows = self._bookmark_context_rows(bookmark) if mode == "deep" else self._reader().bound_snapshot([
+                {**bookmark, 'message_id': bookmark.get('original_msg_id'),
+                 'timestamp': bookmark.get('original_timestamp')}])
             if not context_rows:
                 degraded = True
                 continue
             snapshot.extend(context_rows)
-            message_id = str(bookmark.get('original_msg_id') or '').strip()
-            target = next((row for row in context_rows if row.get('message_id') == message_id), None)
+            message_id = str(bookmark.get("original_msg_id") or "").strip()
+            target = next((row for row in context_rows if row.get("message_id") == message_id), None)
             if target is not None:
                 target = dict(target)
-                target.update({'collected_by': str(bookmark.get('collected_by') or collected_by), 'bucket_id': str(bookmark.get('bucket_id') or ''), 'bookmark_id': str(bookmark.get('id') or '')})
+                target.update({
+                    "collected_by": str(bookmark.get("collected_by") or collected_by),
+                    "bucket_id": str(bookmark.get("bucket_id") or ""),
+                    "bookmark_id": str(bookmark.get("id") or ""),
+                })
                 candidates.append(target)
         if not snapshot or not candidates:
             return None
+        # De-duplicate context rows while retaining chronological order.
         seen: set[tuple[str, str]] = set()
         compact_snapshot = []
         for row in snapshot:
-            key = (str(row.get('message_id') or ''), str(row.get('timestamp') or ''))
+            key = (str(row.get("message_id") or ""), str(row.get("timestamp") or ""))
             if key in seen:
                 continue
             seen.add(key)
             compact_snapshot.append(row)
         compact_snapshot = self._reader().bound_snapshot(compact_snapshot)
-        return {'source_mode': 'existing_bookmark', 'browse_mode': mode, 'collected_by': collected_by, 'owner': '自己' if collected_by == 'k' else '人类伙伴', 'scene_id': '', 'active_date': str(compact_snapshot[0].get('date') or '')[:10], 'snapshot': compact_snapshot, 'candidates': candidates, 'bookmark_count': len(candidates), 'context_degraded': degraded, 'total_bookmarks': total}
+        return {
+            "source_mode": "existing_bookmark",
+            "browse_mode": mode,
+            "collected_by": collected_by,
+            "owner": "自己" if collected_by == "k" else "人类伙伴",
+            "scene_id": "",
+            "active_date": str(compact_snapshot[0].get("date") or "")[:10],
+            "snapshot": compact_snapshot,
+            "candidates": candidates,
+            "bookmark_count": len(candidates),
+            "context_degraded": degraded,
+            "total_bookmarks": total,
+        }
 
     @staticmethod
     def _source_label(material: dict[str, Any]) -> str:
-        mode = material.get('source_mode')
-        if mode == 'essays':
-            return '书柜中的随笔'
-        if mode == 'existing_bookmark':
+        mode = material.get("source_mode")
+        if mode == 'bookshelf':
+            return '书柜中的收藏和随笔（各项标明来源）'
+        if mode == "existing_bookmark":
             return f"{material.get('owner') or '收藏夹'}的收藏"
-        if mode == 'unbookmarked_anchor':
+        if mode == "unbookmarked_anchor":
             return f"历史场景 {str(material.get('active_date') or '未知日期')[:10]}"
         return f"历史日期 {str(material.get('active_date') or '未知日期')[:10]}"
 
@@ -858,6 +992,9 @@ class BrowseBookmarksHandler(BaseEventHandler):
                 'bookmark_count': 1}
 
     def _prompt_material(self, material: dict[str, Any]) -> str:
+        if material.get('source_mode') == 'bookshelf':
+            from .bookshelf_roam import prompt_material
+            return prompt_material(material)
         if material.get('source_mode') == 'essays':
             from memory_v2.experience_material import capture_reading
             frozen = capture_reading(material)
@@ -870,36 +1007,43 @@ class BrowseBookmarksHandler(BaseEventHandler):
         material['_reading_snapshot'] = frozen
         return prompt
 
-    async def _reflect_and_act(self, material: dict[str, Any], source_key: str='') -> tuple[str, dict[str, Any], str]:
+    async def _reflect_and_act(self, material: dict[str, Any], source_key: str = "") -> tuple[str, dict[str, Any], str]:
         prompt_material = self._prompt_material(material)
         source_label = self._source_label(material)
         material['_reading_received'] = False
         if not self.call_llm:
-            return ('', {'status': 'none', 'requested': 'none', 'reason': 'llm_unavailable'}, '')
+            return "", {"status": "none", "requested": "none", "reason": "llm_unavailable"}, ""
         prompt = self.ACTION_PROMPT.format(source_label=source_label, material=prompt_material)
-        if material.get('source_mode') == 'essays':
-            prompt += '\n这是随笔作品，不对它执行收藏动作。若有一幕想画下来，可加 illustration，quote 必须摘一句刚读到的原文，scene 写想画的画面。原句必须在这次材料中唯一出现。'
+        items = material.get('bookshelf_items') or []
+        drawable = any(item['source'] == 'essays' for item in items)
+        if drawable:
+            from .reading_illustrations import OPTION
+            prompt += OPTION
         try:
             response = await self._call_llm(prompt)
             if not str(response or '').strip():
-                return ('', {'status': 'failed', 'requested': 'none', 'reason': 'reading_response_empty'}, 'reading_response_empty')
+                return '', {'status': 'failed', 'requested': 'none', 'reason': 'reading_response_empty'}, 'reading_response_empty'
             material['_reading_received'] = True
             parsed = parse_json_object(response)
             if not isinstance(parsed, dict):
-                return (str(response or '')[:500], {'status': 'rejected', 'requested': 'none', 'reason': 'action_result_not_json'}, 'action_result_not_json')
-            reflection = str(parsed.get('reflection') or '')[:500]
-            if material.get('source_mode') == 'essays' and parsed.get('illustration'):
+                # The material was read, but an unstructured model response is
+                # not permission to mutate a bookmark.
+                return str(response or "")[:500], {
+                    "status": "rejected", "requested": "none", "reason": "action_result_not_json"
+                }, "action_result_not_json"
+            reflection = str(parsed.get("reflection") or "")[:500]
+            if drawable and parsed.get('illustration'):
                 from .reading_illustrations import bind
-                picture = bind(parsed['illustration'], material.get('bookshelf_items') or [])
-                visible = material['_reading_snapshot']['messages']
-                if picture and any(row['message_id'] == picture.get('work_id') and picture['quote'] in row['text'] for row in visible):
-                    material['reading_picture'] = picture
-            requested_action = {'type': 'none'} if material.get('source_mode') == 'essays' else (parsed.get('bookmark_action') or {'type': 'none'})
-            action_evidence = await self._actions().apply_async(requested_action, material, source_key=source_key)
-            return (reflection, action_evidence, str(parsed.get('reason') or '')[:240])
+                material['reading_picture'] = bind(parsed['illustration'], items)
+            action_evidence = await self._actions().apply_async(
+                parsed.get("bookmark_action") or {"type": "none"},
+                material,
+                source_key=source_key,
+            )
+            return reflection, action_evidence, str(parsed.get("reason") or "")[:240]
         except Exception as exc:
-            logger.warning('[browse_bookmarks] reflection/action failed: %s', exc)
-            return ('', {'status': 'failed', 'requested': 'none', 'reason': type(exc).__name__}, type(exc).__name__)
+            logger.warning("[browse_bookmarks] reflection/action failed: %s", exc)
+            return "", {"status": "failed", "requested": "none", "reason": type(exc).__name__}, type(exc).__name__
 
     @staticmethod
     def _load_bookmark_pool(collected_by: str) -> tuple:
@@ -1095,16 +1239,18 @@ class BrowseBookmarksHandler(BaseEventHandler):
             event.details['error'] = str(e)
         return event
 
-    async def fetch_one_bookmark(self, exclude_ids=None, *, run_id: str='', activity_id: str='', node_id: str='', source_mode: Optional[str]=None) -> Optional[dict]:
-        """取一条收藏（区间式 count 会话的单节点步进）。
+    async def fetch_one_bookmark(
+        self,
+        exclude_ids=None,
+        *,
+        run_id: str = "",
+        activity_id: str = "",
+        node_id: str = "",
+        source_mode: Optional[str] = None,
+    ) -> Optional[dict]:
+        """一次书柜翻阅，可包含多种条目；冻结实际交给 AI 的材料与来源。
 
-        ``source_mode`` 仅用于测试/受限调用方显式选择材料来源；默认会在
-        existing_bookmark、unbookmarked_anchor、random_day 中选择可用的一类。
-        返回值冻结本次实际交给 AI 的有界原文摘录及来源，供日结重放；
-        未保留的部分明确记账，不在事后重新读取可变收藏内容。
-
-        Returns:
-            紧凑阅读证据及选材回执；未阅读时仅返回明确的选材结果。
+        source_mode 保留旧历史材料入口的显式选择；正常运行由 AI 看目录决定。
         """
         try:
             from .bookmark_selection import select
@@ -1112,25 +1258,41 @@ class BrowseBookmarksHandler(BaseEventHandler):
             material = selection.material
             if not material:
                 return {'material_selection': selection.receipt, 'reading_received': False}
-            identity = [str(value or '').strip() for value in (run_id, activity_id, node_id)]
-            source_key = ':'.join(identity) if all(identity) else ''
+            identity = [str(value or "").strip() for value in (run_id, activity_id, node_id)]
+            source_key = ":".join(identity) if all(identity) else ""
             reflection, action, reason = await self._reflect_and_act(material, source_key)
-            candidates = material.get('candidates') or []
-            first = candidates[0] if candidates else (material.get('snapshot') or [None])[0]
-            if not isinstance(first, dict):
+            candidates = material.get("candidates") or []
+            first = candidates[0] if candidates else (material.get("snapshot") or [None])[0]
+            if not isinstance(first, dict) and material.get('source_mode') != 'bookshelf':
                 from .bookmark_selection import outcome
-                return {'material_selection': outcome('failed', 'material_evidence_missing', mode=material.get('source_mode', '')).receipt, 'reading_received': False}
+                return {'material_selection': outcome('failed', 'material_evidence_missing',
+                        mode=material.get('source_mode', '')).receipt, 'reading_received': False}
             from memory_v2.experience_material import reading_receipt
-            payload = {'material_selection': selection.receipt, 'owner': material.get('owner') or '历史对话', 'original_msg_id': str(first.get('message_id') or ''), 'source_mode': material.get('source_mode') or '', 'scene_id': str(material.get('scene_id') or ''), 'active_date': str(material.get('active_date') or first.get('date') or '')[:10], 'browse_mode': material.get('browse_mode'), 'collected_by': material.get('collected_by') or '', 'reflection': reflection[:500], 'bookmark_action': action, **reading_receipt(material)}
-            if material.get('reading_picture'):
-                payload['reading_picture'] = material['reading_picture']
+            first = first or {}
+            payload = {
+                "material_selection": selection.receipt,
+                "owner": material.get("owner") or "历史对话",
+                "original_msg_id": str(first.get("message_id") or ""),
+                "source_mode": material.get("source_mode") or "",
+                "scene_id": str(material.get("scene_id") or ""),
+                "active_date": str(material.get("active_date") or first.get("date") or "")[:10],
+                "browse_mode": material.get("browse_mode"),
+                "collected_by": material.get("collected_by") or "",
+                "reflection": reflection[:500],
+                "bookmark_action": action,
+                **reading_receipt(material),
+            }
             if reason:
-                payload['action_reason'] = reason
+                payload["action_reason"] = reason
+            if material.get('source_mode') == 'bookshelf':
+                from .bookshelf_roam import receipt
+                payload.update(receipt(material))
             return payload
         except Exception as e:
-            logger.warning('[browse_bookmarks] fetch_one failed: %s', type(e).__name__)
+            logger.warning("[browse_bookmarks] fetch_one failed: %s", type(e).__name__)
             from .bookmark_selection import outcome
-            return {'material_selection': outcome('failed', 'material_read_failed', error_type=type(e).__name__).receipt, 'reading_received': False}
+            return {'material_selection': outcome('failed', 'material_read_failed',
+                    error_type=type(e).__name__).receipt, 'reading_received': False}
 
 class UserTrackingHandler(BaseEventHandler):
     """

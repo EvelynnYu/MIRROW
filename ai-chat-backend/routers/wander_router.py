@@ -256,55 +256,18 @@ async def get_wander_logs(limit: int = 50, pushed: Optional[bool] = None,
 
     runtime_logs = wander_manager.get_runtime_logs(
         limit=limit, pushed=pushed, hours=filter_hours, date=date
-    ) if hasattr(wander_manager, "get_runtime_logs") else None
-    if runtime_logs is not None:
-        runtime_stats = wander_manager.get_runtime_log_stats(
-            pushed=pushed,
-            hours=filter_hours,
-            date=date,
-            last_viewed_at=last_viewed_at,
-        )
-        schedule = wander_manager.get_runtime_schedule() if hasattr(wander_manager, "get_runtime_schedule") else None
-        return {"logs": runtime_logs, "stats": runtime_stats or {}, "schedule": schedule}
-
-    logs = wander_manager.get_recent_logs(count=limit, pushed=pushed, hours=filter_hours, date=date)
-
-    # 计算过滤参数用于 stats
-    stats_since = None
-    if date:
-        try:
-            stats_since = datetime.strptime(date, "%Y-%m-%d")
-        except ValueError:
-            pass
-    elif filter_hours:
-        stats_since = datetime.now() - timedelta(hours=filter_hours)
-
-    stats = wander_manager._wander_log.get_stats(
-        pushed_only=pushed, since=stats_since
-    ) if hasattr(wander_manager, '_wander_log') else {}
-
-    # 过去日期时补充 SQLite 全量统计
-    if date and stats_since and stats_since.date() < datetime.now().date():
-        try:
-            from wander_manager.wander_log_sqlite import get_stats as sqlite_stats
-            sql_stats = sqlite_stats()
-            stats = {**stats, "sqlite_total": sql_stats.get("total_entries", 0)}
-        except Exception:
-            pass
-
-    # 自上次查看以来新增数
-    new_since = 0
-    if last_viewed_at:
-        try:
-            since_dt = datetime.fromisoformat(last_viewed_at)
-            if since_dt.tzinfo is not None:
-                since_dt = since_dt.replace(tzinfo=None)
-            new_since = sum(1 for e in wander_manager._wander_log._entries if e.timestamp > since_dt)
-        except ValueError:
-            pass
-    stats["new_since_last_viewed"] = new_since
-
-    return {"logs": logs, "stats": stats}
+    )
+    runtime_stats = wander_manager.get_runtime_log_stats(
+        pushed=pushed,
+        hours=filter_hours,
+        date=date,
+        last_viewed_at=last_viewed_at,
+    )
+    return {
+        "logs": runtime_logs or [],
+        "stats": runtime_stats or {},
+        "schedule": wander_manager.get_runtime_schedule(),
+    }
 
 
 @router.get("/brain-architecture")

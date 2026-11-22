@@ -21,7 +21,6 @@ ERROR_CODES = frozenset({
     'retained_account_rendered_length',
 })
 
-_MARKERS = ('\nK当时留下的感受（AI原述）：', '\nK 当时选择留下的感受：')
 _OLD_ADMISSION = 'mainline中只有主动AI消息、没有人类伙伴参与的片段按non_event_source_refs记账；'
 _ADMISSION = (
     'mainline中只有主动assistant消息支持的AI片段按non_event_source_refs记账；'
@@ -50,10 +49,8 @@ def retained_accounts(rows):
 
 def _account_body(part):
     text = part['text']
-    for marker in _MARKERS:
-        if text.startswith(marker):
-            return text[len(marker):]
-    return text
+    from .source_sections import account_header_end
+    return text[account_header_end(text):]
 
 
 def build_messages(base_messages, rows, *, version=VERSION):

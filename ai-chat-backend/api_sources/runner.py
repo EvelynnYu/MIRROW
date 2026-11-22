@@ -21,10 +21,10 @@ def envelope_error(route: str, value: dict) -> str | None:
     if route == 'wander_plan' and value.get('action') == 'defer':
         from wander_manager.timing_policy import deferred_wait
         return None if deferred_wait(value) is not None else 'invalid_plan_envelope'
-    if route in {"wander_plan", "wander_legacy_planner"}:
+    if route == "wander_plan":
         if not isinstance(value.get("activities"), list) or not value["activities"]:
             return "invalid_plan_envelope"
-    elif route in {"wander_node_review", "wander_node_boundary"}:
+    elif route == "wander_node_review":
         if not any(key in value for key in ("continue_activity", "reflection")):
             return "invalid_review_envelope"
     elif route == "wander_settlement":

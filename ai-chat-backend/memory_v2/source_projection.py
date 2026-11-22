@@ -46,6 +46,12 @@ def long_text_card_fact(raw: Any) -> str:
     return f'[长文卡片] 人类伙伴发送了一张长文卡片《{title}》。卡片全文保存在原消息附件中。'
 
 def _card_fact(call: Mapping[str, Any], *, rich_domain_event: bool=False) -> str:
+    extra = call.get('extra_data') or {}
+    if isinstance(extra, dict) and extra.get('wander_projection_version') == 2:
+        from wander_manager.essays import shared_work_fact
+        shared = shared_work_fact(call)
+        if shared:
+            return shared
     extra = call.get('extra_data')
     if not isinstance(extra, Mapping):
         return ''
@@ -111,9 +117,17 @@ def memory_source_content(row: Mapping[str, Any]) -> str | None:
             calls = _calls(row.get('tool_calls'))
             first = calls[0] if calls else {}
             extra = first.get('extra_data') if isinstance(first, dict) else None
+            current_receipt = isinstance(extra, dict) and (extra.get('wander_projection_version') == 2
+                or isinstance(extra.get('emotion_effect'), dict) or extra.get('interrupted_review_version') == 1)
+            if current_receipt:
+                from context_builder.wander_event_projection import RETENTION_WEAK, retention_tier
+                if retention_tier(calls) == RETENTION_WEAK:
+                    return format_wander_activity_event(content, calls, level='action',
+                        include_interrupted_review=extra.get('interrupted_review_version') == 1)
             if isinstance(extra, dict) and isinstance(extra.get('memory_experience'), dict):
-                from .experience_contract import project
-                return project(extra['memory_experience'])
+                from .experience_contract import project, project_legacy_public
+                render = project if current_receipt else project_legacy_public
+                return render(extra['memory_experience'])
             level = 'experience' if isinstance(extra, dict) and 'retained_experience' in extra else 'detail'
             return format_wander_activity_event(content, calls, level=level)
         if event_type == 'tool_event' and any((call.get('tool') == 'xiaohongshu_interactions' for call in _calls(row.get('tool_calls')))):

@@ -8,22 +8,10 @@
 #                           ↓
 # ┌─────────────────────────────────────────────────────────┐
 # │                    漫想创建层                            │
-# │     按概率随机创建行为事件（关键词扩写/记忆抓取/看新闻等） │
+# │     由持久化运行时规划、执行并结算活动                  │
 # └─────────────────────────────────────────────────────────┘
 #                           ↓
 # ┌─────────────────────────────────────────────────────────┐
-# │                    漫想日志层                            │
-# │     记录每次事件类型、时间、过程                          │
-# └─────────────────────────────────────────────────────────┘
-#                           ↓
-# ┌─────────────────────────────────────────────────────────┐
-# │                    主动打扰判断层                        │
-# │     LLM评分 + 公式计算 + 推送决策                        │
-# └─────────────────────────────────────────────────────────┘
-#                           ↓
-# ┌─────────────────────────────────────────────────────────┐
-# │                    消息生成器                            │
-# │     生成主动消息内容                                      │
 # └─────────────────────────────────────────────────────────┘
 
 # 共享类型定义（避免循环导入）
@@ -32,8 +20,6 @@ from .event_types import EventType, WanderEvent
 # 各层模块
 from .mode_switch import ModeSwitch, WanderMode, get_mode_switch, init_mode_switch
 from .wander_creator import WanderCreator, get_wander_creator, init_wander_creator
-from .wander_log import WanderLog, WanderLogEntry, get_wander_log, init_wander_log
-from .disturb_judgment import DisturbJudgment, JudgmentResult, get_disturb_judgment, init_disturb_judgment
 from .event_handlers import (
     BaseEventHandler,
     SleepHandler,
@@ -46,7 +32,6 @@ from .event_handlers import (
     EventHandlerFactory
 )
 from .xiaohongshu_adb import AdbXiaohongshuSource, BatterySnapshot
-from .message_generator import ProactiveMessageGenerator, get_message_generator, init_message_generator
 from .user_tracking_service import (
     UserTrackingService,
     UserActivityType,
@@ -94,16 +79,6 @@ __all__ = [
     "WanderCreator",
     "get_wander_creator",
     "init_wander_creator",
-    # 漫想日志层
-    "WanderLog",
-    "WanderLogEntry",
-    "get_wander_log",
-    "init_wander_log",
-    # 主动打扰判断层
-    "DisturbJudgment",
-    "JudgmentResult",
-    "get_disturb_judgment",
-    "init_disturb_judgment",
     # 事件处理器
     "BaseEventHandler",
     "SleepHandler",
@@ -117,10 +92,6 @@ __all__ = [
     # 小红书专用真机来源（只读 ADB）
     "AdbXiaohongshuSource",
     "BatterySnapshot",
-    # 消息生成器
-    "ProactiveMessageGenerator",
-    "get_message_generator",
-    "init_message_generator",
     # 用户追踪服务
     "UserTrackingService",
     "UserActivityType",

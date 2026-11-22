@@ -475,7 +475,20 @@ class WanderRuntimeStore:
         elif wake is not None:
             runtime_state = "scheduled"
 
+        current = None
+        if runtime_state == "active":
+            with self._connection() as conn:
+                current = conn.execute(
+                    """SELECT activity_type,state,next_node_at,timer_ends_at
+                       FROM wander_activities WHERE run_id=? AND state IN
+                       ('active_wait','node_running','node_review','settling')
+                       ORDER BY order_index LIMIT 1""", (run["run_id"],)
+                ).fetchone()
         return {
+            "current_event_type": current["activity_type"] if current else None,
+            "current_activity_state": current["state"] if current else "",
+            "next_node_at": current["next_node_at"] if current else None,
+            "timer_ends_at": current["timer_ends_at"] if current else None,
             "runtime_state": runtime_state,
             "active_run_id": str(run.get("run_id") or "") if run else "",
             "active_run_state": active_state,
@@ -907,6 +920,42 @@ class WanderRuntimeStore:
             ).fetchall()
         return [self._decode_activity(row) for row in rows]
 
+    def list_today_activities(self, session_id: str, active_date: str) -> list[dict[str, Any]]:
+        """Every terminal activity attributed to the same durable active day.
+
+        Read-only factual timeline for planning.  Unlike the completed-count
+        query this keeps interrupted/aborted receipts, because a visit that
+        really happened and was cut short still happened.
+        """
+        with self._connection() as conn:
+            rows = conn.execute(
+                """SELECT a.* FROM wander_activities a
+                   JOIN wander_runs r ON r.run_id=a.run_id
+                   JOIN wander_event_projections p ON p.activity_id=a.activity_id
+                   WHERE r.session_id=? AND p.active_date=?
+                     AND a.state IN ('completed','interrupted','aborted')
+                   ORDER BY a.created_at""",
+                (session_id, active_date),
+            ).fetchall()
+        return [self._decode_activity(row) for row in rows]
+
+    def completed_last_seen_by_type(self) -> dict[str, str]:
+        """Latest completed receipt per activity type.
+
+        Read-only factual context for the planning/review option list; it does
+        not score, hide or reorder any ability.
+        """
+        with self._connection() as conn:
+            rows = conn.execute(
+                """SELECT activity_type,
+                          MAX(COALESCE(ended_at, updated_at, created_at)) AS last_at
+                   FROM wander_activities
+                   WHERE state='completed'
+                   GROUP BY activity_type""",
+            ).fetchall()
+        return {str(row["activity_type"]): str(row["last_at"])
+                for row in rows if row["last_at"]}
+
     def list_nodes(self, activity_id: str) -> list[dict[str, Any]]:
         with self._connection() as conn:
             rows = conn.execute("SELECT * FROM wander_nodes WHERE activity_id=? ORDER BY round_index", (activity_id,)).fetchall()
@@ -1114,6 +1163,16 @@ class WanderRuntimeStore:
             result[key] = _load_json(result[key])
         return result
 
+    def list_purpose_reviews(self, activity_id: str) -> list[dict[str, Any]]:
+        """Public normalized reviews only, without provider inputs or reasoning."""
+        with self._connection() as conn:
+            rows = conn.execute("""SELECT d.decision_id,d.node_id,d.phase,d.created_at,d.parsed_output
+                FROM wander_decisions d LEFT JOIN wander_nodes n ON n.node_id=d.node_id
+                WHERE d.activity_id=? AND d.status='ok'
+                  AND ((d.phase='node_review' AND n.state='completed') OR d.phase='timing_review')
+                ORDER BY d.created_at DESC,d.rowid DESC""", (activity_id,)).fetchall()
+        return [{**dict(row), 'parsed_output': _load_json(row['parsed_output'])} for row in rows]
+
     def get_settlement_impression(self, activity_id: str) -> dict[str, Any]:
         """Read AI's selected experience from the existing settlement audit."""
         with self._connection() as conn:
@@ -1126,10 +1185,14 @@ class WanderRuntimeStore:
         normalized = (_load_json(row["parsed_output"]).get("normalized") or {}) if row else {}
         if normalized.get('unexecuted') is True:
             normalized = {'retained_impression': '', 'retained_node_ids': []}
+        from .activity_purpose import normalize_outcome
+        purpose = normalize_outcome(normalized.get('purpose_outcome'))
         return {
             "impression": str(normalized.get("retained_impression") or "").strip(),
             "source_node_ids": list(normalized.get("retained_node_ids") or []),
             "recorded": "retained_impression" in normalized,
+            **({'closeout_version': 1} if normalized.get('closeout_version') == 1 else {}),
+            **({'purpose_outcome': purpose} if purpose is not None else {}),
         }
 
     def prepare_activity_event(self, activity_id: str, active_date: str) -> None:

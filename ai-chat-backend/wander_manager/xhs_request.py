@@ -135,3 +135,24 @@ def material_for_k(payload):
         result['image_observations'] = [{key: item[key] for key in ('page', 'observation', 'omitted_chars') if key in item}
                                         for item in result['image_observations'] if isinstance(item, dict)]
     return result
+
+
+TASK_ERRORS = {
+    'target_required': '这次想看的账号或帖子还缺少可定位的线索；需要具体账号名或已有浏览任务编号。',
+    'unsupported_xhs_operation': '这项目标不属于浏览入口支持的操作；评论与艾特使用互动入口，发布使用创作入口。',
+    'invalid_xhs_task': '浏览动作参数没有解析完整，本次尚未操作手机。',
+    'invalid_profile_target': '主页目标没有解析清楚，本次尚未操作手机。',
+    'task_id_required': '续读缺少原浏览任务编号，本次尚未操作手机。',
+    'all_requires_profile': '读取全部需要明确主页目标，本次尚未操作手机。',
+    'long_count_requires_profile': '跨批读取需要明确主页目标，本次尚未操作手机。',
+    'instruction_required': '本次缺少浏览目标，尚未操作手机。',
+    'xhs_compile_failed': '浏览动作解析没有取得有效结果，本次尚未操作手机。',
+    'xhs_context_unavailable': '本次没有取得同一会话的目标上下文，尚未操作手机。',
+    'aning_account_not_configured': '人类伙伴的小红书账号还没有配置，本次尚未操作手机。',
+}
+
+OPEN_ERRORS = {
+    'no_readable_image_posts': '这次遇到的视频帖已跳过，有限查找内没有找到可读取的图文，未计入已读。',
+    'video_return_failed': '跳过视频时未能返回原列表，本次浏览停下了。',
+    'feed_return_unconfirmed': '跳过视频后尚未确认回到原列表，本次浏览停下了。',
+}

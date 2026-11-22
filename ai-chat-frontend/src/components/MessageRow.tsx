@@ -32,7 +32,8 @@ import MemoryRecallInspector from './MemoryRecallInspector';
 import MusicLibraryEventCard from './MusicLibraryEventCard';
 import XhsPostCard from './XhsPostCard';
 
-import CheckupExperienceDetails from './CheckupExperienceDetails';
+import WanderReceiptDetails from './WanderReceiptDetails';
+import { bookshelfActivityTitle } from '../lib/wanderReceipt';
 import { hiddenBandReceipt, receiptOnlyRow } from '../lib/chatReceipts';
 import { parsePersistedImageMessage } from '../lib/imageMessage';
 import '../pages/LoungePage.css';
@@ -391,7 +392,7 @@ function ToolCallsDisplay({ toolCalls, onOpenImage, activityEvent = false }: { t
             >
               <span className="tool-call-expand">{expandedIdx === idx ? '▼' : '▶'}</span>
               <span className="tool-call-icon">{getToolIcon(tc.tool)}</span>
-              <span className="tool-call-desc">{getToolDescription(tc)}</span>
+              <span className="tool-call-desc">{bookshelfActivityTitle(tc) || getToolDescription(tc)}</span>
               {(tc.result || tc.error) && (
                 <span className={`tool-call-result tool-call-result-${tc.status || 'success'}`} title={tc.error || tc.status}>
                   {tc.status === 'failure' || tc.status === 'rejected'
@@ -404,10 +405,9 @@ function ToolCallsDisplay({ toolCalls, onOpenImage, activityEvent = false }: { t
                 </span>
               )}
             </div>
-            {expandedIdx === idx && tc.tool !== 'eyes' && tc.result && (
-              Array.isArray(tc.extra_data?.memory_experience?.materials)
-                && tc.extra_data.memory_experience.materials.some((item: { kind?: string }) => item.kind === 'checkup')
-                ? <CheckupExperienceDetails toolCall={tc} /> :
+            {expandedIdx === idx && tc.tool !== 'eyes' && (tc.result || tc.extra_data?.memory_experience) && (
+              tc.extra_data?.memory_experience
+                ? <WanderReceiptDetails toolCall={tc} /> :
               <div className="tool-call-result-content">
                 <pre style={{
                   whiteSpace: 'pre-wrap',

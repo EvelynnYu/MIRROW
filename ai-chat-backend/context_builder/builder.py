@@ -701,7 +701,7 @@ class ContextBuilder:
                                     _va = _jv.loads(_va_raw) if isinstance(_va_raw, str) else _va_raw
                                 except Exception:
                                     _va = None
-                            m.metadata = {'role': r.get('role', 'user'), 'session_id': r.get('session_id') or _sid, 'timestamp': r.get('timestamp', ''), 'message_id': r.get('message_id', ''), 'is_wander': r.get('is_wander'), 'is_sentinel': r.get('is_sentinel'), 'is_reminder': r.get('is_reminder'), 'event_type': r.get('event_type'), 'notification_projection': r.get('notification_projection'), 'provider_internal': r.get('_provider_internal'), 'tool_summary': r.get('tool_summary'), 'tool_calls': r.get('tool_calls'), 'voice_attachment': _va}
+                            m.metadata = {'role': r.get('role', 'user'), 'session_id': r.get('session_id') or _sid, 'timestamp': r.get('timestamp', ''), 'message_id': r.get('message_id', ''), 'is_wander': r.get('is_wander'), 'is_sentinel': r.get('is_sentinel'), 'is_reminder': r.get('is_reminder'), 'event_type': r.get('event_type'), 'notification_projection': r.get('notification_projection'), 'wander_identity': r.get('_wander_identity'), 'provider_internal': r.get('_provider_internal'), 'tool_summary': r.get('tool_summary'), 'tool_calls': r.get('tool_calls'), 'voice_attachment': _va}
                             mems.append(m)
                     try:
                         _today = _dt.now().strftime('%Y-%m-%d')
@@ -736,71 +736,8 @@ class ContextBuilder:
             if self._kwargs.get('exclude_wander_history') and current_activity_id:
                 excluded_activities.add(current_activity_id)
             excluded_event_ids = {f'activity_event_{activity_id}' for activity_id in excluded_activities}
-            mems = [m for m in mems if getattr(m, 'metadata', {}).get('message_id') not in excluded_event_ids]
-            from .workshop_material_projection import reproject_selected_messages
-            mems = reproject_selected_messages(mems)
-            from api_sources.model_context import labels_for_ids
-            generation_models = labels_for_ids((getattr(m, 'metadata', {}).get('message_id') or getattr(m, 'id', '') for m in mems))
-            for m in mems:
-                meta = getattr(m, 'metadata', {}) if hasattr(m, 'metadata') else {}
-                role = meta.get('role', 'user')
-                if meta.get('message_id') in excluded_event_ids:
-                    continue
-                if is_ui_only_role(role):
-                    continue
-                ts = meta.get('timestamp', '')
-                if meta.get('provider_internal'):
-                    from .text_utils import strip_legacy_speaker_prefix
-                    result.append({'role': 'assistant', 'name': 'mirrow_inner_record', 'content': strip_legacy_speaker_prefix(str(getattr(m, 'content', '') or ''), role), '_ts': ts, '_section': 'wander_activity_event' if meta.get('event_type') == 'wander_activity' else 'tool_history_fact', '_message_id': meta.get('message_id') or getattr(m, 'id', '')})
-                    continue
-                from context_builder.text_utils import strip_legacy_speaker_prefix
-                if meta.get('event_type') == 'wander_activity' and role == 'system':
-                    from context_builder.wander_event_projection import format_wander_activity_event
-                    content = str(getattr(m, 'content', '') or '')
-                    fact_text = content if meta.get('notification_projection') else format_wander_activity_event(content, meta.get('tool_calls'), str(meta.get('message_id') or getattr(m, 'id', '') or ''), level='daily' if self._recipe_key == 'FULL_CHAT' else 'experience', timestamp=str(ts or ''))
-                    from .provider_presentation import internal_event_message
-                    fact = internal_event_message({'timestamp': ts, 'event_type': 'wander_activity'}, fact_text)
-                    result.append({**fact, '_ts': ts, '_section': 'wander_activity_event'})
-                    continue
-                content = str(getattr(m, 'content', '')) if hasattr(m, 'content') else str(m)
-                from context_builder.text_utils import strip_legacy_speaker_prefix
-                content = strip_legacy_speaker_prefix(content, role)
-                if role == 'assistant':
-                    import re as _re
-                    content = _re.sub('^\\s*[Kk]\\s*[：:]\\s*', '', content, count=1)
-                    content = strip_internal_history_markers(content)
-                    from tool_action_protocol import strip_tool_protocol_text
-                    content = strip_tool_protocol_text(content)
-                time_label = format_relative_time(ts)
-                is_wander = meta.get('is_wander')
-                is_sentinel = meta.get('is_sentinel')
-                is_reminder = meta.get('is_reminder')
-                if is_sentinel:
-                    label = f'[🛡️ {time_label}] ' if time_label else '[🛡️] '
-                elif is_reminder:
-                    label = f'[⏰ {time_label}] ' if time_label else '[⏰] '
-                elif is_wander:
-                    label = f'[💭 {time_label}] ' if time_label else '[💭] '
-                elif role == 'user':
-                    label = f'[{time_label}] ' if time_label else ''
-                    _va = meta.get('voice_attachment')
-                    if _va and isinstance(_va, dict):
-                        _tone = _va.get('tone')
-                        label += f'（语音·{_tone}）' if _tone else '（语音）'
-                elif role == 'assistant':
-                    label = ''
-                elif time_label:
-                    label = f'[{time_label}] '
-                else:
-                    label = ''
-                generation_model = generation_models.get(str(meta.get('message_id') or getattr(m, 'id', '')))
-                model_header = f'【生成模型：{generation_model}】\n' if role == 'assistant' and generation_model else ''
-                result.append({'role': role, 'content': f'{model_header}{label}{content}', '_ts': ts, '_section': 'conversation_messages', '_is_wander': bool(is_wander), '_message_id': meta.get('message_id') or getattr(m, 'id', ''), '_spoken_content': content})
-                fact = build_tool_history_fact(role, meta.get('tool_summary'), meta.get('tool_calls'), meta.get('event_type', ''))
-                if fact:
-                    fact_role = 'assistant' if role == 'assistant' else 'system'
-                    result.append({'role': fact_role, 'content': '[内在活动记录·工具事实]\n' + fact, '_ts': ts, '_section': 'tool_history_fact', **({'name': 'mirrow_inner_record'} if fact_role == 'assistant' else {})})
-            return result
+            from .conversation_history import render_history
+            return render_history(mems, self._recipe_key, excluded_event_ids)
         if name == 'status_changes':
             raw = self._kwargs.get('raw_status_history', [])
             if raw:
@@ -1032,6 +969,8 @@ class ContextBuilder:
         if self._extra_messages:
             from .status_history import history_sort_key
             self._extra_messages.sort(key=history_sort_key)
+            from .wander_narration import narrate
+            self._extra_messages = narrate(self._extra_messages)
         if result.system_content:
             result.formatted_messages.append({'role': 'system', 'content': result.system_content})
         result.formatted_messages.extend(self._extra_messages)

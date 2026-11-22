@@ -35,7 +35,7 @@ def create_lightweight_caller(api_key: str):
     """
     创建轻量级 LLM 调用函数，签名与 call_llm_for_wander 一致。
 
-    用于分类/提取类任务（DisturbJudgment 等），
+    用于分类／提取类任务，
     使用 DeepSeek Flash，快速且可靠。
     """
     from openai import AsyncOpenAI
