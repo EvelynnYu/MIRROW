@@ -25,6 +25,10 @@ class WanderStatusResponse(BaseModel):
     idle_seconds: float = 0.0
     idle_threshold: float = 0.0
     current_event_type: Optional[str] = None
+    shelf_sources: tuple[str, ...] = ()
+    current_activity_state: str = ""
+    next_node_at: Optional[str] = None
+    timer_ends_at: Optional[str] = None
     creator_running: bool = False
     runtime_state: str = "idle"
     active_run_id: str = ""
@@ -73,6 +77,17 @@ class GameInvitationRequest(BaseModel):
 # 路由
 # ═══════════════════════════════════════════════════════════
 
+@router.get("/presence")
+async def get_wander_presence():
+    from chat_turn_guard import get_chat_turn_guard
+    from session_manager import get_global_session_manager
+    from shared_state import get_wander_manager
+    manager = get_wander_manager()
+    primary = await get_global_session_manager().get_primary_session_id()
+    return {"wander": manager.get_presence() if manager else None,
+            "primary_reply_running": get_chat_turn_guard().is_running(primary) if primary else None}
+
+
 @router.get("/status", response_model=WanderStatusResponse)
 async def get_wander_status():
     """获取漫想模式状态"""
@@ -95,6 +110,10 @@ async def get_wander_status():
         idle_threshold=status.get("idle_threshold", 0),
         is_wander_mode_active=status.get("is_wander_mode_active", False),
         current_event_type=status.get("current_event_type"),
+        shelf_sources=status.get("shelf_sources") or (),
+        current_activity_state=status.get("current_activity_state", ""),
+        next_node_at=status.get("next_node_at"),
+        timer_ends_at=status.get("timer_ends_at"),
         creator_running=status.get("creator_running", False),
         runtime_state=status.get("runtime_state", "idle"),
         active_run_id=status.get("active_run_id", ""),

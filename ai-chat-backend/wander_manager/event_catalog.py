@@ -35,6 +35,7 @@ EVENT_CATALOG: dict[EventType, EventStrategy] = {
     EventType.BROWSE_NEWS: EventStrategy(EventType.BROWSE_NEWS, "看新闻", (GoalMode.COUNT,), GoalMode.COUNT, 3, 1, 10, "篇新闻", experience="选择关注方向，通过真实网络搜索取得新闻内容并形成感想；来源与时效随取得材料保留。"),
     EventType.BROWSE_XIAOHONGSHU: EventStrategy(EventType.BROWSE_XIAOHONGSHU, "刷小红书", (GoalMode.COUNT, GoalMode.OPEN_ENDED), GoalMode.COUNT, 3, 1, 5, "篇帖子", experience="通过专用手机浏览推荐、搜索或接续主页任务，阅读真实帖子与图集；设备和平台障碍按实际回执记录。"),
     EventType.PUBLISH_XIAOHONGSHU: EventStrategy(EventType.PUBLISH_XIAOHONGSHU, "写小红书笔记", (GoalMode.SINGLE,), GoalMode.SINGLE, 1, 1, 1, "次创作", experience="按需查书柜资料、创作原生文字配图与正文，预览或真实公开发布；发出状态取平台核验回执。"),
+    EventType.XHS_DIRECT_MESSAGES: EventStrategy(EventType.XHS_DIRECT_MESSAGES, "查看小红书私信", (GoalMode.SINGLE,), GoalMode.SINGLE, 1, 1, 1, "次私信查看", experience="查看已配置账号收到的新私信，阅读后决定回复或离开；未配置、无授权或无新来信均按真实回执结束。"),
     EventType.CHECK_XIAOHONGSHU_INTERACTIONS: EventStrategy(EventType.CHECK_XIAOHONGSHU_INTERACTIONS, "查看小红书评论与艾特", (GoalMode.SINGLE,), GoalMode.SINGLE, 1, 1, 1, "次互动查看", experience="实际读取绑定账号收到的评论与艾特原帖，由AI决定回复或离开；未知提交沿原回复任务核验。"),
     # The outer event/tool mount is a single visual affordance.  The bounded
     # visit decision remains in the feed evidence, not in this display label.

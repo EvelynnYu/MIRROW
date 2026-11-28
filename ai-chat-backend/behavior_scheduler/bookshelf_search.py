@@ -54,11 +54,12 @@ _SOURCE_LABELS = {
     "open_loops": "已结束开放线索",
     "experiences": "相关经历",
     "wander": "漫想经历",
+    "essays": "随笔",
     "federated_room": "跨家群聊原话",
 }
 
 
-def sanitize_archive_text(value: Any, *, limit: int = 2600) -> str:
+def sanitize_archive_text(value: Any, *, limit: Optional[int] = 2600) -> str:
     """Return bounded quoted evidence that cannot masquerade as live protocol."""
     text = str(value or "")
     try:
@@ -87,18 +88,23 @@ def _normalized(value: Any) -> str:
     return text
 
 
-def focused_archive_excerpt(text: str, terms: Iterable[str], *, limit: int = 1200) -> str:
-    """Center a bounded result on the first real match instead of window start."""
-    clean = sanitize_archive_text(text, limit=max(limit * 4, limit))
+def _excerpt_span(clean: str, terms: Iterable[str], limit: int, *, focus: Optional[int] = None) -> tuple[int, int]:
     if len(clean) <= limit:
-        return clean
+        return 0, len(clean)
     folded = clean.casefold()
     positions = [folded.find(str(term).casefold()) for term in terms if str(term).strip()]
     positions = [position for position in positions if position >= 0]
-    center = min(positions) if positions else 0
+    center = focus if focus is not None else min(positions) if positions else 0
     start = max(0, center - limit // 3)
     end = min(len(clean), start + limit)
     start = max(0, end - limit)
+    return start, end
+
+
+def focused_archive_excerpt(text: str, terms: Iterable[str], *, limit: int = 1200, focus: Optional[int] = None) -> str:
+    """Center a bounded result on the first real match instead of window start."""
+    clean = sanitize_archive_text(text, limit=max(limit * 4, limit))
+    start, end = _excerpt_span(clean, terms, limit, focus=focus)
     excerpt = clean[start:end]
     if start:
         excerpt = "…" + excerpt
@@ -157,9 +163,16 @@ class SearchHit:
     matched_terms: list[str]
     semantic_score: Optional[float]
     fuzzy_score: float
+    semantic_focus: Optional[int] = None
 
     def as_dict(self) -> dict[str, Any]:
         doc = self.document
+        metadata = {key: value for key, value in doc.metadata.items() if key != 'message_spans'}
+        if doc.source == 'conversation':
+            start, end = _excerpt_span(doc.text, self.matched_terms, 1200, focus=self.semantic_focus)
+            metadata['selected_source_message_ids'] = list(dict.fromkeys(
+                mid for mid, left, right in doc.metadata.get('message_spans', [])
+                if mid and left < end and right > start))
         return {
             "record_id": doc.id,
             "source": doc.source,
@@ -167,7 +180,7 @@ class SearchHit:
             "date": doc.date,
             "session_id": doc.session_id,
             "role": doc.role,
-            "content": focused_archive_excerpt(doc.text, self.matched_terms),
+            "content": focused_archive_excerpt(doc.text, self.matched_terms, focus=self.semantic_focus),
             "match_score": round(self.score, 1),
             "match_tier": self.tier,
             "matched_terms": self.matched_terms,
@@ -175,65 +188,95 @@ class SearchHit:
                 round(self.semantic_score, 3) if self.semantic_score is not None else None
             ),
             "fuzzy_score": round(self.fuzzy_score, 1),
-            **doc.metadata,
+            **metadata,
         }
 
 
-def _rows_to_conversation_documents(rows: Iterable[sqlite3.Row]) -> list[SearchDocument]:
+def _rows_to_conversation_documents(rows: Iterable[sqlite3.Row], *, exclude_text: str = '') -> list[SearchDocument]:
     from context_builder.event_history_adapter import adapt_history_for_context
 
     groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    excluded = _normalized(sanitize_archive_text(exclude_text, limit=None))
     for item in adapt_history_for_context([dict(row) for row in rows]):
-        content = sanitize_archive_text(item.get("content"), limit=900)
-        if not content:
+        # Sanitize the whole message before splitting, so protocol/secret
+        # boundaries cannot be broken into apparently harmless fragments.
+        content = sanitize_archive_text(item.get("content"), limit=None)
+        if not content or (excluded and excluded in _normalized(content)):
             continue
         key = (str(item.get("active_date") or ""), str(item.get("session_id") or ""))
-        item["content"] = content
-        groups.setdefault(key, []).append(item)
+        # Overlap preserves words and short phrases crossing a chunk boundary.
+        # Every part retains the actual SQL message ID for attachment lookup.
+        parts, left = [], 0
+        while left < len(content):
+            right = min(len(content), left + 900)
+            parts.append((left, content[left:right]))
+            if right == len(content):
+                break
+            left = right - 128
+        for index, (offset, part) in enumerate(parts):
+            groups.setdefault(key, []).append({**item, 'content': part,
+                '_part_offset': offset, '_part_index': index + 1, '_part_count': len(parts)})
 
     documents: list[SearchDocument] = []
-    labels = {"user": "人类伙伴", "assistant": "AI", "system": "系统事实"}
+    labels = {"user": "你", "assistant": "AI", "system": "系统事实"}
     # Two-message overlap catches facts split at a boundary without turning
     # the whole archive into thousands of near-duplicate result windows.
-    window_size, stride = 10, 8
+    window_size, max_chars = 10, 2600
     for (active_date, session_id), messages in groups.items():
-        for start in range(0, len(messages), stride):
-            window = messages[start:start + window_size]
-            if not window:
-                continue
+        start = 0
+        while start < len(messages):
+            # Pack complete messages before advancing. Truncating a fixed ten-
+            # message window used to silently lose its tail before the next stride.
+            window, lines, size = [], [], 0
+            for msg in messages[start:start + window_size]:
+                part_label = f"（同条消息·第{msg['_part_index']}/{msg['_part_count']}段）" if msg['_part_count'] > 1 else ''
+                line = f"[{labels.get(str(msg.get('role') or ''), 'AI')}{part_label}] {msg['content']}"
+                line = sanitize_archive_text(line, limit=None)
+                added = len(line) + bool(lines)
+                if lines and size + added > max_chars:
+                    break
+                window.append(msg)
+                lines.append(line)
+                size += added
             first, last = window[0], window[-1]
             first_id = str(first.get("message_id") or first.get("id") or start)
             last_id = str(last.get("message_id") or last.get("id") or start + len(window) - 1)
-            lines = [
-                f"[{labels.get(str(msg.get('role') or ''), 'AI')}] {msg['content']}"
-                for msg in window
-            ]
+            part_id = (f":parts:{first['_part_offset']}:{last['_part_offset']}"
+                       if any(msg['_part_count'] > 1 for msg in window) else '')
+            spans, offset = [], 0
+            for msg, line in zip(window, lines):
+                spans.append((str(msg.get('message_id') or ''), offset, offset + len(line)))
+                offset += len(line) + 1
             documents.append(SearchDocument(
-                id=f"conversation:{session_id}:{first_id}:{last_id}",
+                id=f"conversation:{session_id}:{first_id}:{last_id}{part_id}",
                 source="conversation",
                 text=sanitize_archive_text("\n".join(lines)),
                 date=active_date or str(first.get("timestamp") or "")[:10],
                 session_id=session_id,
                 role="conversation_window",
-                metadata={"first_message_id": first_id, "last_message_id": last_id},
+                metadata={"first_message_id": first_id, "last_message_id": last_id,
+                          "message_spans": spans},
             ))
-            if start + window_size >= len(messages):
+            if start + len(window) >= len(messages):
                 break
+            start += max(1, len(window) - 2)
     return documents
 
 
 class BookshelfSearchService:
     """Search archive originals with lexical, fuzzy and cached semantic signals."""
 
-    def __init__(self, db_path: str, *, cache_path: Optional[str] = None, embedder: Any = None):
+    def __init__(self, db_path: str, *, cache_path: Optional[str] = None, embedder: Any = None,
+                 query_instruction: str = ''):
         self.db_path = str(db_path)
         default_cache = str(Path(self.db_path).with_name("bookshelf_search_vectors.npz"))
         self.cache_path = cache_path or default_cache
         self._embedder = embedder
+        self.query_instruction = query_instruction
         self._index_lock = threading.Lock()
         self._async_lock = asyncio.Lock()
 
-    def _load_documents(self, sources: set[str]) -> list[SearchDocument]:
+    def _load_documents(self, sources: set[str], *, exclude_text: str = '') -> list[SearchDocument]:
         if not os.path.isfile(self.db_path):
             return []
         conn = sqlite3.connect(self.db_path, timeout=10)
@@ -249,7 +292,7 @@ class BookshelfSearchService:
                     f"{event_col}, {calls_col} FROM conversation_messages "
                     "ORDER BY active_date, session_id, timestamp, id"
                 ).fetchall()
-                docs.extend(_rows_to_conversation_documents(rows))
+                docs.extend(_rows_to_conversation_documents(rows, exclude_text=exclude_text))
             if "bookmarks" in sources:
                 rows = conn.execute(
                     "SELECT id, original_msg_id, session_id, original_timestamp, collected_by, "
@@ -315,10 +358,12 @@ class BookshelfSearchService:
             cached_by_id: dict[str, tuple[str, Any]] = {}
             if os.path.isfile(self.cache_path):
                 try:
-                    data = np.load(self.cache_path, allow_pickle=False)
-                    ids = data["ids"].tolist()
-                    hashes = data["hashes"].tolist()
-                    vectors = data["vectors"]
+                    # Materialize arrays then release the NPZ handle before
+                    # replacing this file; Windows rejects replacing an open ZIP.
+                    with np.load(self.cache_path, allow_pickle=False) as data:
+                        ids = data["ids"].tolist()
+                        hashes = data["hashes"].tolist()
+                        vectors = data["vectors"]
                     if len(ids) == len(hashes) == len(vectors):
                         cached = {(str(i), str(h)): vectors[n] for n, (i, h) in enumerate(zip(ids, hashes))}
                         cached_by_id = {
@@ -382,6 +427,34 @@ class BookshelfSearchService:
 
             return SequenceMatcher(None, query, text[: max(len(query) * 5, 200)]).ratio() * 100
 
+    def _semantic_scores(self, documents: list[SearchDocument], query: str):
+        """Score every tokenizer-sized passage; retain the winning location."""
+        import numpy as np
+        from memory_v2.semantic_text import FullTextEmbedder
+
+        embedder = self._get_embedder()
+        # The production embedder exposes its tokenizer; small injected test
+        # embedders without a token limit can consume whole documents directly.
+        splitter = FullTextEmbedder(embedder, '') if hasattr(embedder, '_ensure_model_loaded') else None
+        passages, locations = [], []
+        for index, doc in enumerate(documents):
+            offset = 0
+            for part_index, text in enumerate(splitter.windows(doc.text) if splitter else (doc.text,)):
+                passages.append(SearchDocument(id=f'{doc.id}:semantic:{part_index}', source=doc.source, text=text))
+                locations.append((index, offset))
+                offset += len(text)
+        matrix = self._document_vectors(passages)
+        query_parts = splitter.windows(query, prefix=self.query_instruction) if splitter else (query,)
+        query_vectors = np.asarray(embedder.embed_texts([self.query_instruction + part for part in query_parts],
+                                                         batch_size=32), dtype=np.float32)
+        query_vectors /= np.maximum(np.linalg.norm(query_vectors, axis=1, keepdims=True), 1e-8)
+        scores = matrix.dot(query_vectors.T).max(axis=1)
+        best, focus = [None] * len(documents), [None] * len(documents)
+        for (index, offset), score in zip(locations, scores):
+            if best[index] is None or score > best[index]:
+                best[index], focus[index] = float(score), offset
+        return best, focus
+
     async def search(
         self,
         query: str,
@@ -391,14 +464,18 @@ class BookshelfSearchService:
         min_score: float = 55.0,
         extra_documents: Optional[list[SearchDocument]] = None,
         exclude_text: str = "",
+        date: str = "",
     ) -> dict[str, Any]:
         query = sanitize_archive_text(query, limit=300)
         selected_sources = (
             {"conversation", "bookmarks", "events", "diary"}
             if sources is None else set(sources)
         )
-        documents = await asyncio.to_thread(self._load_documents, selected_sources)
+        documents = (await asyncio.to_thread(self._load_documents, selected_sources, exclude_text=exclude_text)
+                     if selected_sources else [])
         documents.extend(extra_documents or [])
+        if date:
+            documents = [doc for doc in documents if doc.date == date]
         # The current user message is persisted before tools run. Without this
         # exclusion, a search can rank its own request as an exact historical
         # match ("find Hush" -> the just-written "find Hush" line).
@@ -415,17 +492,11 @@ class BookshelfSearchService:
         terms = _query_terms(query)
         latin_terms = [term for term in terms if _LATIN_RE.fullmatch(term)]
         semantic_scores: list[Optional[float]] = [None] * len(documents)
+        semantic_focus: list[Optional[int]] = [None] * len(documents)
         semantic_available = False
         async with self._async_lock:
             try:
-                import numpy as np
-
-                matrix = await asyncio.to_thread(self._document_vectors, documents)
-                embedder = self._get_embedder()
-                query_vector = await asyncio.to_thread(embedder.embed_text, query)
-                query_vector = np.asarray(query_vector, dtype=np.float32)
-                query_vector /= max(float(np.linalg.norm(query_vector)), 1e-8)
-                semantic_scores = [float(value) for value in matrix.dot(query_vector)]
+                semantic_scores, semantic_focus = await asyncio.to_thread(self._semantic_scores, documents, query)
                 semantic_available = True
             except Exception as exc:
                 logger.info("bookshelf semantic search unavailable: %s", type(exc).__name__)
@@ -465,7 +536,8 @@ class BookshelfSearchService:
             if not matched and fuzzy_score < 35 and (semantic is None or semantic < 0.35):
                 continue
             tier = "high" if combined >= 75 else ("possible" if combined >= min_score else "weak")
-            scored.append(SearchHit(doc, combined, tier, matched, semantic, fuzzy_score))
+            scored.append(SearchHit(doc, combined, tier, matched, semantic, fuzzy_score,
+                                    semantic_focus[index] if not matched else None))
 
         first_intent = any(word in query for word in ("第一次", "最早", "初次", "头一回"))
         if first_intent:
@@ -476,13 +548,14 @@ class BookshelfSearchService:
                 -hit.score,
             ))
         else:
-            scored.sort(key=lambda hit: (-hit.score, hit.document.date or "9999-99-99"))
+            scored.sort(key=lambda hit: (-hit.score, -(hit.semantic_score or 0) if hit.document.source == 'essays' else 0,
+                                         hit.document.date or "9999-99-99"))
 
         deduped: list[SearchHit] = []
         seen: set[tuple[str, str, str]] = set()
         for hit in scored:
             key = ((hit.document.source, hit.document.id, "")
-                   if hit.document.source == "federated_room" else
+                   if hit.document.source in {"federated_room", "essays"} else
                    (hit.document.source, hit.document.date, hit.document.session_id))
             if key in seen:
                 continue

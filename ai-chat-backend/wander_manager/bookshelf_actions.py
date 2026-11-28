@@ -37,3 +37,19 @@ def brief(snapshot):
     if snapshot.get('unread_items'):
         lines.append(f'另有 {len(snapshot["unread_items"])} 项未读到')
     return '；'.join(lines)
+
+
+def observed_shelf_sources(payload):
+    """Return only public shelf kinds frozen for the current node."""
+    snapshot = payload.get('bookshelf_snapshot') or {}
+    sources = []
+    for item in snapshot.get('items') or []:
+        if isinstance(item, dict) and item.get('source') in {'bookmarks', 'essays'}:
+            if item['source'] not in sources:
+                sources.append(item['source'])
+    if sources:
+        return sources
+    reading = payload.get('reading') or {}
+    if reading.get('messages'):
+        return ['bookmarks' if reading.get('source_mode') == 'existing_bookmark' else 'history']
+    return []

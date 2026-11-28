@@ -1,0 +1,91 @@
+{
+  "listen_music": [
+    "🎧",
+    "听歌",
+    "自己听歌"
+  ],
+  "play_game": [
+    "🎮",
+    "玩游戏"
+  ],
+  "browse_bookmarks": [
+    "📚",
+    "逛书柜",
+    "翻收藏夹",
+    "翻看收藏夹"
+  ],
+  "keyword_expansion": [
+    "✍️",
+    "写随笔",
+    "随笔",
+    "关键词联想",
+    "关键词扩写"
+  ],
+  "self_reflection": [
+    "🪞",
+    "自省",
+    "自我审视"
+  ],
+  "memory_fetch": [
+    "🧠",
+    "回看记忆",
+    "记忆检索"
+  ],
+  "user_tracking": [
+    "📡",
+    "查岗",
+    "用户追踪"
+  ],
+  "sleep": [
+    "🌙",
+    "休息",
+    "休眠"
+  ],
+  "browse_news": [
+    "📰",
+    "看新闻",
+    "网上搜索"
+  ],
+  "browse_xiaohongshu": [
+    "🍠",
+    "刷小红书"
+  ],
+  "publish_xiaohongshu": [
+    "📝",
+    "写小红书笔记"
+  ],
+  "check_xiaohongshu_interactions": [
+    "🔔",
+    "查看小红书评论与艾特"
+  ],
+  "browse_social_feed": [
+    "💌",
+    "逛共域",
+    "打开了共域",
+    "打开了朋友圈",
+    "逛朋友圈"
+  ],
+  "visit_workshop": [
+    "🛠️",
+    "去小机工作坊"
+  ],
+  "workshop_create": [
+    "💡",
+    "酝酿作品",
+    "工作坊·酝酿新想法"
+  ],
+  "workshop_history": [
+    "🖼️",
+    "欣赏作品",
+    "工作坊·欣赏历史作品"
+  ],
+  "workshop_continue": [
+    "🧩",
+    "推进工单",
+    "工作坊·继续未完成工单"
+  ],
+  "xhs_direct_messages": [
+    "💬",
+    "查看小红书私信"
+  ]
+}

@@ -132,6 +132,7 @@ async def call_flash_json_detailed(
     route_label: str = "",
     result_validator=None,
     image_inputs: list[str] | None = None,
+    gallery_images: list[str] | None = None,
 ) -> FlashJsonResult:
     """调用 Flash 并保留模型实际返回的审计信息，最多尝试 _MAX_ATTEMPTS 次。"""
     started = time.perf_counter()
@@ -139,11 +140,16 @@ async def call_flash_json_detailed(
     safe_messages = copy_messages(messages)
     route = str(route_label or "structured_unspecified").strip()[:80]
     managed_route = route
+    gallery_kw = {}
+    if gallery_images:
+        if route not in {'wander_node_review', 'wander_xhs_interactions'} or image_inputs or any((api_key, api_url, model_name)):
+            raise ValueError('invalid_gallery_route')
+        gallery_kw['image_batch'] = gallery_images
     if not image_inputs:
         from api_sources.managed import call_managed
         managed = await call_managed(managed_route, messages, temperature=temperature, max_tokens=max_tokens,
             enable_thinking=enable_thinking, request_timeout=request_timeout,
-            result_validator=result_validator, json_mode=json_mode)
+            result_validator=result_validator, json_mode=json_mode, **gallery_kw)
         if managed is not None:
             return managed
     from api_sources.catalog import NODE_LABELS, LEGACY_UNMANAGED_NODES
@@ -151,7 +157,9 @@ async def call_flash_json_detailed(
         from api_sources.runner import run_structured
         return await run_structured(messages, temperature=temperature, max_tokens=max_tokens,
             route=route, enable_thinking=enable_thinking, request_timeout=request_timeout,
-            result_validator=result_validator, json_mode=json_mode)
+            result_validator=result_validator, json_mode=json_mode, **gallery_kw)
+    if gallery_images:
+        raise ValueError('gallery_route_unavailable')
     result = FlashJsonResult(model=model_name, temperature=temperature, max_tokens=max_tokens,
         route=route, request_messages=safe_messages)
     try:

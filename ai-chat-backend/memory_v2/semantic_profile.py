@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from functools import lru_cache
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
@@ -119,6 +120,13 @@ def discover_local_semantic_profile(
         vector_cache_path=vector_cache,
         query_instruction=instruction,
     )
+
+
+@lru_cache(maxsize=1)
+def local_model():
+    from vector_embedder import VectorEmbedder
+    profile = discover_local_semantic_profile(Path(__file__).resolve().parents[1])
+    return profile, VectorEmbedder(model_name=str(profile.snapshot_path))
 
 
 def open_local_semantic_index(

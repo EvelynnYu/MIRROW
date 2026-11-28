@@ -327,6 +327,15 @@ class WanderManager:
         elif self._mode_switch.mode != WanderMode.OFFLINE and not self._wander_creator.is_running:
             await self._wander_creator.start()
 
+    def get_presence(self) -> dict[str, Any]:
+        """Small, read-only snapshot for the phone launcher."""
+        mode = self._mode_switch.get_status()
+        runtime = self.get_runtime_status()
+        fields = ("runtime_state", "current_event_type", "current_activity_id", "shelf_sources", "current_activity_state",
+                  "active_run_state", "next_node_at", "timer_ends_at", "next_plan_at", "wake_reason")
+        return {"mode": mode["mode"], "mode_display": mode["mode_display"],
+                **{key: runtime.get(key) for key in fields}}
+
     def get_status(self) -> Dict[str, Any]:
         mode_status = self._mode_switch.get_status()
         return {**mode_status, "config": self._config.to_dict(),

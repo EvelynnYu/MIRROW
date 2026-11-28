@@ -3,7 +3,7 @@
 Notification signals are wakeups. Only a verified app read can bind the comment
 that AI replies to. Opening a list never means AI has consumed its contents.
 """
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from copy import deepcopy
 import hashlib
 import json
@@ -27,16 +27,27 @@ def reply_text(text):
 def validate_target(target, incoming):
     if not isinstance(target, dict) or target.get('source_verified') is not True:
         raise ValueError('comment_target_unverified')
-    required = ('identity', 'actor_name', 'comment_text', 'note_title', 'note_author')
+    post = incoming.get('kind') == 'post'
+    required = ('identity', 'actor_name', 'note_title', 'note_author') + (() if post else ('comment_text',))
     if any(not isinstance(target.get(k), str) or not target[k].strip() for k in required):
         raise ValueError('comment_target_incomplete')
     if target.get('source_ref') != incoming['source_ref']:
         raise ValueError('comment_source_changed')
-    if target.get('identity_basis') not in {'native_comment_id', 'visible_note_and_exact_comment'}:
+    if target.get('identity_basis') not in ({'verified_profile_title_body'} if post else {'native_comment_id', 'visible_note_and_exact_comment'}):
         raise ValueError('comment_identity_unavailable')
+    if post and (target.get('target_kind') != 'post' or not target.get('profile_id') or target.get('comment_text') != ''):
+        raise ValueError('post_target_invalid')
     if target.get('ambiguous'):
         raise ValueError('comment_identity_ambiguous')
-    if target['actor_name'] != incoming['actor_name']:
+    if post:
+        from .post_identity import author_name,matches_locator
+        locator=incoming.get('post_locator') or {}
+        if target.get('profile_id')!=locator.get('profile_id') or not matches_locator(target,locator):
+            raise ValueError('post_material_changed')
+        actor_matches=author_name(target['actor_name'])==author_name(incoming['actor_name'])
+    else:
+        actor_matches=target['actor_name']==incoming['actor_name']
+    if not actor_matches:
         raise ValueError('comment_actor_changed')
     if not isinstance(target.get('note_body', ''), str) or not isinstance(target.get('thread', []), list):
         raise ValueError('comment_material_invalid')
@@ -49,6 +60,8 @@ class InteractionStore:
         self.path = Path(path) if path else ROOT / 'events' / 'xhs_interactions.db'
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as db:
+            db.execute('CREATE TABLE IF NOT EXISTS inbox_windows '
+                       '(session TEXT, account TEXT, record TEXT NOT NULL, PRIMARY KEY(session,account))')
             from .images import TABLE_SQL
             db.execute(TABLE_SQL)
             db.execute('CREATE TABLE IF NOT EXISTS interactions '
@@ -78,10 +91,10 @@ class InteractionStore:
                              (interaction_id, session_id)).fetchone()
         return json.loads(row[0]) if row else None
 
-    def ingest(self, session_id, account, item):
+    def ingest(self, session_id, account, item, *, db=None, historical=False):
         if not session_id or not isinstance(item, dict):
             raise ValueError('interaction_identity_required')
-        if item.get('kind') not in {'comment', 'mention'}:
+        if item.get('kind') not in {'comment', 'mention', 'post'}:
             raise ValueError('unsupported_interaction_kind')
         if any(not isinstance(item.get(k), str) or not item[k].strip()
                for k in ('source_ref', 'actor_name', 'notification_text', 'observed_at')):
@@ -90,8 +103,8 @@ class InteractionStore:
         value = {'id': identity, 'session_id': session_id, 'account': deepcopy(account),
                  'source_ref': item['source_ref'], 'incoming': deepcopy(item),
                  'state': 'unread', 'created_at': now(), 'read_at': '', 'target': {},
-                 'attention_state': 'pending'}
-        with self.connect() as db:
+                 'attention_state': 'not_applicable' if item['kind'] == 'post' else 'history' if historical else 'pending'}
+        with (nullcontext(db) if db is not None else self.connect()) as db:
             db.execute('INSERT OR IGNORE INTO interactions VALUES (?,?,?,?,?)',
                        (identity, session_id, account['account_id'], item['source_ref'],
                         json.dumps(value, ensure_ascii=False)))
@@ -105,15 +118,74 @@ class InteractionStore:
             raise ValueError('interaction_source_changed')
         return stored
 
-    def pending(self, session_id, account_id, limit=20):
+    def inbox_queue(self, session_id, account_id):
+        """Project prior batches and real sends, including records predating badges."""
         with self.connect() as db:
-            rows = db.execute('SELECT record FROM interactions WHERE session_id=? AND account_id=? '
-                              'ORDER BY rowid', (session_id, account_id)).fetchall()
-            claims = {row[0] for row in db.execute('SELECT target_key FROM reply_claims')}
-        values = [json.loads(row[0]) for row in rows]
-        return [x for x in values if x['attention_state'] == 'pending'
-                and (not x['target'] or digest([account_id, x['target']['identity']]) not in claims)
-                ][:max(1, min(limit, 100))]
+            records = db.execute('SELECT record FROM interactions WHERE session_id=? AND account_id=? ORDER BY rowid',
+                                 (session_id, account_id)).fetchall()
+            attempts = db.execute('SELECT record FROM attention WHERE session_id=? ORDER BY rowid', (session_id,)).fetchall()
+            replies = db.execute('SELECT record FROM replies WHERE session_id=? ORDER BY rowid', (session_id,)).fetchall()
+        decisions = {}
+        for row in attempts:
+            batch = json.loads(row[0])
+            for identity in batch['interaction_ids']:
+                decisions[identity] = 'claimed'
+            for action in batch.get('action_results') or []:
+                if batch['state']=='completed' or action['status'] in {'read_without_reply','published'}:
+                    decisions[action['interaction_id']] = action['status']
+        sends = {}
+        for row in replies:
+            reply = json.loads(row[0])
+            if sends.get(reply['interaction_id'], {}).get('state') != 'published':
+                sends[reply['interaction_id']] = reply
+        result = []
+        for row in records:
+            item = json.loads(row[0])
+            if item['attention_state'] in {'history','not_applicable','left'}:
+                continue
+            decision = decisions.get(item['id'], item['attention_state'])
+            reply = sends.get(item['id'], {})
+            status = reply.get('state')
+            if status == 'published' or decision in {'read_without_reply','published','mention_read_only'}:
+                continue
+            if status in {'submitting','submitted_unverified','preparing'}:
+                item['queue_state'] = 'verify'
+                item['reply_id'] = reply['id']
+            elif decision == 'claimed':
+                item['queue_state'] = 'in_progress'
+            else:
+                item['queue_state'] = 'pending'
+            result.append(item)
+        # Source order is newest-first in the app. Reverse the scan order for ties.
+        result.reverse()
+        return sorted(result, key=lambda item: item['incoming'].get('source_time')
+                      or item['incoming'].get('source_day') or item['created_at'])
+
+    def pending(self, session_id, account_id, limit=20):
+        return [item for item in self.inbox_queue(session_id, account_id)
+                if item['queue_state'] == 'pending'][:limit]
+
+    def leave(self, session_id, account, identity):
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute('SELECT record FROM interactions WHERE id=? AND session_id=? AND account_id=?',
+                             (identity, session_id, account['account_id'])).fetchone()
+            item = json.loads(row[0]) if row else None
+            if not item or not item.get('read_at'):
+                raise ValueError('read_original_comment_first')
+            current = next((r for r in self.inbox_queue(session_id, account['account_id']) if r['id']==identity), None)
+            if current and current['queue_state'] != 'pending':
+                raise ValueError('interaction_already_claimed')
+            item['attention_state'] = 'left'
+            db.execute('UPDATE interactions SET record=? WHERE id=?', (json.dumps(item), identity))
+        return item
+
+    def known_sources(self, session_id, account_id):
+        """Durable observation frontier, independent of AI's read/reply state."""
+        with self.connect() as db:
+            return {row[0] for row in db.execute(
+                'SELECT source_ref FROM interactions WHERE session_id=? AND account_id=?',
+                (session_id, account_id))}
 
     def project(self, item):
         """Read existing reply facts from their authority rather than copy a status."""
@@ -224,9 +296,12 @@ class InteractionStore:
                 if old['session_id'] != session_id or old['interaction_ids'] != interaction_ids:
                     raise ValueError('attention_binding_changed')
                 return old, False
+            owner = account or (self.get(interaction_ids[0], session_id) or {}).get('account', {})
+            eligible = {r['id'] for r in self.inbox_queue(session_id, owner.get('account_id',''))
+                        if r['queue_state']=='pending'}
             for identity in interaction_ids:
                 item = self.get(identity, session_id)
-                if not item or item['attention_state'] != 'pending':
+                if not item or item['id'] not in eligible:
                     raise ValueError('interaction_attention_already_claimed')
             value = {'batch_id': batch_id, 'session_id': session_id, 'state': 'reading',
                      'interaction_ids': interaction_ids, 'created_at': now(), 'steps': [],

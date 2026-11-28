@@ -49,11 +49,9 @@ def xhs_device_ready(ttl: float = _XHS_DEVICE_TTL_SECONDS) -> bool:
                 check=False,
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
-            for line in (proc.stdout or "").splitlines()[1:]:
-                parts = line.split()
-                if len(parts) >= 2 and parts[1] == "device" and (not serial or parts[0] == serial):
-                    ready = True
-                    break
+            online = [parts[0] for line in (proc.stdout or "").splitlines()[1:]
+                      if len(parts := line.split()) >= 2 and parts[1] == "device"]
+            ready = serial in online if serial else len(online) == 1
         except (OSError, subprocess.SubprocessError):
             ready = False
     _xhs_device_cache.update(at=now, ready=ready)
@@ -73,9 +71,9 @@ def _capability_available(event_type: EventType, availability_checks: dict) -> b
     """Real ability check; a missing capability is not a cooldown."""
     if event_type in availability_checks and not _safe(availability_checks.get(event_type)):
         return False
-    if event_type == EventType.CHECK_XIAOHONGSHU_INTERACTIONS:
+    if event_type in (EventType.XHS_DIRECT_MESSAGES, EventType.CHECK_XIAOHONGSHU_INTERACTIONS):
         from .xhs_interaction_runtime import available as interactions_available
-        if not interactions_available():
+        if not interactions_available() or (event_type == EventType.XHS_DIRECT_MESSAGES and not xhs_device_ready()):
             return False
     elif event_type == EventType.PUBLISH_XIAOHONGSHU:
         from xhs_publish.store import autonomy_available

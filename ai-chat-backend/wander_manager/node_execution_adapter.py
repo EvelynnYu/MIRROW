@@ -55,6 +55,7 @@ class NodeExecutionResult:
     audit_reasoning: Any = ''
     audit_usage: dict[str, Any] = field(default_factory=dict)
     memory_material: dict[str, Any] | None = None
+    gallery_pages: list[dict[str, Any]] = field(default_factory=list, repr=False)
 _SPECIALIZED_EVENTS = {EventType.SELF_REFLECTION}
 _XHS_SKIP_STATUSES = frozenset({'adb_unavailable', 'adb_unauthorized', 'ambiguous_devices', 'device_disconnected', 'battery_low', 'battery_unavailable', 'consent_required', 'login_required', 'verification_required', 'risk_detected', 'popup_detected', 'vision_unavailable', 'profile_end_observed', 'profile_listing_stalled', 'profile_listing_changed', 'profile_listing_ambiguous', 'profile_cursor_ambiguous', 'profile_page_budget', 'no_feed_cards', 'no_new_feed_cards', 'no_public_cards'})
 
@@ -82,29 +83,48 @@ class NodeExecutionAdapter:
         self.game_context_provider = game_context_provider
         self.checkup_executor = checkup_executor
 
-    async def execute(self, node_id: str, *, decision_context: Any=None) -> NodeExecutionResult:
+    async def execute(self, node_id: str, *, decision_context: Any = None) -> NodeExecutionResult:
         """Execute one claimed node; local post sharing belongs to xhs_posts."""
         node = self._required_node(node_id)
         if node.state != NodeState.RUNNING:
-            raise ValueError('node must be running')
+            raise ValueError("node must be running")
         if node.execution_status != NodeExecutionStatus.PENDING.value:
-            raise ValueError('node execution was already claimed')
+            raise ValueError("node execution was already claimed")
+
         activity = self._required_activity(node.activity_id)
-        run = self._required_run(activity['run_id'])
-        event_type = EventType(activity['activity_type'])
-        if activity['interrupt_requested']:
-            return self._finish(run, activity, node, NodeExecutionResult(NodeExecutionStatus.SKIPPED, summary='节点开始前已收到中断', error='interrupt_requested'))
+        run = self._required_run(activity["run_id"])
+        event_type = EventType(activity["activity_type"])
+
+        if activity["interrupt_requested"]:
+            return self._finish(
+                run,
+                activity,
+                node,
+                NodeExecutionResult(
+                    NodeExecutionStatus.SKIPPED,
+                    summary="节点开始前已收到中断",
+                    error="interrupt_requested",
+                ),
+            )
+
         node.execution_status = NodeExecutionStatus.RUNNING.value
         self.store.save_node(node)
+        if run.get('trigger_reason') == 'chat_tool':
+            return await self._execute_claimed(node, activity, run, event_type, decision_context)
+        from .node_retry import window
+        with window(lambda: bool(self._required_activity(node.activity_id)['interrupt_requested'])):
+            return await self._execute_claimed(node, activity, run, event_type, decision_context)
+
+    async def _execute_claimed(self, node, activity, run, event_type, decision_context):
         if event_type == EventType.SLEEP:
             return self._finish(run, activity, node, NodeExecutionResult(NodeExecutionStatus.SKIPPED, summary='睡眠由真实计时器管理，不生成普通节点', error='sleep_has_no_nodes'))
         if event_type in _SPECIALIZED_EVENTS:
             return self._finish(run, activity, node, NodeExecutionResult(NodeExecutionStatus.SKIPPED, summary='该事件需要专用执行器', error='unsupported_specialized_adapter'))
         seen = self.store.list_nodes(activity['activity_id'])
         try:
-            if event_type == EventType.CHECK_XIAOHONGSHU_INTERACTIONS:
-                from .xhs_interaction_runtime import execute_node
-                result = await execute_node(self.store, activity, node.node_id, decision_context)
+            if event_type in (EventType.XHS_DIRECT_MESSAGES, EventType.CHECK_XIAOHONGSHU_INTERACTIONS):
+                from xhs_actions.wander import social_node
+                result = await social_node(event_type, self.store, activity, node.node_id, decision_context)
                 return self._finish(run, activity, node, result)
             if event_type == EventType.USER_TRACKING:
                 from .checkup_execution import WanderCheckupExecutor
@@ -235,7 +255,20 @@ class NodeExecutionAdapter:
             fetch_kwargs['cursor'] = latest_cursor(seen_nodes, task_record.get('initial_cursor'))
             if task_record.get('resumed_from') and task_record['spec']['scope'] == 'count' and (fetch_kwargs['cursor'].get('read_count', 0) >= task_record['spec']['goal_count']):
                 return NodeExecutionResult(NodeExecutionStatus.SKIPPED, summary='主页任务已达到累计目标', payload={'status': 'profile_goal_reached'}, error='profile_goal_reached')
-            payload = await handler.fetch_one_post(**fetch_kwargs)
+            # The unread marker is observed during an ordinary read only; it
+            # never diverts this node away from the post it already chose.
+            from xhs_interactions.unread import collect_on_visit, watch_visit
+            pages = []
+            with watch_visit() as visit:
+                if run_record.get('trigger_reason') != 'chat_tool':
+                    fetch_kwargs['frames_out'] = pages
+                payload = await handler.fetch_one_post(**fetch_kwargs)
+                if payload and payload.get('status') == 'success' and visit.get('notice'):
+                    earlier = next((item for item in seen_nodes
+                                    if (item.get('source_payload') or {}).get('unread_checked')), None)
+                    if not earlier:
+                        payload['unread_notice'] = await collect_on_visit(run_record['session_id'], visit)
+                        payload['unread_checked'] = True
             status = str(payload.get('status') or '') if payload else ''
             audit = payload.pop('agent_audit', {}) if isinstance(payload, dict) else {}
             calls = audit.get('calls') or [] if isinstance(audit, dict) else []
@@ -247,7 +280,7 @@ class NodeExecutionAdapter:
                 return NodeExecutionResult(NodeExecutionStatus.FAILED, summary='小红书浏览命中了已读帖子', payload=payload or {}, error='duplicate_source_id', retry_safe=False, audit_model=calls[-1].get('model') if calls else 'adb', audit_input={'activity_reason': activity.get('reason') or '', 'event_type': event_type.value}, audit_raw_output=calls)
             valid = bool(payload and status == 'success' and payload.get('source_id') and payload.get('content_summary'))
             title = payload.get('title') if payload else ''
-            return NodeExecutionResult(NodeExecutionStatus.SUCCEEDED if valid else NodeExecutionStatus.FAILED, completion_signal='node_material_ready' if valid else '', summary=f"浏览小红书内容「{title or payload.get('query', '未知')}」" if valid else '小红书浏览未取得可靠内容', payload=payload or {}, error='' if valid else status or 'missing_required_material', retry_safe=False, audit_model=calls[-1].get('model') if calls else 'adb', audit_input={'activity_reason': activity.get('reason') or '', 'event_type': event_type.value, 'execution_mode': str(payload.get('execution_mode') or 'dedicated_device_direct')}, audit_raw_output=calls, audit_reasoning=[item.get('reasoning', '') for item in calls], audit_usage={'calls': [item.get('usage', {}) for item in calls]})
+            return NodeExecutionResult(NodeExecutionStatus.SUCCEEDED if valid else NodeExecutionStatus.FAILED, completion_signal='node_material_ready' if valid else '', summary=f"浏览小红书内容「{title or payload.get('query', '未知')}」" if valid else '小红书浏览未取得可靠内容', payload=payload or {}, error='' if valid else status or 'missing_required_material', retry_safe=False, audit_model=calls[-1].get('model') if calls else 'adb', audit_input={'activity_reason': activity.get('reason') or '', 'event_type': event_type.value, 'execution_mode': str(payload.get('execution_mode') or 'dedicated_device_direct')}, audit_raw_output=calls, audit_reasoning=[item.get('reasoning', '') for item in calls], audit_usage={'calls': [item.get('usage', {}) for item in calls]}, gallery_pages=pages if valid else [])
         if event_type in (EventType.VISIT_WORKSHOP, EventType.WORKSHOP_CREATE, EventType.WORKSHOP_HISTORY, EventType.WORKSHOP_CONTINUE):
             activity = self._required_activity(activity_id)
             if event_type == EventType.VISIT_WORKSHOP:
@@ -518,6 +551,18 @@ class NodeExecutionAdapter:
         return NodeExecutionResult(NodeExecutionStatus.SUCCEEDED if valid else NodeExecutionStatus.FAILED, completion_signal='node_material_ready' if valid else '', summary=summary, payload=payload if isinstance(payload, dict) else {}, error='' if valid else 'missing_required_material', retry_safe=False)
 
     def _finish(self, run: dict[str, Any], activity: dict[str, Any], node: WanderNode, result: NodeExecutionResult) -> NodeExecutionResult:
+        from .node_retry import current
+        window = current()
+        if window and window.receipt:
+            result.payload['immediate_retry'] = dict(window.receipt)
+            if window.unresolved and result.status in (NodeExecutionStatus.FAILED, NodeExecutionStatus.SKIPPED):
+                result.status = NodeExecutionStatus.SKIPPED
+                result.summary = '重新选择后仍未能执行。' + window.receipt['last_reason']
+                result.payload['public_error'] = result.summary
+                if result.memory_material is None:
+                    result.memory_material = {'version': 1, 'kind': 'none', 'origin': 'execution_receipt'}
+        elif node.source_payload.get('immediate_retry'):
+            result.payload.setdefault('immediate_retry', node.source_payload['immediate_retry'])
         node.execution_status = result.status.value
         node.completion_signal = result.completion_signal
         node.source_summary = result.summary

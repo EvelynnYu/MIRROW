@@ -48,7 +48,11 @@ async def run_recoverable(messages, *, route, sources=None, task_id=None, max_ro
         return await run_structured_once(messages,route=route,sources=sources,task_id=task_id,**kwargs)
     policy=snapshot[0].policies[category_for(route,snapshot[0].assignments)]
     job_id=current_job() or task_id or uuid.uuid4().hex
-    digest=hashlib.sha256(json.dumps({"messages":messages,"revision":snapshot[2]},ensure_ascii=False,sort_keys=True).encode()).hexdigest()
+    phase_material = {"messages": messages, "revision": snapshot[2]}
+    if kwargs.get("image_batch"):
+        phase_material["image_hashes"] = [hashlib.sha256(image.encode("ascii")).hexdigest()
+                                          for image in kwargs["image_batch"]]
+    digest=hashlib.sha256(json.dumps(phase_material,ensure_ascii=False,sort_keys=True).encode()).hexdigest()
     phase_id=route+":"+digest
     path=receipt_path or DB_PATH
     saved=await asyncio.to_thread(previous,job_id,phase_id,path)

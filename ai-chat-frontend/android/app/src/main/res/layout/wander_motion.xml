@@ -1,0 +1,10 @@
+<ViewFlipper xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wander_motion" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:autoStart="true" android:flipInterval="300">
+    <ImageView android:id="@+id/wander_frame_0" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:contentDescription="@null" />
+    <ImageView android:id="@+id/wander_frame_1" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:contentDescription="@null" />
+    <ImageView android:id="@+id/wander_frame_2" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:contentDescription="@null" />
+    <ImageView android:id="@+id/wander_frame_3" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:contentDescription="@null" />
+    <ImageView android:id="@+id/wander_frame_4" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:contentDescription="@null" />
+    <ImageView android:id="@+id/wander_frame_5" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter" android:contentDescription="@null" />
+</ViewFlipper>

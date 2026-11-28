@@ -9,7 +9,8 @@ from .scope import routing_scope, phase_status
 @routing_scope
 async def call_managed(route: str, messages: list, *, enable_thinking=False, temperature=None,
                        max_tokens=None, json_mode=False, request_timeout=None,
-                       response_format=None, max_attempts=None, result_validator=None, request_projector=None, inspect_provider=False):
+                       response_format=None, max_attempts=None, result_validator=None, request_projector=None, inspect_provider=False,
+                       image_batch=None):
     from .config import load_config, resolve_chain
     from .scope import current_snapshot
     config, _, _ = current_snapshot() or await asyncio.to_thread(load_config)
@@ -29,7 +30,8 @@ async def call_managed(route: str, messages: list, *, enable_thinking=False, tem
         max_tokens=max_tokens, route=route, enable_thinking=enable_thinking, sources=sources,
         timeout_seconds=timeout, request_timeout=request_timeout, json_mode=json_mode,
         response_format=response_format, result_validator=result_validator,
-        max_rounds=max_attempts, request_projector=request_projector, inspect_provider=inspect_provider)
+        max_rounds=max_attempts, request_projector=request_projector, inspect_provider=inspect_provider,
+        **({'image_batch': image_batch} if image_batch else {}))
     phase_status(route, result.status, getattr(result,"phase_id",None))
     return result
 

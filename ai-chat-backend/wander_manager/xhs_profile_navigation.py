@@ -1,13 +1,14 @@
 """Observed UI state machine for the dedicated XHS phone (no model coordinates)."""
 from __future__ import annotations
 
+import base64
 from copy import deepcopy
 import hashlib
 import re
 import unicodedata
 from urllib.parse import quote
 
-from .xiaohongshu_adb import _parse_bounds, XIAOHONGSHU_PACKAGE
+from .xiaohongshu_adb import _parse_bounds, _verified_note, XIAOHONGSHU_PACKAGE
 
 
 def normalized(value):
@@ -94,7 +95,24 @@ class ProfileNavigator:
 
     async def fetch(self, task, cursor):
         cursor = deepcopy(cursor or {})
-        snap, profile_id = await self.enter_profile(task['query'], cursor)
+        if task.get('profile_target') == 'self':
+            from xhs_publish.store import account_config
+            from .xiaohongshu_adb import XIAOHONGSHU_LAUNCH_ACTIVITY
+            from .xhs_feed_navigation import enter_tab
+            account = account_config()
+            await self.command('shell', 'am', 'start', '-W', '-a', 'android.intent.action.MAIN',
+                               '-c', 'android.intent.category.LAUNCHER', '-n',
+                               f'{XIAOHONGSHU_PACKAGE}/{XIAOHONGSHU_LAUNCH_ACTIVITY}')
+            snap = await enter_tab(self, await self.snapshot(), '我')
+            profile_id = identity(snap)
+            if (profile_id != account['account_id'] or not any(
+                    normalized(n.get('text', '')) == normalized(account['account_name']) for n in elements(snap))):
+                raise ValueError('interaction_account_mismatch')
+            if cursor.get('profile_id') and cursor['profile_id'] != profile_id:
+                raise ValueError('profile_identity_changed')
+            task = {**task, 'query': account['account_name']}
+        else:
+            snap, profile_id = await self.enter_profile(task['query'], cursor)
         confirmed_path = cursor.get('listing_path', [])
         next_index = int(cursor.get('read_count', 0))
         if len(confirmed_path) != len(set(confirmed_path)) or next_index != len(confirmed_path):
@@ -144,7 +162,7 @@ class ProfileNavigator:
             snap = await self.snapshot()
         return {'status': 'profile_page_budget', 'coverage': {'listing': 'partial'}}
 
-    async def read_article(self, card, profile_id):
+    async def read_article(self, card, profile_id=''):
         snap = await self.snapshot()
         authors = [node.get('text', '') for node in elements(snap)
                    if node.get('resource-id', '').endswith('/nickNameTV')]
@@ -152,19 +170,70 @@ class ProfileNavigator:
             return {'status': 'article_author_unconfirmed'}
         title = card['title']
         frames = []
+        gallery_stop = ''
+        seen_screens = set()
+        last_captured = snap
 
         async def capture(current, label):
+            nonlocal gallery_stop, last_captured
+            current_position = gallery_position(current)
+            if current_position:
+                current_authors = [node.get('text', '') for node in elements(current)
+                                   if node.get('resource-id', '').endswith('/nickNameTV')]
+                if current_authors != [card['author']]:
+                    gallery_stop = 'gallery_author_changed'
+                    return False
+                observed = _verified_note(current)
+                if observed and normalized(observed['note_title']) != normalized(title):
+                    gallery_stop = 'gallery_note_changed'
+                    return False
             image = await self.source._screenshot(self.serial)
             if not image:
-                raise ValueError('screenshot_failed')
-            frames.append({'label': label, 'screenshot_base64': image, 'ui_text': current.text[:20000]})
+                gallery_stop = 'gallery_screenshot_failed'
+                return False
+            try:
+                raw_image = base64.b64decode(image, validate=True)
+            except (ValueError, TypeError):
+                gallery_stop = 'gallery_screenshot_failed'
+                return False
+            digest = hashlib.sha256(raw_image).hexdigest()
+            if current_position and digest in seen_screens:
+                gallery_stop = 'gallery_duplicate_screen'
+                return False
+            if current_position:
+                seen_screens.add(digest)
+            frame = {'label': label, 'screenshot_base64': image, 'ui_text': current.text[:20000]}
+            if current_position:
+                frame.update(page=current_position[0], total=current_position[1], screenshot_sha256=digest,
+                             screenshot_bytes=len(raw_image))
+            frames.append(frame)
+            last_captured = current
+            return True
 
         from .xhs_gallery import collect
         video = any('video' in node.get('resource-id', '').lower() for node in elements(snap))
-        snap, gallery_complete = await collect(snap, get_position=gallery_position,
-            capture=capture,
-            advance=lambda: self.command('shell', 'input', 'swipe', '900', '900', '180', '900', '280'),
-            refresh=self.snapshot)
+        initial_gallery = gallery_position(snap)
+        async def retreat_gallery():
+            await self.command('shell', 'input', 'swipe', '180', '900', '900', '900', '280')
+        gallery_complete = False
+        try:
+            snap, gallery_complete = await collect(snap, get_position=gallery_position, capture=capture,
+                advance=lambda: self.command('shell', 'input', 'swipe', '900', '900', '180', '900', '280'),
+                refresh=self.snapshot, retreat=retreat_gallery, require_first=True,
+                limit=initial_gallery[1] if initial_gallery else 1)
+        except ValueError as exc:
+            gallery_stop = str(exc)
+        if not frames and initial_gallery:
+            current = gallery_position(snap)
+            if (gallery_stop or not current or current[1] != initial_gallery[1] or
+                    not await capture(snap, f'image_{current[0]}_of_{current[1]}')):
+                return {'status':'gallery_capture_failed','error':gallery_stop or 'first_page_unconfirmed'}
+        if not frames:
+            return {'status': 'screenshot_failed'}
+        if initial_gallery and not gallery_complete and not gallery_position(snap) and not gallery_stop:
+            gallery_stop = 'gallery_position_unconfirmed'
+        if gallery_stop:
+            snap = last_captured
         # Accessibility may expose body text outside the clipped visual bounds.
         # An observed date alone does not prove that a folded article was complete.
         body, title_seen = '', False
@@ -188,6 +257,8 @@ class ProfileNavigator:
                         if not body or (value.startswith(body[:40]) and len(value) > len(body)):
                             body = value
                         break
+            if gallery_stop:
+                break
             expand = [node for node in elements(snap) if node.get('text') in {'展开全文', '展开正文'}]
             if len(expand) == 1:
                 await self.tap(expand[0])
@@ -196,6 +267,10 @@ class ProfileNavigator:
                 # quoting the same prefix is not evidence of a longer body.
                 if step < 4:
                     continue
+            if body and not profile_id and _verified_note(snap):
+                # A collection card has no author ID. This is the native detail
+                # snapshot on which the original comment/share locator can be verified.
+                break
             if body and title_seen_step is not None and step > title_seen_step:
                 break
             if step < 4:
@@ -204,20 +279,37 @@ class ProfileNavigator:
                 await self.command('shell', 'input', 'swipe', '540', '1800', '540', '1200', '700')
                 snap = await self.snapshot()
         if not title_seen:
-            await self.command('shell', 'input', 'keyevent', 'KEYCODE_BACK')
+            if not gallery_stop:
+                await self.command('shell', 'input', 'keyevent', 'KEYCODE_BACK')
             return {'status': 'article_title_unconfirmed'}
         text = body
         article = text[:20000]
+        locator = None
+        if profile_id:
+            locator = {'version': 1, 'profile_id': profile_id, 'note_title': title,
+                       'note_author': card['author'], 'note_body': article}
+        elif not gallery_stop:
+            from xhs_interactions.post_navigation import capture_locator
+            locator = await capture_locator(self.source, self.serial, snap)
+            if locator and (normalized(locator['note_title']) != normalized(title)
+                            or normalized(locator['note_author']) != normalized(card['author'])):
+                locator = None
         digest = hashlib.sha256((profile_id+'\n'+title+'\n'+article).encode()).hexdigest()
-        await self.command('shell', 'input', 'keyevent', 'KEYCODE_BACK')
+        if not gallery_stop:
+            await self.command('shell', 'input', 'keyevent', 'KEYCODE_BACK')
         return {'status': 'success', 'source_id': 'xhs-observed:'+digest,
                 'source_identity_kind': 'profile_title_body_digest_not_platform_id',
                 'source_url': '', 'profile_id': profile_id, 'title': title,
+                'comment_locator': locator,
                 'ui_text': frames[0]['ui_text'], 'article_text': article,
                 'frames': frames, 'coverage': {'text': 'partial',
                     'text_omitted_chars': max(0, len(text)-len(article)),
                     'images': 'all_captured' if gallery_complete else 'partial_or_unknown',
                     'video': 'not_played' if video else 'not_confirmed', 'listing': 'partial'},
+                'gallery_capture': {'status': 'complete' if gallery_complete else (gallery_stop or 'partial'),
+                    'declared_total': initial_gallery[1] if initial_gallery else 0,
+                    'captured_pages': [frame['page'] for frame in frames if 'page' in frame],
+                    'page_limit': initial_gallery[1] if initial_gallery else 1, 'capture_complete': gallery_complete},
                 'limitations': '正文来自标题后绑定的可访问文本节点；全文边界尚未证明。列表按已确认读取的卡片键续读，未取得平台笔记ID；视频未完整播放。'}
 
 

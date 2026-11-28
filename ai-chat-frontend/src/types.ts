@@ -44,7 +44,8 @@ export type Message = {
   isReminder?: boolean;
   isMusicCochlea?: boolean;  // 音乐耳蜗消息标记
   isMusic?: boolean;
-  /** 群聊摘要的结构化 UI 标记（由 eventType/WS 派生） */  summaryText?: string;
+  /** 群聊摘要的结构化 UI 标记（由 eventType/WS 派生） */
+  summaryText?: string;
   summaryAt?: string;
   eventType?: string;
   eventParentId?: string;
@@ -124,6 +125,14 @@ export type WanderStatus = {
   idle_threshold: number;
   is_wander_mode_active: boolean;
   current_event_type: string | null;
+  shelf_sources?: string[];
+  current_activity_state?: string;
+  runtime_state?: string;
+  active_run_state?: string;
+  next_node_at?: string | null;
+  timer_ends_at?: string | null;
+  next_plan_at?: string;
+  wake_reason?: string;
   creator_running?: boolean;
   user_status?: string;
   user_status_display?: string;
@@ -163,10 +172,12 @@ export type SystemStatus = {
     system_chars: number;
   };
   keyword_pools?: {
-    trigger_keywords: string[];    world_book_keywords: string[];
+    trigger_keywords: string[];
+    world_book_keywords: string[];
     world_book_entry_count: number;
     error?: string;
-  };  recipe_call_log?: Record<string, unknown>;
+  };
+  recipe_call_log?: Record<string, unknown>;
   recipe_call_log_observation?: { status?: string; error_type?: string };
 };
 

@@ -6,7 +6,7 @@ from .event_types import EventType
 from .runtime_models import (WanderRun, WanderActivity, RunState, ActivityState,
                              GoalMode, SettlementReason)
 from .node_execution_adapter import NodeExecutionStatus
-from .xhs_request import compile_task, latest_cursor, material_for_k, resolve_profile_resume
+from .xhs_request import compile_task, latest_cursor, material_for_ai, resolve_profile_resume
 
 
 def run_model(row):
@@ -61,7 +61,7 @@ def post_receipt(payload, node_id, index):
         'source_id': payload.get('source_id', ''), 'title': payload.get('title', ''),
         'summary': payload.get('content_summary', ''), 'evidence_excerpt': payload.get('evidence_excerpt', ''),
         'source_provider': payload.get('source_provider', ''), 'source_url': payload.get('source_url', ''),
-        'material': material_for_k(payload)}
+        'material': material_for_ai(payload)}
 
 
 async def execute_chat_task(runner, *, session_id, instruction, source_turn_id='', compiler=None):

@@ -2,12 +2,13 @@
 import asyncio
 import sqlite3
 import json
+from . import node_retry
 
 
 async def catalog(handler, *, source='', offset=0, query=''):
     from .essays import read
     try:
-        data = await asyncio.to_thread(read, limit=100, offset=offset, query=query)
+        data = await node_retry.read(lambda: asyncio.to_thread(read, limit=100, offset=offset, query=query), '读取随笔目录')
     except (OSError, ValueError, sqlite3.Error) as exc:
         return {'essays': {'status': 'unavailable', 'error_type': type(exc).__name__}}, []
     entries = [dict(item, source='essays') for item in data['items']]
@@ -46,14 +47,14 @@ async def material(handler, choices, entries, bookmarks, excluded):
                 'created_at': target.get('created_at') or target.get('message_time', '')}
         try:
             if source == 'bookmarks':
-                found = handler._existing_material(excluded, dict(target, depth=depth))
+                found = node_retry.read_local(lambda: handler._existing_material(excluded, dict(target, depth=depth)), '读取所选收藏')
                 if not found:
                     raise LookupError('bookmark_unavailable')
                 item.update(collected_by=target['collected_by'], messages=found['snapshot'])
                 snapshot.extend(found['snapshot'])
                 candidates.extend(found['candidates'])
             elif source == 'essays':
-                work = await asyncio.to_thread(read, event_id=choice['id'])
+                work = await node_retry.read(lambda: asyncio.to_thread(read, event_id=choice['id']), '读取随笔')
                 if not work:
                     raise LookupError('essay_unavailable')
                 item.update(title=work['title'], keyword=work['keyword'], created_at=work['created_at'],

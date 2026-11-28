@@ -1,6 +1,7 @@
 """One source-aware bookmark decision. Reading availability is not an experience."""
 from dataclasses import dataclass, field
 import json
+from . import node_retry
 
 from .flash_structured import parse_json_object
 
@@ -119,7 +120,10 @@ async def select(handler, exclude_ids=(), source_mode=None):
                         'JSON {"source_mode":"existing_bookmark|unbookmarked_anchor|random_day|stop",'
                         '"message_id":"选收藏时的原ID","collected_by":"选收藏时的k或user"}。')
             try:
-                choice = parse_json_object(await handler._call_llm(prompt))
+                choice = await node_retry.choose(
+                    handler._call_llm, prompt, parse_json_object,
+                    lambda value: '' if isinstance(value, dict) else '没有读到可用的选材结果，请按当前目录重选。',
+                    '选择书柜材料')
             except Exception as exc:
                 return outcome('failed', 'selection_call_failed', availability=availability,
                                error_type=type(exc).__name__)

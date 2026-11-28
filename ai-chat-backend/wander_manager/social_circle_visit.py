@@ -207,7 +207,16 @@ class SocialCircleVisit:
             except (ValueError, OSError, httpx.HTTPError):
                 page['shelf'] = {'status': 'temporarily_unavailable'}
         messages = await self._messages(persona=persona, session_id=session_id, activity_reason=activity_reason, page=page, items=items, notices=notices, previous_nodes=previous_nodes, last_node=len(previous_nodes) + 1 >= MAX_NODES, site=site, own_actor=own_actor)
+        from . import node_retry
         decision = await self._call(messages)
+        if decision is None:
+            reason = '没能读出这次选择，请按刚才的格式回答，也可以只看看。'
+            if node_retry.take('朋友圈行动选择', reason):
+                decision = await self._call([*messages, {'role': 'user', 'content': reason}])
+                if decision is None:
+                    node_retry.unresolved(reason)
+        if node_retry.cancelled():
+            decision = None
         if decision is None:
             return {'status': 'decision_failed', 'exit': True, 'action_results': [], 'viewed_moment_ids': [item['id'] for item in items][:50]}
         visible = {json.dumps([item['source']['site_id'], item['id']]) if aggregate else str(item['id']): item for item in items}

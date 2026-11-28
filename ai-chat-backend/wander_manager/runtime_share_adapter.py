@@ -458,6 +458,7 @@ class RuntimeShareAdapter:
             EventType.BROWSE_NEWS: "💭 看新闻",
             EventType.BROWSE_XIAOHONGSHU: "💭 刷小红书",
             EventType.PUBLISH_XIAOHONGSHU: "✍️ 写小红书笔记",
+            EventType.XHS_DIRECT_MESSAGES: "💬 查看小红书私信",
             EventType.CHECK_XIAOHONGSHU_INTERACTIONS: "💬 查看小红书评论与艾特",
             EventType.BROWSE_SOCIAL_FEED: "💌 打开了共域",
             EventType.BROWSE_BOOKMARKS: "📚 逛书柜",
@@ -526,6 +527,11 @@ class RuntimeShareAdapter:
         summary = str(activity.get("summary") or "").strip()
         if no_new_interactions:
             summary = '没有新评论或艾特，本次查看已结束。'
+        if event_type == EventType.XHS_DIRECT_MESSAGES:
+            reports = [str((node.get('source_payload') or {}).get('summary') or '') for node in nodes
+                       if node.get('execution_status') == 'succeeded']
+            if any(reports):
+                summary = '\n'.join(dict.fromkeys(report for report in reports if report))
         status = ("success" if terminal_state == "completed" and (count > 0 or timer_completed)
                   else "partial" if count > 0 else "failure" if failed else "skipped")
         call: dict[str, Any] = {"tool": names[event_type], "description": description[:60],

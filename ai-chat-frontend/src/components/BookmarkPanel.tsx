@@ -3,8 +3,10 @@ import { getApiBase } from '../config';
 import { stripWikilinks } from '../utils';
 import type { useBookmark } from '../hooks/useBookmark';
 import XhsSavedPosts from './XhsSavedPosts';
+import XhsDirectMessages from './XhsDirectMessages';
 
 function BookmarkPanel({ bookmark, onClose }: { bookmark: ReturnType<typeof useBookmark>; onClose: () => void }) {
+  const [showXhsMessages, setShowXhsMessages] = useState(false);
   const [showXhsPosts, setShowXhsPosts] = useState(false);
   const {
     bookmarkList, setBookmarkList, bookmarkTab, setBookmarkTab,
@@ -25,11 +27,12 @@ function BookmarkPanel({ bookmark, onClose }: { bookmark: ReturnType<typeof useB
             <button className="ledger-close-btn" onClick={onClose}>✕</button>
           </div>
           <div className="bookmark-tabs">
-            <button className={`bookmark-tab ${!showXhsPosts && bookmarkTab==='user'?'active':''}`} onClick={() => { setShowXhsPosts(false); setBookmarkTab('user'); setBookmarkPage(0); fetchBookmarkList('user', 0); }}>我的收藏</button>
-            <button className={`bookmark-tab ${!showXhsPosts && bookmarkTab==='k'?'active':''}`} onClick={() => { setShowXhsPosts(false); setBookmarkTab('k'); setBookmarkPage(0); fetchBookmarkList('k', 0); }}>AI的收藏</button>
-            <button className={`bookmark-tab ${showXhsPosts?'active':''}`} onClick={() => setShowXhsPosts(true)}>🍠 AI 留帖</button>
+            <button className={`bookmark-tab ${!showXhsPosts&&!showXhsMessages && bookmarkTab==='user'?'active':''}`} onClick={() => { setShowXhsPosts(false);setShowXhsMessages(false); setBookmarkTab('user'); setBookmarkPage(0); fetchBookmarkList('user', 0); }}>我的收藏</button>
+            <button className={`bookmark-tab ${!showXhsPosts&&!showXhsMessages && bookmarkTab==='k'?'active':''}`} onClick={() => { setShowXhsPosts(false);setShowXhsMessages(false); setBookmarkTab('k'); setBookmarkPage(0); fetchBookmarkList('k', 0); }}>AI的收藏</button>
+            <button className={`bookmark-tab ${showXhsPosts?'active':''}`} onClick={() => {setShowXhsPosts(true);setShowXhsMessages(false);}}>🍠 AI 留帖</button>
+            <button className={`bookmark-tab ${showXhsMessages?'active':''}`} onClick={() => {setShowXhsMessages(true);setShowXhsPosts(false);}}>🍠 私信</button>
           </div>
-          {showXhsPosts ? <XhsSavedPosts /> : <>
+          {showXhsMessages ? <XhsDirectMessages /> : showXhsPosts ? <XhsSavedPosts /> : <>
           <div className="bookmark-context-slider">
             <span>漫想翻阅上下文: ±{bookmarkContextWindow} 轮</span>
             <input type="range" min="1" max="10" value={bookmarkContextWindow}

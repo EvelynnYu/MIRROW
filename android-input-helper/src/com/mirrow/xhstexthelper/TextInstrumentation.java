@@ -45,7 +45,7 @@ public final class TextInstrumentation extends Instrumentation {
             }
             String op = stringArg("op");
             selectedOp = op;
-            require("health".equals(op) || "set".equals(op) || "clear".equals(op) || "notifications".equals(op)
+            require("health".equals(op) || "set".equals(op) || "set_empty".equals(op) || "search_favorites".equals(op) || "clear".equals(op) || "notifications".equals(op)
                 || "ack".equals(op), "invalid_operation");
             if ("notifications".equals(op) || "ack".equals(op)) {
                 Bundle extra = null;
@@ -92,7 +92,9 @@ public final class TextInstrumentation extends Instrumentation {
                     "invalid_bounds");
                 String text = clear ? "" : decodeText(stringArg("text_b64"));
                 result.putString("text_sha256", sha256(text));
-                replaceText(automation(), bounds, text);
+                UiAutomation ui = automation();
+                replaceText(ui, bounds, text, "set_empty".equals(op));
+                if ("search_favorites".equals(op)) submitProfileSearch(ui, bounds, text);
             }
             result.putString("status", "ok");
             ok = true;
@@ -110,6 +112,23 @@ public final class TextInstrumentation extends Instrumentation {
             }
             arguments = null;
             finish(ok ? Activity.RESULT_OK : Activity.RESULT_CANCELED, result);
+        }
+    }
+
+    private static void submitProfileSearch(UiAutomation ui, Rect bounds, String text) throws Exception {
+        AccessibilityNodeInfo root = awaitInitialRoot(ui);
+        AccessibilityNodeInfo editor = null;
+        try {
+            editor = uniqueEditable(root, bounds);
+            require(android.os.Build.VERSION.SDK_INT >= 30 && editor.refresh() && eligible(editor, bounds)
+                && editor.isFocused() && !editor.isPassword() && !text.isEmpty()
+                && "搜索我的笔记/收藏/赞过".contentEquals(String.valueOf(editor.getHintText()))
+                && text.contentEquals(String.valueOf(editor.getText())), "profile_search_editor_changed");
+            require(editor.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.getId()),
+                "search_editor_action_unavailable");
+        } finally {
+            if (editor != null) editor.recycle();
+            root.recycle();
         }
     }
 
@@ -173,7 +192,7 @@ public final class TextInstrumentation extends Instrumentation {
         return text;
     }
 
-    private static void replaceText(UiAutomation automation, Rect bounds, String text)
+    private static void replaceText(UiAutomation automation, Rect bounds, String text, boolean requireEmpty)
             throws Exception {
         AccessibilityNodeInfo root = awaitInitialRoot(automation);
         AccessibilityNodeInfo target = null;
@@ -182,6 +201,15 @@ public final class TextInstrumentation extends Instrumentation {
             require(target.refresh(), "stale_node");
             require(eligible(target, bounds), "target_changed");
             require(target.isEnabled() && !target.isPassword(), "target_not_writable");
+            if (requireEmpty) {
+                CharSequence existing = target.getText();
+                boolean empty = existing == null || existing.length() == 0;
+                if (!empty && android.os.Build.VERSION.SDK_INT >= 26 && target.isShowingHintText()) {
+                    CharSequence hint = target.getHintText();
+                    empty = hint != null && hint.toString().contentEquals(existing);
+                }
+                require(empty, "existing_draft_requires_attention");
+            }
             boolean supported = false;
             for (AccessibilityNodeInfo.AccessibilityAction action : target.getActionList()) {
                 if (action.getId() == AccessibilityNodeInfo.ACTION_SET_TEXT) supported = true;

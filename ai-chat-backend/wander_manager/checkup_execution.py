@@ -22,6 +22,34 @@ from .checkup_selection_context import passive_selection_context
 from checkup_assessment import source_status
 
 
+def coalesce_sensory_calls(calls, standardizer):
+    """Collapse duplicate reads and combine Band's snapshot metrics in order."""
+    from behavior_scheduler.band_tool import BandTool
+
+    unique, seen = [], set()
+    for name, parameters in calls:
+        parameters = dict(parameters)
+        if name == 'band':
+            action = parameters.get('action')
+            parameters['action'] = BandTool._ACTION_MAP.get(action, action)
+            if parameters['action'] != 'heart_rate_continuous':
+                parameters.pop('duration', None)  # Only continuous heart rate uses it.
+        key = (name, json.dumps(parameters, sort_keys=True, ensure_ascii=False))
+        if key not in seen:
+            seen.add(key)
+            unique.append((name, parameters))
+
+    snapshots = {'heart_rate', 'steps', 'sleep', 'spo2', 'all_health'}
+    positions = [i for i, (name, params) in enumerate(unique)
+                 if name == 'band' and params.get('action') in snapshots]
+    if len(positions) > 1:
+        combined = standardizer.standardize({'tool': 'band', 'parameters': {'action': 'all_health'}})
+        if combined.is_valid:
+            unique[positions[0]] = ('band', combined.parameters)
+            unique = [call for i, call in enumerate(unique) if i not in positions[1:]]
+    return unique
+
+
 async def registered_sensory_tools():
     from behavior_scheduler import get_global_scheduler
     scheduler = await get_global_scheduler()
@@ -44,7 +72,8 @@ class WanderCheckupExecutor(_DecisionAdapterBase):
                 tools = await tools
         except RuntimeError:
             tools = {}
-        tools = {name: tool for name, tool in tools.items() if name in CHECKUP_TOOLS}
+        tools = {name: tool for name, tool in tools.items()
+                 if name in CHECKUP_TOOLS and getattr(tool, 'visible_to_pro', True)}
         runtime = _runtime_block(context, activity, self.store.list_nodes(activity['activity_id']),
                                  phase='sensory_selection', run=run, current_node=node)
         runtime += '\n' + self.passive_context_provider(now=self.clock())
@@ -55,30 +84,47 @@ class WanderCheckupExecutor(_DecisionAdapterBase):
         instruction = (
             '根据本次活动起意和新鲜状态，决定这次需要取得哪些实时信息。' + CHECKUP_TOOL_GUIDANCE
             + '只输出 JSON：{"reason":"本次信息缺口", "actions":[{"tool":"可用感官名", "parameters":{}}]}。'
-              'actions 是本次要执行的一组感官，每个感官在本节点执行一次；无需采集时可为空并说明原因。'
+              'actions 是本次要执行的一组感官；同工具同参数的重复请求会合并为一次。'
+              '同时查询心率、步数、睡眠或血氧时可用 band 的 all_health 一次取得；'
+              '连续心率和每日趋势保留各自的查询参数。无需采集时可为空并说明原因。'
               '是否截图取决于是否需要屏幕内容，是否使用摄像头取决于是否需要本人或周围环境的画面。'
               '这里选择尚未执行的动作；真实材料将在节点复核中交回给你。'
         )
         messages = await self._messages(context, run, runtime, instruction, activity)
-        decision = (await self.llm_caller(messages=messages, temperature=0.0, max_tokens=16384,
-                                         route_label='wander_checkup_selection')) if tools else FlashJsonResult(status='unavailable')
-        raw = decision.parsed if decision.status == 'ok' and isinstance(decision.parsed, dict) else {}
-        actions = raw.get('actions') if tools else []
-        validated, errors, used = [], [], set()
-        if not isinstance(actions, list):
-            errors.append('invalid_sensory_decision')
-        else:
-            standardizer = ToolCallStandardizer(tools)
-            for action in actions:
-                if not isinstance(action, dict) or action.get('tool') not in tools:
-                    errors.append('unavailable_sensory_tool')
-                    continue
-                call = standardizer.standardize(action)
-                if not call.is_valid or call.tool_name in used:
-                    errors.append('invalid_sensory_parameters')
-                    continue
-                used.add(call.tool_name)
-                validated.append((call.tool_name, call.parameters))
+        from . import node_retry
+        correcting = False
+        while True:
+            decision = (await self.llm_caller(messages=messages, temperature=0.0, max_tokens=16384,
+                                             route_label='wander_checkup_selection')) if tools else FlashJsonResult(status='unavailable')
+            raw = decision.parsed if decision.status == 'ok' and isinstance(decision.parsed, dict) else {}
+            actions = raw.get('actions') if tools else []
+            validated, errors = [], []
+            if not isinstance(actions, list):
+                errors.append('invalid_sensory_decision')
+            else:
+                standardizer = ToolCallStandardizer(tools)
+                for action in actions:
+                    if not isinstance(action, dict) or not isinstance(action.get('tool'), str) or action['tool'] not in tools:
+                        errors.append('unavailable_sensory_tool')
+                        continue
+                    call = standardizer.standardize(action)
+                    if not call.is_valid:
+                        errors.append('invalid_sensory_parameters')
+                        continue
+                    validated.append((call.tool_name, call.parameters))
+                if not errors:
+                    validated = coalesce_sensory_calls(validated, standardizer)
+            if not errors or decision.status != 'ok':
+                break
+            note = {'invalid_sensory_decision': '没读出要使用的感官列表。',
+                    'unavailable_sensory_tool': '选的感官不在这次可用的列表里。',
+                    'invalid_sensory_parameters': '有一项感官参数对不上说明。'}[errors[0]]
+            if not node_retry.take('选择感官', note):
+                if correcting and not node_retry.cancelled():
+                    node_retry.unresolved(note)
+                break
+            messages = [*messages, {'role': 'user', 'content': '【感官选择回执】' + note + ' 可以重选，也可以留空。'}]
+            correcting = True
         receipts = []
         def interrupted():
             return bool((self.store.get_activity(activity['activity_id']) or {}).get('interrupt_requested'))

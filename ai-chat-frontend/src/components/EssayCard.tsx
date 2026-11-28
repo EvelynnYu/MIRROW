@@ -3,7 +3,8 @@ import { getApiBase } from '../config';
 import './EssayCard.css';
 
 type Illustration = { status: 'ready'; url: string; scene: string } | { status: 'failed' | 'interrupted' | 'requested' };
-export type Essay = { id: string; title: string; keyword: string; created_at: string; content?: string; illustration?: Illustration };
+type EssayLink = { id: string; title: string; created_at: string };
+export type Essay = EssayLink & { keyword: string; content?: string; illustration?: Illustration; continued_from?: EssayLink; continuations?: EssayLink[] };
 
 export function EssayIllustration({ picture }: { picture?: Illustration }) {
   if (!picture) return null;

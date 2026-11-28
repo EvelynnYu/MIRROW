@@ -1976,6 +1976,8 @@ from routers.essay_router import router as essay_router
 app.include_router(essay_router)
 from routers.xhs_posts_router import router as xhs_posts_router
 app.include_router(xhs_posts_router)
+from xhs_actions.dm_admin import router as xhs_direct_messages_router
+app.include_router(xhs_direct_messages_router)
 from routers.topic_router import router as topic_router
 app.include_router(topic_router)
 from routers.covenant_router import router as covenant_router

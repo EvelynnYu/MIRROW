@@ -1,0 +1,10 @@
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:width="8dp" android:height="9dp" android:bottom="4dp" android:gravity="start|bottom">
+        <vector android:width="8dp" android:height="9dp" android:viewportWidth="8" android:viewportHeight="9">
+            <path android:fillColor="#FFF8EF" android:pathData="M8,0 Q5,6 0,8 Q4,9 8,8 Z" />
+        </vector>
+    </item>
+    <item android:left="5dp">
+        <shape><solid android:color="#FFF8EF" /><corners android:radius="10dp" /></shape>
+    </item>
+</layer-list>

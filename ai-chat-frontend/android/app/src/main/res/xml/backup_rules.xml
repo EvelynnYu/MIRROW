@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
-    <exclude domain="sharedpref" path="mirrow_mi_band_7.xml" />
+    <exclude domain="sharedpref" path="mirrow_mi_band_7.xml" /><exclude domain="sharedpref" path="wander_widget_snapshot.xml" />
 </full-backup-content>

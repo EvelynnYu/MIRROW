@@ -75,8 +75,15 @@ class CedarToyClient:
         try:
             async with httpx.AsyncClient(transport=self._transport, timeout=35.0,
                                          follow_redirects=False, trust_env=False) as client:
-                response = await client.post(f"{BASE_URL}/{self._token}", json=request)
-                response.raise_for_status()
+                async def send():
+                    response = await client.post(f"{BASE_URL}/{self._token}", json=request)
+                    response.raise_for_status()
+                    return response
+                if name == 'account' and args.get('action') == 'my_saves':
+                    from .node_retry import read
+                    response = await read(send, '查看游戏存档')
+                else:
+                    response = await send()
                 envelope = response.json()
         except (httpx.HTTPError, ValueError) as exc:
             # The URL contains a credential. Never put an HTTP exception or

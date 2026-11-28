@@ -98,6 +98,52 @@ public class MobileToolPlugin extends Plugin {
     @Override
     public void load() {
         Log.i(TAG, "MobileTool 插件已加载");
+        widgetPanel(getActivity().getIntent());
+    }
+
+    @Override protected void handleOnNewIntent(Intent intent) {
+        widgetPanel(intent);
+    }
+
+    private void widgetPanel(Intent intent) {
+        if (intent == null) return;
+        String panel = intent.getStringExtra("wander_widget_panel");
+        if (!"mood".equals(panel) && !"activity".equals(panel)) return;
+        intent.removeExtra("wander_widget_panel");
+        JSObject event = new JSObject();
+        event.put("panel", panel);
+        notifyListeners("wanderWidgetPanel", event, true);
+    }
+
+    @PluginMethod
+    public void setWidgetAvatar(PluginCall call) {
+        String png = call.getString("png", "");
+        if (png.isEmpty() || png.length() > 160000) {
+            call.reject("Invalid thumbnail");
+            return;
+        }
+        android.util.AtomicFile file = new android.util.AtomicFile(com.mirrow.app.widget.WanderWidget.avatarFile(getContext()));
+        java.io.FileOutputStream out = null;
+        try {
+            byte[] bytes = android.util.Base64.decode(png, android.util.Base64.DEFAULT);
+            android.graphics.BitmapFactory.Options bounds = new android.graphics.BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bounds);
+            if (bounds.outWidth != 128 || bounds.outHeight != 128 || !"image/png".equals(bounds.outMimeType)) {
+                call.reject("Invalid thumbnail");
+                return;
+            }
+            out = file.startWrite();
+            out.write(bytes);
+            file.finishWrite(out);
+        } catch (Exception e) {
+            if (out != null) file.failWrite(out);
+            call.reject("Unable to save thumbnail");
+            return;
+        }
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(
+                () -> com.mirrow.app.widget.WanderWidget.render(getContext()));
+        call.resolve();
     }
 
     @PluginMethod

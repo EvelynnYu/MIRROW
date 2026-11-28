@@ -12,6 +12,8 @@ android {
     namespace = "com.mirrow.app"
     compileSdk = rootProject.ext.compileSdkVersion
 
+    sourceSets.main.assets.srcDir('../../shared/presence')
+
     buildFeatures {
         buildConfig = true
     }
@@ -20,8 +22,8 @@ android {
         applicationId "com.mirrow.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 44
-        versionName "1.43-workshop-character-anchors"
+        versionCode 96
+        versionName "1.95-wander-layout"
         buildConfigField "String", "MIRROW_BACKEND_FALLBACK_URL", "\"${mirrowBackendFallbackUrl}\""
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

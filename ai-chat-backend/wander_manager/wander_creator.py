@@ -131,7 +131,7 @@ class WanderCreator:
         db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'events', 'wander_runtime.db')
         store = WanderRuntimeStore(db_path)
         controller = WanderRuntimeController(store)
-        allowed = {EventType.KEYWORD_EXPANSION, EventType.MEMORY_FETCH, EventType.BROWSE_NEWS, EventType.BROWSE_XIAOHONGSHU, EventType.PUBLISH_XIAOHONGSHU, EventType.CHECK_XIAOHONGSHU_INTERACTIONS, EventType.BROWSE_SOCIAL_FEED, EventType.WORKSHOP_CREATE, EventType.WORKSHOP_HISTORY, EventType.WORKSHOP_CONTINUE, EventType.BROWSE_BOOKMARKS, EventType.SELF_REFLECTION, EventType.SLEEP, EventType.USER_TRACKING, EventType.LISTEN_MUSIC, EventType.PLAY_GAME}
+        allowed = {EventType.KEYWORD_EXPANSION, EventType.MEMORY_FETCH, EventType.BROWSE_NEWS, EventType.BROWSE_XIAOHONGSHU, EventType.PUBLISH_XIAOHONGSHU, EventType.XHS_DIRECT_MESSAGES, EventType.CHECK_XIAOHONGSHU_INTERACTIONS, EventType.BROWSE_SOCIAL_FEED, EventType.WORKSHOP_CREATE, EventType.WORKSHOP_HISTORY, EventType.WORKSHOP_CONTINUE, EventType.BROWSE_BOOKMARKS, EventType.SELF_REFLECTION, EventType.SLEEP, EventType.USER_TRACKING, EventType.LISTEN_MUSIC, EventType.PLAY_GAME}
 
         def music_available() -> bool:
             music_client = self._handler_factory.music_mcp_client

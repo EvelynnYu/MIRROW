@@ -77,6 +77,10 @@ def execution_overview(activity: dict[str, Any], nodes: list[dict[str, Any]]) ->
         "completion_signals": dict(Counter(row["completion_signal"] for row in confirmed if row.get("completion_signal"))),
     }
     from .stop_reason import stop_reason_text
+    from .node_retry import receipt_text
+    retries = [text for node in nodes if (text := receipt_text(node.get('source_payload') or {}))]
+    if retries:
+        result['immediate_retries'] = retries
     if stop_reason := stop_reason_text(activity, nodes):
         result['stop_reason'] = stop_reason
     games = [row for row in confirmed if row.get("game")]

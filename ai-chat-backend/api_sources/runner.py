@@ -74,7 +74,7 @@ async def run_structured_once(messages: list, *, temperature: float, max_tokens:
                          sources: list | None = None, timeout_seconds: int | None = None,
                          audit_path=None, json_mode: bool = True, task_id: str | None = None,
                          response_format: dict | None = None, request_projector=None, inspect_provider=False,
-                         stop_on_output_error=False):
+                         stop_on_output_error=False, image_batch=None):
     from wander_manager.flash_structured import FlashJsonResult, parse_json_object
     from llm_client import http_client, llm_semaphore, LLM_LIMITS
 
@@ -154,13 +154,15 @@ async def run_structured_once(messages: list, *, temperature: float, max_tokens:
                             'system_role': model['system_role'], 'json_mode': json_mode})
                         if proven != actual_wire(payload, []):
                             raise ValueError('channel_wire_projection_mismatch')
+                    from .image_batch import attach
+                    dispatch_payload = attach(payload, station["protocol"], image_batch) if image_batch else payload
                     headers["X-Trace-Id"] = uuid.uuid4().hex
                     handle = await asyncio.to_thread(audit.begin, task_id, "test" if route == "connection_test" else group_for(route), route, metadata, source["ordinal"], **({"path": audit_path} if audit_path else {}))
                     if inspect_provider:
                         from . import observability
                         inspection_handle=observability.begin(payload,call_messages,model=model["model"],route=route,request_id=handle["id"],projection=projection)
                     request_dispatched = True
-                    response = await client.post(url, json=payload, headers=headers, timeout=timeout, follow_redirects=False)
+                    response = await client.post(url, json=dispatch_payload, headers=headers, timeout=timeout, follow_redirects=False)
                     http_status = response.status_code
                     trace = response.headers.get("x-siliconcloud-trace-id") or response.headers.get("x-request-id") or headers["X-Trace-Id"]
                     if response.status_code >= 400:

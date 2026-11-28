@@ -5,4 +5,7 @@
     <string name="package_name">com.mirrow.app</string>
     <string name="custom_url_scheme">com.mirrow.app</string>
     <string name="a11y_service_desc">开启后 MIRROW 可在你不在电脑前时截取手机屏幕，供 AI 感知你在做什么。</string>
+    <string name="wander_widget_name">MIRROW 漫想</string>
+    <string name="wander_widget_description">在桌面看 AI 此刻的活动和休息间隔</string>
+    <string name="wander_widget_refresh">刷新漫想状态</string>
 </resources>

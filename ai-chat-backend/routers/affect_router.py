@@ -177,8 +177,12 @@ async def affect_snapshot():
 
 
 @router.get("/projection")
-async def affect_projection():
-    return await _current_projection(_service())
+async def affect_projection(widget: bool = False):
+    projection = await _current_projection(_service())
+    if widget:
+        dominant = (projection.get("self") or {}).get("dominant") or {}
+        return {"family": dominant.get("family", "")}
+    return projection
 
 
 @router.get("/components")

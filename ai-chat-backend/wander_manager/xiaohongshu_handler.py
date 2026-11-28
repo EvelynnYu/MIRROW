@@ -1,5 +1,6 @@
 """Single dedicated-device XHS material producer for chat and Wander."""
 from __future__ import annotations
+import asyncio
 import inspect
 import json
 import re
@@ -23,7 +24,7 @@ class BrowseXiaohongshuHandler(BaseEventHandler):
         return event
 
     async def fetch_one_post(self, *, exclude_ids=None, activity_reason='',
-                             task=None, cursor=None):
+                             task=None, cursor=None, frames_out=None):
         task = validate_task(task) if task else await compile_task(activity_reason or '浏览首页推荐')
         if task['operation'] == 'continue':
             return {'status': 'resume_requires_runtime'}
@@ -42,11 +43,26 @@ class BrowseXiaohongshuHandler(BaseEventHandler):
                       task_spec=task, retrieved_at=datetime.now().isoformat())
         if result.get('status') != 'success':
             return result
-        if not frames and screenshot:
-            frames = [{'label': 'visible_screen', 'screenshot_base64': screenshot,
-                       'ui_text': result.get('ui_text', '')}]
+        capture = result.get('gallery_capture') or {}
+        if not frames and screenshot and not capture.get('declared_total'):
+            frames = [{'label': 'visible_screen', 'screenshot_base64': screenshot}]
+        if capture.get('declared_total'):
+            frames = [frame for frame in frames if frame.get('page') in capture.get('captured_pages', [])]
         if not frames or not result.get('source_id'):
             return dict(result, status='insufficient_device_evidence')
+        if frames_out is not None:
+            from .xhs_gallery_review import prepare_pages
+            pages = await asyncio.to_thread(prepare_pages, frames)
+            frames_out.extend(pages)
+            ui_text = str(result.pop('ui_text', '') or '')
+            result.update(content_summary=result.get('article_text') or result.get('title', ''),
+                evidence_excerpt=re.sub(r"\s+", " ", ui_text).strip()[:240], source_ui_text=ui_text[:3000],
+                gallery_labels=[label for label, _ in pages], image_observations=[],
+                media_observation='native_screens_for_review')
+            result.setdefault('coverage', {'text':'visible_excerpt','images':'visible_screen','video':'not_played'})
+            result['coverage'] = {**result['coverage'], 'image_analysis':'pending'}
+            result.setdefault('limitations','图片覆盖范围以实际可见的图页为准。')
+            return result
         observations, calls = [], []
         for frame in frames:
             vision, error = await self._run_device_vision(frame['screenshot_base64'],

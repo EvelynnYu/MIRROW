@@ -38,3 +38,47 @@ npm run dev
 RVC 不包含私人音色和适配器。可选设置 `RVC_PYTHON` 与 `RVC_INFER_SCRIPT` 为部署者自己的可执行程序和脚本；脚本参数合同是输入音频、输出 WAV、音高整数，工作目录为脚本所在目录。未配置或转换失败时使用原始 TTS 音频，不冒称完成音色转换。
 
 Android 构建需自己的 SDK、签名和构建环境；摄像头、手环、手机、音乐账户与模型调用均未在公开干净环境实测。完整日结生命周期也仍需部署者按真实环境验收。
+
+## Android 桌面小组件
+
+准备 Node.js 22、JDK 21、Android SDK Platform 36、Build Tools 35.0.0 和 Gradle 8.14.3，设置 JAVA_HOME、ANDROID_HOME。在手机可达的地址启动后端并按前文登记设备。进入 ai-chat-frontend 后构建。
+
+```powershell
+npm ci --ignore-scripts
+npm run build
+npx cap sync android
+cd android
+gradle :app:assembleDebug
+```
+
+用自己生成的 app/build/outputs/apk/debug/app-debug.apk 安装主应用。先打开应用，选好后端地址并确认连通，再到启动器的小组件列表添加「MIRROW 漫想」。覆盖升级使用与原应用相同的签名。
+
+## 小红书私信
+
+1. 在自己控制的专用 Android 手机上登录准备给 MIRROW 使用的小红书账号，授权本机 ADB。浏览路径使用 `MIRROW_XHS_ADB_SERIAL`，互动、私信及发帖的设备网关使用 `MIRROW_ANDROID_DEVICE_SERIAL`。有多台设备时，将两项在本机设为同一台专用设备的序列号。
+2. 文字输入辅助程序位于 `android-input-helper`。首次以本地调试方式构建时，在该目录创建自己的签名；已有部署沿用原签名。下面是 PowerShell 示例。将生成的文字辅助 APK 安装到那台专用手机。桌面小组件安装在日常使用的手机，两者按各自用途配置。
+
+```powershell
+New-Item -ItemType Directory -Force build | Out-Null
+# 仅首次构建执行下一行。Android 本地调试口令为 android。
+keytool -genkeypair -keystore build/helper-debug.keystore -alias xhstexthelper -keyalg RSA -keysize 2048 -validity 3650 -storepass android -keypass android -dname "CN=MIRROW Local Debug"
+./build.ps1 -Platform android-36
+```
+
+3. 在 `ai-chat-backend/events/xhs_publish_config.json` 填写登录账号的资料。这两个示例文件应由部署者在自己电脑上创建。
+
+```json
+{"account_id":"替换为登录账号的小红书号","account_name":"替换为登录账号的昵称"}
+```
+
+4. 确认设备、账号及原生界面一致后，在 `ai-chat-backend/events/xhs_interactions_config.json` 启用互动。`account` 与上一步相同。`owner_account_id` 可选，用于识别伙伴的小红书号；`external_reply_guidance` 可选，用于补充对外回复时的约定。
+
+```json
+{
+  "ready": true,
+  "ui_contract": "xhs-native-interactions-v1",
+  "account": {"account_id":"替换为登录账号的小红书号","account_name":"替换为登录账号的昵称"}
+}
+```
+
+5. 在「收藏 → 🍠 私信」管理本机待审来信及联系人。未知身份、草稿冲突、控件布局无法核验或提交结果不明都会留下相应状态。私信、批准、黑名单和发送回执存于部署者本机。模型处理已获准的来信时，相关文字会进入部署者配置的模型请求；使用图集阅读时，可见页面也会进入所配置的视觉模型。

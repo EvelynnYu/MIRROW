@@ -17,6 +17,7 @@ from typing import Callable, Optional
 
 @dataclass
 class _TurnRecord:
+    session_id: str
     updated_at: float
     completed: bool
     stable_identity: bool
@@ -39,14 +40,18 @@ class ChatTurnGuard:
         self._lock = threading.Lock()
         self._mutations: set[str] = set()
 
+    def _running_locked(self, session_id: str) -> bool:
+        return any(record.session_id == session_id and not record.completed
+                   for record in self._records.values())
+
+    def is_running(self, session_id: str) -> bool:
+        with self._lock:
+            return self._running_locked(session_id)
+
     def begin_mutation(self, session_id: str) -> bool:
         """Reserve the gap before replacement acceptance; no generation owns it."""
-        prefix = f'chat:{session_id}:message:'
-        legacy = f'chat:{session_id}:legacy:'
         with self._lock:
-            if session_id in self._mutations or any(
-                    not value.completed and key.startswith((prefix, legacy))
-                    for key, value in self._records.items()):
+            if session_id in self._mutations or self._running_locked(session_id):
                 return False
             self._mutations.add(session_id)
             return True
@@ -108,6 +113,7 @@ class ChatTurnGuard:
                 return None
             self._terminal.pop(key, None)
             self._records[key] = _TurnRecord(
+                session_id=session_id,
                 updated_at=now, completed=False, stable_identity=stable,
             )
         return key

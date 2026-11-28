@@ -3,12 +3,17 @@
 .essay-library button { color: inherit; background: transparent; border: 1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius: 6px; padding: 7px 12px; cursor: pointer; }
 .essay-library button:disabled { opacity: .4; cursor: default; }
 .essay-library h2 { font-family: Georgia, 'Songti SC', serif; font-size: 24px; margin: 28px 0 12px; overflow-wrap: anywhere; }
-.essay-library-intro,.essay-library small,.essay-library time,.essay-page footer { opacity: .65; font-size: 12px; }
+.essay-library small,.essay-library time,.essay-page footer { opacity: .65; font-size: 12px; }
 .essay-library input { box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid color-mix(in srgb, currentColor 20%, transparent); background: transparent; color: inherit; border-radius: 6px; margin: 12px 0; }
 .essay-contents { padding: 0; list-style: none; }
 .essay-contents li button { display: grid; width: 100%; grid-template-columns: 88px 1fr; gap: 6px 14px; text-align: left; border: 0; border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent); border-radius: 0; padding: 16px 0; }
 .essay-contents strong { font-size: 15px; overflow-wrap: anywhere; }
 .essay-contents li span { grid-column: 2; font-size: 12px; opacity: .55; }
 .essay-page { max-width: 680px; margin: 30px auto 0; overflow-wrap: anywhere; }
+.essay-tabs { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid currentColor; padding: 0 2px; margin: 16px 0 22px; }
+.essay-tabs button { flex: none; display: grid; gap: 3px; justify-items: start; min-height: 44px; border: 0; border-radius: 0; border-bottom: 3px solid transparent; padding: 8px 12px; }
+.essay-tabs strong { max-width: 14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.essay-tabs button[aria-selected="true"] { border-bottom-color: currentColor; background: color-mix(in srgb, currentColor 8%, transparent); }
+.essay-tabs button:focus-visible { outline-offset: -3px; }
 .essay-page .chat-markdown { font-size: 16px; line-height: 2; }
 .essay-page footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent); }

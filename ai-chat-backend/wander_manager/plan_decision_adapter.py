@@ -50,6 +50,7 @@ class ActivitySpec:
     goal_value: Optional[int]
     reason: str = ""
     completion: str = "fixed"
+    xhs_task: Optional[dict] = None
 
 
 @dataclass(frozen=True)
@@ -315,7 +316,15 @@ class PlanDecisionAdapter:
                 continue
             goal = raw.get("goal") if isinstance(raw.get("goal"), dict) else {}
             goal_mode, value, completion = normalize_goal_policy(event_type, goal, autonomous=True)
-            activities.append(ActivitySpec(event_type, goal_mode, value, str(raw.get("reason") or ""), completion))
+            xhs_task = None
+            if event_type == EventType.BROWSE_XIAOHONGSHU and raw.get('xhs_task') is not None:
+                from .xhs_request import validate_task
+                try:
+                    xhs_task = validate_task(raw['xhs_task'])
+                except ValueError:
+                    pass
+            activities.append(ActivitySpec(event_type, goal_mode, value, str(raw.get("reason") or ""), completion,
+                                           xhs_task=xhs_task))
             seen_events.add(event_type)
         return PlanDecision(tuple(activities), horizon, payload, horizon_mode, autonomous_goals=True) if activities else None
 

@@ -1,5 +1,6 @@
 import { useWanderLog } from '../hooks/useWanderLog';
 import WanderMusicReceipt from './WanderMusicReceipt';
+import { activityVisual, plainActivity } from '../lib/wanderDisplay';
 
 function formatDuration(seconds: number | null | undefined) {
   if (seconds == null) return '—';
@@ -34,29 +35,33 @@ function activityStatus(log: any) {
   if (projected === 'not_started') {
     const reason = String(log.abort_reason || log.details?.abort_reason || '');
     return reason === 'not_started_after_user_interrupt'
-      ? { label: '未执行·本轮被打断', icon: '⏭️', className: 'not-started' }
-      : { label: '未执行·前序活动失败', icon: '⏭️', className: 'not-started' };
+      ? { label: '未执行·本轮被打断', className: 'not-started' }
+      : { label: '未执行·前序活动失败', className: 'not-started' };
   }
-  if (state === 'interrupted') return { label: '中断', icon: '⏸️', className: 'interrupted' };
+  if (state === 'interrupted') return { label: '中断', className: 'interrupted' };
   if (state === 'aborted' || (log.nodes || []).some((node: any) => node.status === 'failed')) {
-    return { label: '失败', icon: '⚠️', className: 'failed' };
+    return { label: '失败', className: 'failed' };
   }
-  if (state === 'completed') return { label: '完成', icon: '✅', className: 'completed' };
-  return { label: '进行中', icon: '⏳', className: 'running' };
+  if (state === 'completed') return { label: '完成', className: 'completed' };
+  if (state === 'planned') return { label: '待开始', className: 'running' };
+  if (state === 'active_wait') return { label: log.event_type === 'sleep' ? '休息中' : '等待下一步', className: 'running' };
+  if (state === 'node_review') return { label: '回顾中', className: 'running' };
+  if (state === 'settling') return { label: '整理感想中', className: 'running' };
+  return { label: '进行中', className: 'running' };
 }
 
 function shareStatus(log: any) {
   const share = log.judgment_result?.share;
   const delivery = String(log.details?.delivery_status || 'not_created');
-  if (delivery === 'sent') return { label: '已分享给人类伙伴', icon: '📨', className: 'sent' };
+  if (delivery === 'sent') return { label: '已分享给你', className: 'sent' };
   if (share === false || delivery === 'not_requested' || delivery === 'not_created') {
-    return { label: '留在心里 · 未分享', icon: '🫧', className: 'not-shared' };
+    return { label: '留在心里 · 未分享', className: 'not-shared' };
   }
-  if (delivery === 'sending') return { label: '想分享 · 发送中', icon: '📤', className: 'sending' };
-  if (delivery === 'suppressed') return { label: '想分享 · 勿扰中未发送', icon: '🔕', className: 'not-shared' };
-  if (delivery === 'failed') return { label: '想分享 · 分享失败', icon: '⚠️', className: 'share-failed' };
-  if (share === true) return { label: '想分享 · 未送达', icon: '🕊️', className: 'deferred' };
-  return { label: '分享状态未确认', icon: '？', className: 'unknown' };
+  if (delivery === 'sending') return { label: '想分享 · 发送中', className: 'sending' };
+  if (delivery === 'suppressed') return { label: '想分享 · 勿扰中未发送', className: 'not-shared' };
+  if (delivery === 'failed') return { label: '想分享 · 分享失败', className: 'share-failed' };
+  if (share === true) return { label: '想分享 · 未送达', className: 'deferred' };
+  return { label: '分享状态未确认', className: 'unknown' };
 }
 
 function gapSeconds(previous: any, next: any) {
@@ -73,13 +78,6 @@ function wakeReasonLabel(reason: string) {
   };
   return labels[reason] || reason || '等待下一次计划';
 }
-
-const typeIcons: Record<string, string> = {
-  keyword_expansion: '🔤', memory_fetch: '🧠', user_tracking: '📷', browse_news: '📰',
-  browse_xiaohongshu: '📕', self_reflection: '🤔', browse_bookmarks: '⭐', sleep: '😴',
-  listen_music: '🎵', browse_social_feed: '💌',
-  reply_home_board: '📮',
-};
 
 function activityOrder(log: any, fallback: number) {
   const value = Number(log.details?.activity_order ?? log.activity_order);
@@ -102,19 +100,21 @@ function ActivityLog({ log, fallbackOrder }: { log: any; fallbackOrder: number }
     ?? nodes.reduce((total: number, node: any) => total + (Number(node.duration_seconds) || 0), 0);
   const idleSchedule = log.details?.idle_schedule_seconds;
   const abortReason = String(log.abort_reason || log.details?.abort_reason || '');
+  const visual = activityVisual(log.event_type, log.event_type, nodes.flatMap((node: any) => node.shelf_sources || []));
+  const summary = plainActivity(log.description || '');
 
   return (
     <div className={`ledger-item wander-log-item ${status.className}`}>
-      <span className="ledger-type-label">{typeIcons[log.event_type] || '📌'}</span>
+      <span className="ledger-type-label" aria-hidden="true">{visual.icon}</span>
       <span className="wander-log-activity-order">活动 {activityOrder(log, fallbackOrder)}</span>
       <span className="ledger-content">
-        <span>{log.description || log.event_type}</span>
-        <span className="wander-log-status">{status.icon} {status.label}</span>
-        <span className={`wander-log-share ${share.className}`}>{share.icon} {share.label}</span>
+        <span>{summary.startsWith(visual.label) ? summary : visual.label + (summary && summary !== log.event_type ? ' · ' + summary : '')}</span>
+        <span className="wander-log-status">{status.label}</span>
+        <span className={`wander-log-share ${share.className}`}>{share.label}</span>
       </span>
       <span className="ledger-date">
         {created ? new Date(created).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : ''}
-        <small>{ended ? ` → ${new Date(ended).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}` : ' → 进行中'}</small>
+        {ended && <small> → {new Date(ended).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</small>}
       </span>
       <details className="wander-log-detail">
         <summary>查看经历与感想</summary>
@@ -142,14 +142,16 @@ function ActivityLog({ log, fallbackOrder }: { log: any; fallbackOrder: number }
               {gap != null && <div className="wander-log-gap">⏳ 等待下一节点：{formatDuration(gap)}</div>}
               <div className="wander-log-node">
                 <strong>节点 {node.round_index || index + 1} · {nodeStateNames[node.status || node.state] || '状态未识别'}</strong>
-                <div className="wander-log-node-source"><b>取得的材料</b>：{node.source_summary || '暂无来源摘要'}</div>
+                <div className="wander-log-node-source"><b>{node.shelf_sources?.length ? activityVisual('browse_bookmarks', '', node.shelf_sources).icon + ' ' : ''}取得的材料</b>：{node.source_summary || '暂无来源摘要'}</div>
                 <div className="wander-log-node-reflection"><b>AI 当时的感想</b>：{node.reflection || '未留下节点感想'}</div>
                 <details className="wander-log-execution">
                   <summary>这一步的执行详情</summary>
                   <span>{node.started_at ? new Date(node.started_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '未开始'}{node.completed_at ? ` → ${new Date(node.completed_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}` : ''} · {formatDuration(node.duration_seconds)}</span>
                   <WanderMusicReceipt node={node} />
                 </details>
-                {(node.error || node.status === 'failed') && <em>错误：{node.error || '节点执行失败'}</em>}
+                {node.error === 'no_pending_interactions' && node.status !== 'failed'
+                  ? <span>没有新评论或艾特，本次查看已结束。</span>
+                  : (node.error || node.status === 'failed') && <em>错误：{node.error || '这一步没能完成'}</em>}
               </div>
             </div>
           );

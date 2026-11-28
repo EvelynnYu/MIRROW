@@ -35,6 +35,8 @@ class NativePublisher:
         self.rows=nodes(await self.device.ui_dump())
         self.timings.append({'step':'observe','seconds':round(time.monotonic()-start,3)})
         if not self.rows: raise PublicationBlocked('ui_unavailable')
+        from xhs_interactions.unread import observe_labels
+        observe_labels(row.get('content-desc','') for row in self.rows if row.get('package')=='com.xingin.xhs')
         ls=labels(self.rows)
         if any(x in ls for x in ('拖动滑块完成拼图','请完成安全验证','请输入验证码','手机号登录')):
             raise PublicationBlocked('authentication_or_verification_required')
@@ -53,7 +55,44 @@ class NativePublisher:
         await asyncio.sleep(.35)
         await self.observe()
     async def click(self,label,*,desc=False):
-        await self.tap(self.find(label,desc=desc))
+        try:
+            target=self.find(label,desc=desc)
+        except PublicationBlocked:
+            if label not in ('我','用户','消息','评论和@','查看历史消息','发私信','私信好友','搜索'):
+                raise
+            if not await self.recover_read_navigation():
+                raise
+            target=self.find(label,desc=desc)
+        await self.tap(target)
+    async def recover_read_navigation(self, *, allowed=('返回', '关闭', '取消', '以后再说', '知道了', '我知道了')):
+        """Dismiss one observed, ordinary XHS navigation obstruction.
+
+        This is deliberately separate from ``click``.  Publishing, messaging,
+        collection and comment controls must always be found by their exact
+        native contracts.  The visual chooser can only select among the safe
+        controls supplied by the caller.
+        """
+        from xhs_actions.navigation_vision import select_read_navigation, candidates, is_blocked
+        if (getattr(self,'_navigation_vision_used',False) or not self.rows or
+                any(row.get('package')!='com.xingin.xhs' for row in self.rows) or
+                is_blocked(self.rows) or not candidates(self.rows,allowed=allowed)):
+            return False
+        self._navigation_vision_used=True
+        try:
+            frame = await self.device.screenshot()
+        except Exception:
+            return False
+        candidate = await select_read_navigation(self.rows, frame, allowed=allowed)
+        if candidate is None:
+            return False
+        try:
+            await self.observe()
+            if is_blocked(self.rows) or candidate not in candidates(self.rows, allowed=allowed):
+                return False
+            await self.tap({'box':candidate['bounds']})
+        except Exception:
+            return False
+        return True
     async def enter(self,node,value):
         if not await self.device.set_text(node['box'],value):
             raise PublicationBlocked('unicode_input_failed')
@@ -95,9 +134,24 @@ class NativePublisher:
             raise PublicationBlocked('publishing_account_mismatch')
         if account['account_name'] not in texts:
             raise PublicationBlocked('publishing_account_name_changed')
+    async def select_profile_notes(self):
+        # The native profile remembers its tab, including when reopened via 我.
+        tabs = [r for r in self.rows if r.get('content-desc') == '笔记']
+        if '已选定笔记' in labels(self.rows):
+            return
+        if len(tabs) == 1:
+            await self.tap(tabs[0])
+            if '已选定笔记' in labels(self.rows):
+                return
+            raise PublicationBlocked('profile_notes_tab_unverified')
+        if tabs or any(r.get('content-desc', '').startswith('已选定') for r in self.rows):
+            raise PublicationBlocked('profile_notes_tab_unverified')
+        # Earlier native layouts expose the account's note cards without tabs.
+
     async def prepare(self,record):
         d=record['draft']
         await self.home(record['account'])
+        await self.select_profile_notes()
         if d['title'] in labels(self.rows) or self.own_note_cards(d['title'],record['account']):
             raise PublicationBlocked('same_title_already_visible')
         await self.click('发布',desc=True)  # Opens composer, never the submit button.
@@ -164,6 +218,7 @@ class NativePublisher:
         await self.click('我',desc=True)
         if not any('小红书号：'+record['account']['account_id']==re.sub(r'\s','',x) for x in labels(self.rows)):
             return None
+        await self.select_profile_notes()
         title=record['draft']['title']
         cards=self.own_note_cards(title,record['account'])
         if cards:
@@ -174,7 +229,10 @@ class NativePublisher:
             if len(titles)!=1: return None
             await self.tap(titles[0])
         texts=labels(self.rows)
-        if title not in texts or record['draft']['body'] not in texts:
+        body = record['draft']['body']
+        # The published detail TextView renders each blank paragraph separator
+        # as newline-tab-newline. Compare this exact rendering only on readback.
+        if title not in texts or not (body in texts or body.replace('\n\n', '\n\t\n') in texts):
             return None
         if record['account']['account_name'] not in texts: return None
         return {'verified':True,'basis':'own_profile_new_title_and_exact_detail',

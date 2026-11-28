@@ -46,8 +46,8 @@ class XhsBrowseTool(BaseTool):
 
 
 def _safe_material(value):
-    from wander_manager.xhs_request import material_for_k
-    return material_for_k(value)
+    from wander_manager.xhs_request import material_for_ai
+    return material_for_ai(value)
 
 
 def _compact_result(payload: Mapping[str, Any]) -> str:

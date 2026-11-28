@@ -204,6 +204,7 @@ public class MirrowRelayService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        com.mirrow.app.widget.WanderWidget.relayStarted(this);
         Log.i(TAG, "MirrowRelayService onCreate");
         mainHandler = new Handler(Looper.getMainLooper());
         MirrowNotificationListener.setChangeCallback(() -> {
@@ -315,6 +316,7 @@ public class MirrowRelayService extends Service {
 
     @Override
     public void onDestroy() {
+        com.mirrow.app.widget.WanderWidget.relayStopped();
         MirrowNotificationListener.setChangeCallback(null);
         mainHandler.removeCallbacks(notificationChangedSender);
         // Keep exactly one system-owned recovery alarm; do not create competing 3s/5s restarts.
@@ -974,7 +976,9 @@ public class MirrowRelayService extends Service {
         try {
             JSONObject json = new JSONObject(text);
             String type = json.optString("type", "");
-            if ("relay_hello_ack".equals(type) || "relay_heartbeat_ack".equals(type)) {
+            if ("wander_status".equals(type)) {
+                mainHandler.post(com.mirrow.app.widget.WanderWidget::wake);
+            } else if ("relay_hello_ack".equals(type) || "relay_heartbeat_ack".equals(type)) {
                 RelayWatchdogController.onServerAcknowledged(this);
             } else if ("ambient_listening_config".equals(type)) {
                 if (ambientAudio != null) ambientAudio.updateConfig(json);
@@ -2561,6 +2565,7 @@ public class MirrowRelayService extends Service {
                 // Use PowerManager's live value rather than trusting the
                 // broadcast action when ColorOS/AOD emits them late.
                 reconcileScreenState();
+                com.mirrow.app.widget.WanderWidget.wake();
             }
         }
     }

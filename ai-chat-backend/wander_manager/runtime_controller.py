@@ -69,6 +69,11 @@ class WanderRuntimeController:
         # old in-flight runs have no key and therefore retain deadline semantics.
         run.context_snapshot = dict(run.context_snapshot or {})
         run.context_snapshot["timing"] = {"horizon_mode": plan.horizon_mode}
+        planned_xhs = {item.activity_id: {'version': 1, 'spec': spec.xhs_task, 'initial_cursor': {}}
+                       for item, spec in zip(activities, plan.activities) if spec.xhs_task}
+        if planned_xhs:
+            run.context_snapshot['phone_tasks'] = {**dict(run.context_snapshot.get('phone_tasks') or {}),
+                                                   **planned_xhs}
         if plan.autonomous_goals and run.trigger_reason != "chat_tool":
             run.context_snapshot["autonomy"] = {
                 "version": 1,

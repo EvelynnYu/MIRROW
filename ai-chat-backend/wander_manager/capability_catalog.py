@@ -34,6 +34,15 @@ def get_capability_records() -> tuple[dict[str, Any], ...]:
         'freshness': 'persisted work and illustration receipts',
         'limit': '成图取决于本机配置的插画服务。书册保存与聊天分享分别记录。',
     })
+    records.append({
+        'domain': '小红书',
+        'capability': '自主查看个人私信',
+        'state': 'available_when_direct_message_adapter_and_device_ready',
+        'details': '漫想可查看已配置账号收到、且已获本机准入的个人私信，并在读后选择回复或离开；同一批处理的消息与平台回执保存为节点事实。',
+        'source': 'xhs_actions.dm_tool + xhs_actions.direct_messages + wander_manager',
+        'freshness': 'per native inbox read and reply receipt',
+        'limit': '需完成本机账号配置、设备连接和身份/授权核验。陌生来源、未获授权、无新来信或平台未核验的发送不会伪造为已处理。',
+    })
     events = _event_records()
     if events:
         for record in records:

@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Iterator, Optional
 from uuid import uuid4
 from .goal_policy import get_activity_goal_policy
+from .bookshelf_actions import observed_shelf_sources
 
 from .runtime_models import (
     ActivityState, DecisionPhase, GoalMode, NodeState, RunState,
@@ -476,15 +477,22 @@ class WanderRuntimeStore:
             runtime_state = "scheduled"
 
         current = None
+        shelf_sources = []
         if runtime_state == "active":
             with self._connection() as conn:
                 current = conn.execute(
-                    """SELECT activity_type,state,next_node_at,timer_ends_at
+                    """SELECT activity_id,activity_type,state,next_node_at,timer_ends_at
                        FROM wander_activities WHERE run_id=? AND state IN
                        ('active_wait','node_running','node_review','settling')
                        ORDER BY order_index LIMIT 1""", (run["run_id"],)
                 ).fetchone()
+                if current and current["activity_type"] == "browse_bookmarks":
+                    node = conn.execute("SELECT source_payload FROM wander_nodes WHERE activity_id=? ORDER BY round_index DESC LIMIT 1",
+                                        (current["activity_id"],)).fetchone()
+                    shelf_sources = observed_shelf_sources(_load_json(node[0]) or {}) if node else []
         return {
+            "current_activity_id": current["activity_id"] if current else "",
+            "shelf_sources": shelf_sources,
             "current_event_type": current["activity_type"] if current else None,
             "current_activity_state": current["state"] if current else "",
             "next_node_at": current["next_node_at"] if current else None,
@@ -610,6 +618,17 @@ class WanderRuntimeStore:
                  _json(data["probability_snapshot"]), _json(data["context_snapshot"]), data["plan_horizon_min"],
                  data["next_wake_at"], data["ended_at"], _text(data["outcome"]), data["created_at"], data["updated_at"]))
 
+    def route_xhs_inbox(self, activity_id: str, node_id: str) -> bool:
+        """Classify the first, still-running phone node before any device action."""
+        with self._connection() as conn:
+            changed = conn.execute("""UPDATE wander_activities
+                SET activity_type='check_xiaohongshu_interactions', goal_mode='single', goal_value=1, updated_at=?
+                WHERE activity_id=? AND activity_type='browse_xiaohongshu' AND interrupt_requested=0 AND ended_at IS NULL
+                AND EXISTS (SELECT 1 FROM wander_nodes WHERE activity_id=? AND node_id=? AND execution_status='running')
+                AND NOT EXISTS (SELECT 1 FROM wander_nodes WHERE activity_id=? AND node_id<>?)""",
+                (now_iso(), activity_id, activity_id, node_id, activity_id, node_id))
+            return changed.rowcount == 1
+
     def save_activity(self, activity: WanderActivity) -> None:
         data = activity.to_dict()
         with self._connection() as conn:
@@ -694,9 +713,13 @@ class WanderRuntimeStore:
                      data["started_at"], data["completed_at"], data["execution_status"], _text(data["completion_signal"]), int(data["retry_safe"]),
                      _json(data["side_effect_refs"]), _text(data["execution_error"]), data["created_at"], data["updated_at"]))
 
-    def save_node(self, node: WanderNode) -> None:
-        data = node.to_dict()
+    def save_node(self, node: WanderNode, *, assign_essay_title=False) -> None:
         with self._connection() as conn:
+            if assign_essay_title:
+                from .essays import assign_shelf_title
+                conn.execute("BEGIN IMMEDIATE")
+                assign_shelf_title(conn, node)
+            data = node.to_dict()
             conn.execute("""INSERT INTO wander_nodes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(node_id) DO UPDATE SET state=excluded.state, source_summary=excluded.source_summary,
                 source_payload=excluded.source_payload, reflection=excluded.reflection, emotion_effect=excluded.emotion_effect,
@@ -708,6 +731,68 @@ class WanderRuntimeStore:
                  None if data["continue_activity"] is None else int(data["continue_activity"]), _text(data["abort_reason"]),
                  data["started_at"], data["completed_at"], data["execution_status"], _text(data["completion_signal"]), int(data["retry_safe"]),
                  _json(data["side_effect_refs"]), _text(data["execution_error"]), data["created_at"], data["updated_at"]))
+
+    def record_xhs_page_reading(self, node_id, observations):
+        with self._connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            row = conn.execute('SELECT source_payload, side_effect_refs FROM wander_nodes WHERE node_id=?',
+                               (node_id,)).fetchone()
+            payload = _load_json(row['source_payload']) if row else {}
+            if not observations or payload.get('gallery_labels') != [r['page'] for r in observations]:
+                raise ValueError('gallery_reading_source_mismatch')
+            payload['image_observations'] = observations
+            payload['coverage']['image_analysis'] = 'all_captured_pages_read'
+            payload['content_summary'] = '\n'.join(r['observation'] for r in observations)[:2000]
+            conn.execute('UPDATE wander_nodes SET source_payload=? WHERE node_id=?',(_json(payload),node_id))
+            run = conn.execute(
+                "SELECT r.run_id, r.context_snapshot FROM wander_runs r "
+                "JOIN wander_activities a ON a.run_id=r.run_id JOIN wander_nodes n ON n.activity_id=a.activity_id "
+                "WHERE n.node_id=? AND r.trigger_reason='chat_tool'", (node_id,)
+            ).fetchone()
+            if run:
+                from .xhs_request import material_for_ai
+                snapshot = _load_json(run['context_snapshot'])
+                saved_post = next((p for p in snapshot.get('chat_receipt', {}).get('posts', [])
+                                   if p.get('node_id') == node_id), None)
+                if saved_post is None:
+                    raise ValueError('gallery_reading_source_mismatch')
+                saved_post.update(material=material_for_ai(payload), summary=payload['content_summary'])
+                refs = _load_json(row['side_effect_refs'])
+                refs['xhs_material_received'] = True
+                conn.execute('UPDATE wander_nodes SET side_effect_refs=? WHERE node_id=?', (_json(refs), node_id))
+                conn.execute('UPDATE wander_runs SET context_snapshot=? WHERE run_id=?',
+                             (_json(snapshot), run['run_id']))
+
+    def record_xhs_page_reading(self, node_id, observations):
+        with self._connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            row = conn.execute('SELECT source_payload, side_effect_refs FROM wander_nodes WHERE node_id=?',
+                               (node_id,)).fetchone()
+            payload = _load_json(row['source_payload']) if row else {}
+            if not observations or payload.get('gallery_labels') != [r['page'] for r in observations]:
+                raise ValueError('gallery_reading_source_mismatch')
+            payload['image_observations'] = observations
+            payload['coverage']['image_analysis'] = 'all_captured_pages_read'
+            payload['content_summary'] = '\n'.join(r['observation'] for r in observations)[:2000]
+            conn.execute('UPDATE wander_nodes SET source_payload=? WHERE node_id=?',(_json(payload),node_id))
+            run = conn.execute(
+                "SELECT r.run_id, r.context_snapshot FROM wander_runs r "
+                "JOIN wander_activities a ON a.run_id=r.run_id JOIN wander_nodes n ON n.activity_id=a.activity_id "
+                "WHERE n.node_id=? AND r.trigger_reason='chat_tool'", (node_id,)
+            ).fetchone()
+            if run:
+                from .xhs_request import material_for_ai
+                snapshot = _load_json(run['context_snapshot'])
+                saved_post = next((p for p in snapshot.get('chat_receipt', {}).get('posts', [])
+                                   if p.get('node_id') == node_id), None)
+                if saved_post is None:
+                    raise ValueError('gallery_reading_source_mismatch')
+                saved_post.update(material=material_for_ai(payload), summary=payload['content_summary'])
+                refs = _load_json(row['side_effect_refs'])
+                refs['xhs_material_received'] = True
+                conn.execute('UPDATE wander_nodes SET side_effect_refs=? WHERE node_id=?', (_json(refs), node_id))
+                conn.execute('UPDATE wander_runs SET context_snapshot=? WHERE run_id=?',
+                             (_json(snapshot), run['run_id']))
 
     def merge_node_side_effect_refs(self, node_id: str, patch: dict[str, Any]) -> dict[str, Any]:
         """Attach a bounded post-review receipt without rewriting source facts."""
@@ -1173,8 +1258,36 @@ class WanderRuntimeStore:
                 ORDER BY d.created_at DESC,d.rowid DESC""", (activity_id,)).fetchall()
         return [{**dict(row), 'parsed_output': _load_json(row['parsed_output'])} for row in rows]
 
+    def bookshelf_notes_for_selection(self, activity_id: str) -> list[dict[str, str]]:
+        """Read settled reading ideas since this session last used the shelf."""
+        with self._connection() as conn:
+            rows = conn.execute("""
+                WITH visit AS (
+                    SELECT a.activity_id, r.session_id FROM wander_activities a
+                    JOIN wander_runs r USING (run_id)
+                    WHERE a.activity_id=? AND a.activity_type='browse_bookmarks'
+                ), previous_read AS (
+                    SELECT MAX(n.completed_at) AS ended FROM visit v
+                    JOIN wander_runs r USING (session_id) JOIN wander_activities a USING (run_id)
+                    JOIN wander_nodes n ON n.activity_id=a.activity_id
+                    WHERE a.activity_type='browse_bookmarks' AND a.activity_id<>v.activity_id
+                      AND (n.execution_status='succeeded'
+                           OR json_extract(n.source_payload,'$.material_selection.reason')='chosen_stop')
+                )
+                SELECT a.ended_at, json_extract(d.parsed_output,'$.normalized.bookshelf_note') AS note
+                FROM visit v JOIN wander_runs r USING (session_id) JOIN wander_activities a USING (run_id)
+                JOIN wander_decisions d ON d.rowid=(
+                    SELECT s.rowid FROM wander_decisions s WHERE s.run_id=a.run_id AND s.activity_id=a.activity_id
+                    AND s.phase='settlement' AND s.status LIKE 'ok%' ORDER BY s.created_at DESC,s.rowid DESC LIMIT 1)
+                WHERE a.state='completed' AND a.activity_id<>v.activity_id
+                  AND a.ended_at >= COALESCE((SELECT ended FROM previous_read),'')
+                  AND COALESCE(json_extract(d.parsed_output,'$.normalized.unexecuted'),0)=0
+                  AND note<>'' ORDER BY a.ended_at, a.rowid
+            """, (activity_id,)).fetchall()
+        return [{'当时': row['ended_at'], '想看的内容': row['note']} for row in rows]
+
     def get_settlement_impression(self, activity_id: str) -> dict[str, Any]:
-        """Read AI's selected experience from the existing settlement audit."""
+        """Read the AI's selected experience from the existing settlement audit."""
         with self._connection() as conn:
             row = conn.execute(
                 """SELECT parsed_output FROM wander_decisions
@@ -1274,6 +1387,14 @@ class WanderRuntimeStore:
         result["tool_calls"] = _load_json(result["tool_calls"])
         return result
 
+    def claim_delivery(self, delivery_id: str, message_id: str, content: str, tool_calls: list) -> bool:
+        with self._connection() as conn:
+            return conn.execute(
+                "UPDATE wander_deliveries SET status='sending', message_id=?, message_content=?, tool_calls=? "
+                "WHERE delivery_id=? AND status='deferred'",
+                (message_id, content, _json(tool_calls), delivery_id),
+            ).rowcount == 1
+
     def update_delivery(
         self,
         delivery_id: str,
@@ -1311,8 +1432,8 @@ class WanderRuntimeStore:
         hours: int = 24,
         date: str = "",
     ) -> list[dict[str, Any]]:
-        """Project runtime activities into the stable frontend log shape."""
-        clauses = []
+        """Only autonomous runs belong in the Wander journal."""
+        clauses = ["r.trigger_reason NOT IN ('chat_tool', 'manual') AND r.trigger_reason NOT GLOB 'ui_action:*'"]
         params: list[Any] = []
         if date:
             clauses.append("substr(a.created_at, 1, 10)=?")
@@ -1429,6 +1550,9 @@ class WanderRuntimeStore:
                         if reflection == node["source_summary"]:
                             reflection = ""
                     failure_stage = _text(payload.get("failure_stage") or "")[:80]
+                    if payload.get('immediate_retry'):
+                        from .node_retry import receipt_text
+                        source_summary = (source_summary + ' ' + receipt_text(payload)).strip()
                     public_error = _text(payload.get("public_error") or "")[:300]
                     music = None
                     if item["activity_type"] == "listen_music":
@@ -1470,6 +1594,8 @@ class WanderRuntimeStore:
                         "started_at": node["started_at"],
                         "completed_at": node["completed_at"],
                         "duration_seconds": node_duration,
+                        **({"shelf_sources": observed_shelf_sources(payload or {})}
+                           if item["activity_type"] == "browse_bookmarks" else {}),
                         "source_summary": source_summary,
                         "reflection": reflection,
                         "error": node["execution_error"] or "",

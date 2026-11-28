@@ -1,3 +1,6 @@
+import { wanderPresence } from './lib/wanderDisplay';
+import { useWanderWidgetPanel } from './lib/useWanderWidgetPanel';
+import { useWanderWidgetAvatar } from './lib/useWanderWidgetAvatar';
 import { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import './App.css';
 import { TaskProgressPanel, TASK_LABELS } from './components/TaskProgressPanel';
@@ -343,6 +346,8 @@ function App() {
   const [moodDisplay, setMoodDisplay] = useState<{emoji:string;label:string;text:string}>({emoji:'🌤️',label:'暂时没有主心情',text:''});
   const [showMoodPeek, setShowMoodPeek] = useState(false);
   const [showAffectBoard, setShowAffectBoard] = useState(false);
+  useWanderWidgetAvatar(persona.avatar);
+  useWanderWidgetPanel(view, setView, setShowAffectBoard, setShowWanderLog, setShowMobileSidebar);
   const [showAffectQuickCheckin, setShowAffectQuickCheckin] = useState(false);
   const [showBrainArch, setShowBrainArch] = useState(false);
 
@@ -474,6 +479,7 @@ function App() {
   // 漫想日志逻辑已移至 hooks/useWanderLog.ts
   const [wanderStatus, setWanderStatus] = useState<WanderStatus | null>(null);
   const loungeStatus = useLoungeStatus();
+  const presence = wanderPresence(wanderStatus);
   const [userStatus, setUserStatus] = useState<string>('');
   const [userStatusMode, setUserStatusMode] = useState<string>('auto');
   const [statusMeta, setStatusMeta] = useState<any>(null);  // StatusMeta dict from backend
@@ -2112,7 +2118,8 @@ function App() {
       content: messageText,
       timestamp: new Date(),
       voiceAttachment: voiceData?.voiceAttachment,
-      longTextCard,    };
+      longTextCard,
+    };
     let draft: ReturnType<typeof createOutgoingDraft>;
     try { draft = createOutgoingDraft(baseUserMessage, imageFiles); }
     catch (cause) { return Promise.reject(new OutgoingPreparationError(cause)); }
@@ -2129,7 +2136,8 @@ function App() {
       preparing: active => {
         if (active) preparationToken = beginInputActivity('send_preparation', '正在准备发送…');
         else if (preparationToken) { endInputActivity(preparationToken); preparationToken = null; }
-      },    });
+      },
+    });
     setIsLoading(true);
     setToolCallStatus([]);
 
@@ -2201,7 +2209,8 @@ function App() {
             music_mode: musicMode,
             voice_prosody: voiceData?.voiceProsody,
             voice_attachment: voiceData?.voiceAttachment,
-            long_text_card: longTextCard,          })
+            long_text_card: longTextCard,
+          })
         });
 
         if (!fallbackResponse.ok) {
@@ -2305,7 +2314,8 @@ function App() {
             music_mode: musicMode,
             voice_prosody: voiceData?.voiceProsody,
             voice_attachment: voiceData?.voiceAttachment,
-            long_text_card: longTextCard,          }));
+            long_text_card: longTextCard,
+          }));
           // The socket may remain open while its final frame is lost. Follow
           // this exact turn independently until its real terminal receipt.
           void recovery.check();
@@ -3468,13 +3478,14 @@ function App() {
               <div className="sidebar-wander-status">
                 {wanderStatus || loungeStatus.busy ? (
                   <div className={`wander-status-indicator ${loungeStatus.busy || wanderStatus?.is_wander_mode_active ? 'active' : ''}`}>
-                    <span className="wander-avatar">
+                    <span className="wander-avatar-wrap"><span className="wander-avatar">
                       {persona.avatar.startsWith('data:')
                         ? <img src={persona.avatar} alt="AI头像" className="avatar-img" />
                         : persona.avatar}
-                    </span>
+                    </span><span className="wander-avatar-badge" aria-hidden="true">{presence.icon}</span></span>
                     <span className="wander-status-text">
-                      {loungeStatus.busy ? loungeStatus.label : wanderStatus?.mode_display}
+                      {loungeStatus.busy ? loungeStatus.label : presence.label}
+                      {presence.detail && <small>{presence.detail}</small>}
                     </span>
                   </div>
                 ) : (

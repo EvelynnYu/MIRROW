@@ -1,0 +1,64 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wander_widget" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/wander_widget_background" android:clipToOutline="true">
+    <ImageView android:id="@+id/wander_backdrop" android:layout_width="match_parent" android:layout_height="match_parent"
+        android:scaleType="centerCrop" android:src="@drawable/wander_bg_atlas" android:contentDescription="@null" />
+    <FrameLayout android:id="@+id/wander_tint" android:layout_width="match_parent" android:layout_height="match_parent" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal"
+        android:gravity="center_vertical" android:baselineAligned="false">
+        <FrameLayout android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="0.35" />
+        <TextView android:id="@+id/wander_watermark" android:layout_width="0dp" android:layout_weight="0.65" android:layout_height="wrap_content"
+            android:rotation="-10" android:transformPivotX="0dp" android:alpha="0.42" android:includeFontPadding="false" android:textSize="43sp" android:importantForAccessibility="no" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal" android:baselineAligned="false">
+        <FrameLayout android:id="@+id/wander_art_slot" android:layout_width="0dp" android:layout_weight="0.45" android:layout_height="match_parent">
+            <ImageView android:id="@+id/wander_art" android:layout_width="match_parent" android:layout_height="match_parent"
+                android:scaleType="fitCenter" android:src="@drawable/wk_unavailable" android:contentDescription="@null" />
+            <FrameLayout android:id="@+id/wander_motion_slot" android:layout_width="match_parent" android:layout_height="match_parent" />
+        </FrameLayout>
+        <LinearLayout android:layout_width="0dp" android:layout_weight="0.51" android:layout_height="match_parent" android:orientation="vertical">
+            <FrameLayout android:layout_width="1dp" android:layout_height="0dp" android:layout_weight="2" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:baselineAligned="false">
+                <LinearLayout android:id="@+id/wander_bubble" android:layout_width="0dp" android:layout_weight="0.56" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:gravity="center_vertical" android:background="@drawable/wander_mood_bubble"
+                    android:paddingStart="10dp" android:paddingEnd="4dp" android:paddingTop="6dp" android:paddingBottom="6dp">
+                    <LinearLayout android:id="@+id/wander_mood_header" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:gravity="center_vertical">
+                        <TextView android:id="@+id/wander_mood_title" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                            android:singleLine="true" android:includeFontPadding="false" android:text="主心情" android:textSize="9sp" android:textColor="#5E5B59" />
+                        <FrameLayout android:id="@+id/wander_avatar_frame" android:layout_width="12dp" android:layout_height="12dp">
+                            <ImageView android:id="@+id/wander_avatar" android:layout_width="match_parent" android:layout_height="match_parent" android:contentDescription="@null" />
+                        </FrameLayout>
+                    </LinearLayout>
+                    <TextView android:id="@+id/wander_identity" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:includeFontPadding="false" android:singleLine="true" android:ellipsize="end" android:textColor="#34353C" android:textSize="14sp" android:textStyle="bold" />
+                </LinearLayout>
+                <FrameLayout android:layout_width="0dp" android:layout_weight="0.44" android:layout_height="1dp" />
+            </LinearLayout>
+            <FrameLayout android:layout_width="1dp" android:layout_height="0dp" android:layout_weight="4" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal"
+                android:baselineAligned="false" android:layout_marginStart="3dp">
+                <LinearLayout android:id="@+id/wander_activity" android:layout_width="0dp" android:layout_weight="0.8" android:layout_height="wrap_content"
+                    android:background="@drawable/wander_activity_plate" android:paddingStart="6dp" android:paddingEnd="5dp"
+                    android:paddingTop="4dp" android:paddingBottom="4dp" android:orientation="vertical">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:baselineAligned="false" android:gravity="center_vertical">
+                        <TextView android:id="@+id/wander_activity_title" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="当前活动" android:singleLine="true" android:includeFontPadding="false" android:textSize="9sp" android:textColor="#D3D8DF" />
+                        <FrameLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="1dp" />
+                        <TextView android:id="@+id/wander_time" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:includeFontPadding="false" android:text="尚未同步" android:maxLines="1" android:ellipsize="end" android:textSize="8sp" android:textColor="#D3D8DF" />
+                    </LinearLayout>
+                    <TextView android:id="@+id/wander_label" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:text="状态待同步" android:textColor="#FFFFFF" android:textSize="13sp" android:textStyle="bold" android:includeFontPadding="false" android:maxLines="2" android:ellipsize="end" />
+                    <TextView android:id="@+id/wander_detail" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:includeFontPadding="false" android:textColor="#F1EADF" android:textSize="10sp" android:singleLine="true" android:ellipsize="end" />
+                </LinearLayout>
+                <TextView android:id="@+id/wander_refresh" android:layout_width="0dp" android:layout_weight="0.2" android:layout_height="match_parent"
+                    android:layout_marginStart="3dp" android:background="@drawable/wander_activity_plate" android:text="↻" android:gravity="center"
+                    android:textColor="#FFF8EC" android:textSize="19sp" android:contentDescription="@string/wander_widget_refresh" />
+            </LinearLayout>
+            <FrameLayout android:layout_width="1dp" android:layout_height="0dp" android:layout_weight="1.2" />
+        </LinearLayout>
+        <FrameLayout android:layout_width="0dp" android:layout_weight="0.04" android:layout_height="1dp" />
+    </LinearLayout>
+</FrameLayout>

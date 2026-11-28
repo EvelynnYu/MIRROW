@@ -104,13 +104,13 @@ def node_material(payload, *, execution_status='succeeded', k_reflection='', k_r
                 material['refs'] = refs
             return material
     if execution_status == 'succeeded' and payload.get('source_id') and payload.get('content_summary'):
-        from wander_manager.xhs_request import material_for_k
+        from wander_manager.xhs_request import material_for_ai
         return {'kind': 'xhs', 'title': text(payload.get('title'), 300),
                 'content_summary': text(payload.get('content_summary')),
                 'evidence_excerpt': text(payload.get('evidence_excerpt') or payload.get('source_ui_text'), 6000),
                 'media_observation': text(payload.get('media_observation')),
                 'coverage': dict(payload.get('coverage') or {}),
-                **({'received_material': material_for_k(payload)}
+                **({'received_material': material_for_ai(payload)}
                    if payload.get('material_version') == 1 else {}),
                 **({'material_delivery': 'K_review' if k_received else 'executor_only'} if payload.get('material_version') == 1 else {}),
                 'reflection': (text(k_reflection) if k_received else '') if payload.get('material_version') == 1 else text(payload.get('reflection'))}

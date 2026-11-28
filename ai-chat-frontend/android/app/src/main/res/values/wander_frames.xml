@@ -1,0 +1,50 @@
+<resources>
+    <array name="wander_frames_listen_music">
+        <item>@drawable/wf_listen_music_0</item>
+        <item>@drawable/wf_listen_music_1</item>
+        <item>@drawable/wf_listen_music_2</item>
+        <item>@drawable/wf_listen_music_3</item>
+        <item>@drawable/wf_listen_music_4</item>
+        <item>@drawable/wf_listen_music_5</item>
+    </array>
+    <array name="wander_frames_sleep">
+        <item>@drawable/wf_sleep_0</item>
+        <item>@drawable/wf_sleep_1</item>
+        <item>@drawable/wf_sleep_2</item>
+        <item>@drawable/wf_sleep_3</item>
+        <item>@drawable/wf_sleep_4</item>
+        <item>@drawable/wf_sleep_5</item>
+    </array>
+    <array name="wander_frames_sleep_side">
+        <item>@drawable/wf_sleep_side_0</item>
+        <item>@drawable/wf_sleep_side_1</item>
+        <item>@drawable/wf_sleep_side_2</item>
+        <item>@drawable/wf_sleep_side_3</item>
+        <item>@drawable/wf_sleep_side_4</item>
+        <item>@drawable/wf_sleep_side_5</item>
+    </array>
+    <array name="wander_frames_sleep_sit">
+        <item>@drawable/wf_sleep_sit_0</item>
+        <item>@drawable/wf_sleep_sit_1</item>
+        <item>@drawable/wf_sleep_sit_2</item>
+        <item>@drawable/wf_sleep_sit_3</item>
+        <item>@drawable/wf_sleep_sit_4</item>
+        <item>@drawable/wf_sleep_sit_5</item>
+    </array>
+    <array name="wander_frames_phone_wait">
+        <item>@drawable/wf_phone_wait_0</item>
+        <item>@drawable/wf_phone_wait_1</item>
+        <item>@drawable/wf_phone_wait_2</item>
+        <item>@drawable/wf_phone_wait_3</item>
+        <item>@drawable/wf_phone_wait_4</item>
+        <item>@drawable/wf_phone_wait_5</item>
+    </array>
+    <array name="wander_frames_phone_reply">
+        <item>@drawable/wf_phone_reply_0</item>
+        <item>@drawable/wf_phone_reply_1</item>
+        <item>@drawable/wf_phone_reply_2</item>
+        <item>@drawable/wf_phone_reply_3</item>
+        <item>@drawable/wf_phone_reply_4</item>
+        <item>@drawable/wf_phone_reply_5</item>
+    </array>
+</resources>

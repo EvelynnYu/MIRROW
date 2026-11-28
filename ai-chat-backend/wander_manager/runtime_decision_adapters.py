@@ -349,9 +349,9 @@ def _runtime_block(
             parts.append('[本次翻阅的选材与读取回执；可用索引不代表已经阅读]\n'
                          + json.dumps(selections, ensure_ascii=False))
     if event_type == EventType.BROWSE_XIAOHONGSHU and run:
-        from .xhs_request import latest_cursor, progress_for_k
+        from .xhs_request import latest_cursor, progress_for_ai
         record = (run.get('context_snapshot') or {}).get('phone_tasks', {}).get(activity.get('activity_id'), {})
-        progress = progress_for_k(activity.get('activity_id'), record.get('spec'),
+        progress = progress_for_ai(activity.get('activity_id'), record.get('spec'),
                                   latest_cursor(nodes, record.get('initial_cursor')))
         if progress:
             if any((node.get('source_payload') or {}).get('status') == 'profile_end_observed' for node in nodes):
@@ -386,11 +386,11 @@ def _runtime_block(
             f"当前节点序号={current_node.get('round_index')}（本次复核中的真实节点）\n"
         )
         if event_type == EventType.BROWSE_XIAOHONGSHU and payload.get('material_version') == 1:
-            from .xhs_request import material_for_k
-            current_source += json.dumps(material_for_k(payload), ensure_ascii=False)
+            from .xhs_request import material_for_ai
+            current_source += json.dumps(material_for_ai(payload), ensure_ascii=False)
             parts.append(current_source)
             return "\n".join(parts)
-        if event_type in {EventType.PUBLISH_XIAOHONGSHU, EventType.CHECK_XIAOHONGSHU_INTERACTIONS}:
+        if event_type in {EventType.PUBLISH_XIAOHONGSHU, EventType.XHS_DIRECT_MESSAGES, EventType.CHECK_XIAOHONGSHU_INTERACTIONS}:
             current_source += json.dumps(payload, ensure_ascii=False)
             parts.append(current_source)
             return "\n".join(parts)
@@ -526,6 +526,7 @@ class NodeReviewAdapter(_DecisionAdapterBase):
         context: DecisionContext,
         *,
         allowed_event_types: Optional[frozenset[EventType]] = None,
+        gallery_pages=None,
     ) -> Optional[NodeReviewDecision]:
         node = self.store.get_node(node_id)
         if node is None:
@@ -573,6 +574,14 @@ class NodeReviewAdapter(_DecisionAdapterBase):
             instruction += '\n' + MUSIC_REVIEW
         if activity['activity_type'] == EventType.BROWSE_XIAOHONGSHU.value:
             instruction += '\n' + XHS_REVIEW + '\ncloseout 中：' + XHS_CLOSEOUT
+            labels = (node.get('source_payload') or {}).get('gallery_labels')
+            if labels and labels != [label for label, _ in gallery_pages or ()]:
+                self._record_review_failure(run, activity, node, runtime_block,
+                                            'context_error', 'captured_gallery_no_longer_available')
+                return None
+            if gallery_pages:
+                from .xhs_gallery_review import reading_contract
+                instruction += reading_contract(gallery_pages)
         if activity.get('activity_type') == EventType.USER_TRACKING.value:
             instruction += ('\n查岗的 checkup_items 是本次感官回执；reflection 记录你自己的感受与猜想。'
                             '未知的室内活动仍是未知，猜想按猜想表达；工具查询成功只说明拿到了该来源的回执。'
@@ -613,6 +622,7 @@ class NodeReviewAdapter(_DecisionAdapterBase):
                 temperature=0.0,
                 max_tokens=16384,
                 route_label="wander_node_review",
+                **({'gallery_images': [image for _, image in gallery_pages]} if gallery_pages else {}),
             )
         except Exception as exc:
             self._record_review_failure(
@@ -626,9 +636,18 @@ class NodeReviewAdapter(_DecisionAdapterBase):
             return None
 
         raw = detailed.parsed if detailed.status == "ok" and isinstance(detailed.parsed, dict) else None
+        if detailed.status == 'ok' and gallery_pages:
+            from .xhs_gallery_review import observations
+            try:
+                values = observations(raw, gallery_pages)
+            except ValueError:
+                detailed.status = 'validation_error'
+                detailed.error = 'gallery_observations_incomplete'
+            else:
+                self.store.record_xhs_page_reading(node_id, values)
         if detailed.status == 'ok' and (node.get('source_payload') or {}).get('material_version') == 1:
             self.store.merge_node_side_effect_refs(node_id, {'xhs_material_received': True})
-        decision = self._normalize_review(raw, allowed_event_types) if raw is not None else None
+        decision = self._normalize_review(raw, allowed_event_types) if raw is not None and detailed.status == "ok" else None
         if decision is not None and raw.get('reuse_account') is True:
             from .node_account import account_material
             _, account = account_material(activity['activity_type'], node.get('source_payload') or {})

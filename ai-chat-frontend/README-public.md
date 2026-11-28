@@ -16,4 +16,4 @@ npm run build
 
 Android 感知采集和手环源码按本轮范围保留，AionsHome 派生代码保留来源声明及 MIT 许可。普通录音 WAV 编码沿用 AionsHome 来源，音乐模块沿用既有公开范围及其许可证。Toy 命令保留，默认 MAC 为空；未配置真实设备时返回失败，不能把命令发送当成设备状态已改变。
 
-Android 尚未进行 SDK/Gradle 编译或设备实测。纯源码筛选不附带本地 SDK 配置、签名文件、APK、Gradle wrapper 二进制或生成的 Capacitor assets。部署者需要本地 Android SDK/JDK，并安装对应 Gradle、生成 wrapper、执行 Capacitor sync 后构建；不能把本目录直接当作可安装 APK。前端 API 联调等待后端副本审核。
+Android 主应用及桌面小组件提供源码。构建步骤及本机后端配置见[部署说明](../docs/DEPLOYMENT.md)。构建会生成 Capacitor assets 与本地调试 APK。签名由部署者自行管理。

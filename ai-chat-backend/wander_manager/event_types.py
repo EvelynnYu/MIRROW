@@ -13,6 +13,7 @@ class EventType(Enum):
     BROWSE_NEWS = 'browse_news'
     BROWSE_XIAOHONGSHU = 'browse_xiaohongshu'
     PUBLISH_XIAOHONGSHU = 'publish_xiaohongshu'
+    XHS_DIRECT_MESSAGES = 'xhs_direct_messages'
     CHECK_XIAOHONGSHU_INTERACTIONS = 'check_xiaohongshu_interactions'
     BROWSE_SOCIAL_FEED = 'browse_social_feed'
     VISIT_WORKSHOP = 'visit_workshop'

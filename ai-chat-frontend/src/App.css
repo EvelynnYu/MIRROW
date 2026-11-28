@@ -228,6 +228,10 @@ body {
   border-color: var(--accent);
 }
 
+.wander-avatar-wrap { position: relative; flex: none; margin-right: 4px; }
+.wander-avatar-badge { position: absolute; bottom: -4px; right: -6px; padding: 1px; background: var(--bg-secondary); border-radius: 50%; font-size: .65rem; line-height: 1.1; }
+.sidebar-wander-status .wander-status-text { white-space: normal; line-height: 1.25; }
+.wander-status-text small { display: block; color: var(--text-secondary); font-size: .69rem; margin-top: 2px; }
 .wander-avatar {
   font-size: 1.1rem;
   line-height: 1;

@@ -515,16 +515,23 @@ class MemoryFetchHandler(BaseEventHandler):
         # iceberg scene; all failures continue into the original bucket path.
         from .activity_context import current
         from .memory_fetch_result import result
+        from . import node_retry
         selected_mode = ''
         if current() is not None:
-            raw_choice = await self._call_llm(
+            prompt = (
                 '这次想沿什么线索回忆，还是随手翻一段旧对话？输出 JSON '
                 '{"mode":"search或scene","query":"search时填写想回忆的具体线索"}。')
-            choice = parse_json_object(raw_choice) or {}
-            selected_mode = choice.get('mode')
+            def problem(value):
+                if value and (value.get('mode') == 'scene' or
+                              (value.get('mode') == 'search' and isinstance(value.get('query'), str) and value['query'].strip())):
+                    return ''
+                return '没读出回忆方式。可以选 scene，或选 search 并给出想找的线索。'
+            choice = await node_retry.choose(self._call_llm, prompt,
+                lambda raw: (parse_json_object(raw) or {}) if raw and raw.strip() else None, problem, '选择回忆线索')
+            if problem(choice):
+                return result('failed', reason='invalid_choice' if choice is not None else 'selection_unavailable')
+            selected_mode = choice['mode']
             query = str(choice.get('query') or '').strip()
-            if selected_mode not in {'search', 'scene'} or (selected_mode == 'search' and not query):
-                return result('failed', reason='invalid_choice' if raw_choice else 'selection_unavailable')
         if selected_mode == 'scene' or (not selected_mode and not query and self._should_try_iceberg()):
             try:
                 iceberg_event = WanderEvent(
@@ -576,11 +583,10 @@ class MemoryFetchHandler(BaseEventHandler):
             if not self.get_memories:
                 return result('failed', mode='search', query=query, reason='retrieval_unavailable')
 
-            memories = None
+            params = {'min_importance': 0.3, 'exclude_ids': exclude_ids or ()}
             if query:
-                memories = await self.get_memories(min_importance=0.3, query=query, exclude_ids=exclude_ids or ())
-            else:
-                memories = await self.get_memories(min_importance=0.3, exclude_ids=exclude_ids or ())
+                params['query'] = query
+            memories = await node_retry.read(lambda: self.get_memories(**params), '读取记忆')
             if not memories:
                 return result('no_result', mode='search', query=query,
                               reason='no_unread_match', candidate_count=0)
@@ -697,25 +703,32 @@ class BrowseNewsHandler(BaseEventHandler):
             {query, content, status} 或 None（生成 query 失败）。
         """
         try:
-            context_hint = ''
+            context_hint = ""
             if self._recent_queries:
-                recent = '、'.join(self._recent_queries[-5:])
-                context_hint = f' 你最近搜过：{recent}。'
-            prompt = self.NEWS_QUERY_PROMPT.format(user_status_context=get_user_status_context(), context_hint=context_hint.strip())
-            query = (await self._call_llm(prompt)).strip()[:80]
+                recent = "、".join(self._recent_queries[-5:])
+                context_hint = f" 你最近搜过：{recent}。"
+            prompt = self.NEWS_QUERY_PROMPT.format(
+                user_status_context=get_user_status_context(),
+                context_hint=context_hint.strip(),
+            )
+            from . import node_retry
+            query = await node_retry.choose(self._call_llm, prompt, lambda raw: raw.strip()[:80],
+                lambda value: '' if value else '刚才没收到搜索词。想看哪方面的新闻？', '选择新闻搜索词')
             if not query:
                 return None
             self._recent_queries.append(query)
             if len(self._recent_queries) > 20:
                 self._recent_queries = self._recent_queries[-20:]
-            logger.info(f'看新闻节点 query: {query}')
+            logger.info(f"看新闻节点 query: {query}")
+
             if not self._web_search:
-                return {'query': query, 'content': '', 'status': 'no_search_tool'}
-            search_result = await self._web_search(query)
-            content = str(search_result) if search_result else ''
-            return {'query': query, 'content': content, 'status': 'success'}
+                return {"query": query, "content": "", "status": "no_search_tool"}
+
+            search_result = await node_retry.read(lambda: self._web_search(query), '搜索新闻')
+            content = str(search_result) if search_result else ""
+            return {"query": query, "content": content, "status": "success"}
         except Exception as e:
-            logger.error(f'看新闻节点失败: {e}')
+            logger.error(f"看新闻节点失败: {e}")
             return None
 
 class SelfReflectionHandler(BaseEventHandler):
@@ -1020,7 +1033,9 @@ class BrowseBookmarksHandler(BaseEventHandler):
             from .reading_illustrations import OPTION
             prompt += OPTION
         try:
-            response = await self._call_llm(prompt)
+            from . import node_retry
+            response = await node_retry.choose(self._call_llm, prompt, lambda raw: raw,
+                lambda value: '' if str(value or '').strip() else '刚才没有收到阅读回执，可以再看一眼这份材料。', '书柜阅读回执')
             if not str(response or '').strip():
                 return '', {'status': 'failed', 'requested': 'none', 'reason': 'reading_response_empty'}, 'reading_response_empty'
             material['_reading_received'] = True
@@ -1650,7 +1665,8 @@ class ListenMusicHandler(BaseEventHandler):
             event.process_log = f'异常: {e}'
         return event
 
-    async def pick_and_fetch_song(self, exclude_fingerprints: Optional[set]=None, *, recent_music: Optional[list]=None, activity_context: Optional[dict]=None) -> Optional[dict]:
+    async def pick_and_fetch_song(self, exclude_fingerprints: Optional[set] = None, *, recent_music: Optional[list] = None,
+                                  activity_context: Optional[dict] = None) -> Optional[dict]:
         """选一首歌并获取数据（不含感想——感想由节点边界 LLM 负责）。
 
         这是「全自主区间式行动」会话循环里每个节点的单步：选歌 → 搜索/缓存 → 旋律分析。
@@ -1663,75 +1679,140 @@ class ListenMusicHandler(BaseEventHandler):
         self._last_selection_audit = {}
         try:
             status_context = get_user_status_context()
+
+            # 查缓存歌单
             cached = []
             if self._song_cache:
                 try:
                     cached = self._song_cache.get_cached_playlist(None)
                 except Exception as e:
-                    logger.warning(f'获取缓存歌单失败: {e}')
+                    logger.warning(f"获取缓存歌单失败: {e}")
+
+            # 当前活动的已处理身份是执行幂等边界，跨活动重听仍由 AI 决定。
+            # 集合同时可能包含 fingerprint 与规范化 title|artist key。
             if exclude_fingerprints:
-                cached = [s for s in cached if s.get('fingerprint') not in exclude_fingerprints and _normalize_song_identity(s.get('title'), s.get('artist')) not in exclude_fingerprints]
+                cached = [
+                    s for s in cached
+                    if s.get("fingerprint") not in exclude_fingerprints
+                    and _normalize_song_identity(s.get("title"), s.get("artist")) not in exclude_fingerprints
+                ]
+
             shelf = []
             try:
                 from music_system.library import candidates
                 from music_system.selection_catalog import merge_shelf_candidates
                 shelf = await candidates()
-                available_shelf = [candidate for candidate in shelf if candidate.get('fingerprint') not in (exclude_fingerprints or set()) and _normalize_song_identity(candidate.get('title'), candidate.get('artist')) not in (exclude_fingerprints or set())]
+                available_shelf = [candidate for candidate in shelf
+                                   if candidate.get("fingerprint") not in (exclude_fingerprints or set())
+                                   and _normalize_song_identity(candidate.get("title"), candidate.get("artist")) not in (exclude_fingerprints or set())]
                 cached = merge_shelf_candidates(cached, available_shelf)
             except Exception:
                 pass
             cached_text = self._format_cached_playlist(cached, recent_music=recent_music)
-            recent_text = ''
+            recent_text = ""
             if not cached_text:
-                recent_text = '（当前缓存没有可用歌曲；这不代表此前没有听歌经历。）'
+                recent_text = "（当前缓存没有可用歌曲；这不代表此前没有听歌经历。）"
             if recent_music is not None:
                 from cognition.music_projection import recent_node_overview
-                recent_text += '\n[当前活跃日的临时听歌事实：本事件段已在运行态提供的节点另列；次数仅统计此投影范围，空记录不代表过去没听过]\n' + json.dumps((activity_context or {}).get('music_context_scope') or {}, ensure_ascii=False) + '\n' + recent_node_overview(recent_music)
-            self_book_section = ''
-            select_prompt = self.SELECT_SONG_PROMPT.format(status_context=status_context, self_book_section=self_book_section, cached_playlist=cached_text, recent_section=recent_text)
+                recent_text += ("\n[当前活跃日的临时听歌事实：本事件段已在运行态提供的节点另列；"
+                                "次数仅统计此投影范围，空记录不代表过去没听过]\n"
+                                + json.dumps((activity_context or {}).get('music_context_scope') or {}, ensure_ascii=False)
+                                + '\n' + recent_node_overview(recent_music))
+
+            # The internal selection recipe owns self-knowledge and music
+            # experience. Candidate material must not append another copy.
+            self_book_section = ""
+
+            # 选歌
+            select_prompt = self.SELECT_SONG_PROMPT.format(
+                status_context=status_context,
+                self_book_section=self_book_section,
+                cached_playlist=cached_text,
+                recent_section=recent_text,
+            )
             if recent_music is not None:
-                select_prompt += '\n选歌决策：结合当前心情、偏好和本次起意选曲，可以重听，也可以换曲或搜索，并说明这次的理由。当前活动已经处理的歌曲仍不重复计作新节点。'
+                select_prompt += "\n选歌决策：结合当前心情、偏好和本次起意选曲，可以重听，也可以换曲或搜索，并说明这次的理由。当前活动已经处理的歌曲仍不重复计作新节点。"
             select_result = await self._call_llm_json(select_prompt, activity_context=activity_context)
-            logger.info(f'LISTEN_MUSIC 选歌结果: {select_result}')
-            song_data = await self._fetch_song_data(select_result, cached, exclude_fingerprints=exclude_fingerprints)
+            logger.info(f"LISTEN_MUSIC 选歌结果: {select_result}")
+
+            # 获取歌曲数据（缓存或新搜索 + 旋律分析）
+            song_data = await self._fetch_song_data(
+                select_result, cached, exclude_fingerprints=exclude_fingerprints
+            )
+            from . import node_retry
             first_selection_audit = self.get_last_selection_audit()
-            if song_data is None and str(first_selection_audit.get('error') or '').startswith('cache_'):
-                candidate_fingerprints = [str(item.get('fingerprint') or '').strip() for item in cached if str(item.get('fingerprint') or '').strip()]
-                candidate_hashes = [hashlib.sha256(value.encode('utf-8')).hexdigest()[:16] for value in candidate_fingerprints]
-                correction_facts = {'candidate_count': len(cached), 'candidate_fingerprint_hashes': candidate_hashes, 'candidate_fingerprints': candidate_fingerprints}
-                correction_prompt = f"{select_prompt}\n\n结构化纠错（必须遵守）：上一轮选择了 from_cache，但请求的 fingerprint 不是本轮候选中的精确值。只能从下面候选事实中原样选择 fingerprint；若没有合适候选，请明确选择 from_cache=false 并提供你真正想搜索的关键词，不能按标题猜歌或自行补造缓存。候选事实：{json.dumps(correction_facts, ensure_ascii=False, separators=(',', ':'))}"
+            first_error = first_selection_audit.get("error", "")
+            choice_errors = {"cache_fingerprint_not_found", "cache_fingerprint_missing", "cache_song_identity_missing",
+                             "selection_json_invalid", "selection_json_missing", "selection_route_invalid",
+                             "search_keyword_missing"}
+            note = "刚才没能对应到歌曲。可以从本页选准确的 fingerprint，也可以给出想搜索的关键词。"
+            legacy_retry = node_retry.current() is None and first_error.startswith("cache_")
+            if song_data is None and first_error in choice_errors and (legacy_retry or node_retry.take("选歌", note)):
+                candidate_fingerprints = [
+                    str(item.get("fingerprint") or "").strip()
+                    for item in cached
+                    if str(item.get("fingerprint") or "").strip()
+                ]
+                candidate_hashes = [
+                    hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]
+                    for value in candidate_fingerprints
+                ]
+                correction_prompt = select_prompt + "\n" + note + '\n' + json.dumps({
+                    'candidate_count': len(candidate_fingerprints), 'candidate_fingerprints': candidate_fingerprints
+                }, ensure_ascii=False)
                 retry_result = await self._call_llm_json(correction_prompt, activity_context=activity_context)
-                retry_song = await self._fetch_song_data(retry_result, cached, exclude_fingerprints=exclude_fingerprints)
+                if node_retry.cancelled():
+                    return None
+                retry_song = await self._fetch_song_data(
+                    retry_result, cached, exclude_fingerprints=exclude_fingerprints
+                )
                 second_selection_audit = self.get_last_selection_audit()
                 if retry_song is not None:
-                    select_result, song_data = (retry_result, retry_song)
-                elif second_selection_audit:
-                    second_selection_audit['selection_retry'] = 1
-                    second_selection_audit['prior_selection_error'] = first_selection_audit.get('error', '')
-                    second_selection_audit.setdefault('candidate_count', len(cached))
-                    second_selection_audit.setdefault('candidate_fingerprint_hashes', candidate_hashes)
-                    self._last_selection_audit = second_selection_audit
+                    select_result, song_data = retry_result, retry_song
+                else:
+                    # Keep both the terminal error and the fact that the
+                    # first invalid selection triggered a bounded correction;
+                    # this audit is copied into the node execution payload.
+                    if not legacy_retry and second_selection_audit.get('error') in choice_errors:
+                        node_retry.unresolved(note)
+                    if second_selection_audit:
+                        second_selection_audit["selection_retry"] = 1
+                        second_selection_audit["prior_selection_error"] = first_selection_audit.get("error", "")
+                        second_selection_audit.setdefault("candidate_count", len(cached))
+                        second_selection_audit.setdefault("candidate_fingerprint_hashes", candidate_hashes)
+                        self._last_selection_audit = second_selection_audit
             if not song_data:
                 return None
-            if exclude_fingerprints and (song_data.get('fingerprint') in exclude_fingerprints or _normalize_song_identity(song_data.get('title'), song_data.get('artist')) in exclude_fingerprints):
-                logger.info('LISTEN_MUSIC 选歌命中近期去重集合，节点收口')
-                self._selection_error('recent_duplicate_song', stage='dedup', payload={'fingerprint': song_data.get('fingerprint', ''), 'identity': _normalize_song_identity(song_data.get('title'), song_data.get('artist'))})
+            if exclude_fingerprints and (
+                song_data.get("fingerprint") in exclude_fingerprints
+                or _normalize_song_identity(song_data.get("title"), song_data.get("artist")) in exclude_fingerprints
+            ):
+                logger.info("LISTEN_MUSIC 选歌命中近期去重集合，节点收口")
+                self._selection_error(
+                    "recent_duplicate_song",
+                    stage="dedup",
+                    payload={
+                        "fingerprint": song_data.get("fingerprint", ""),
+                        "identity": _normalize_song_identity(song_data.get("title"), song_data.get("artist")),
+                    },
+                )
                 return None
-            song_data['reason'] = select_result.get('reason', '')
-            song_data['from_cache'] = select_result.get('from_cache', False)
-            song_data['selected_by'] = 'K_autonomous'
-            song_data['selection_source'] = 'wander_llm'
+
+            song_data["reason"] = select_result.get("reason", "")
+            song_data["from_cache"] = select_result.get("from_cache", False)
+            song_data["selected_by"] = "K_autonomous"
+            song_data["selection_source"] = "wander_llm"
             from music_system.selection_catalog import annotate_selection
             song_data = annotate_selection(song_data, select_result, shelf)
             try:
                 from music_system.library import wander_catalog
-                song_data = {**song_data, 'music_library': await wander_catalog()}
+                song_data = {**song_data, "music_library": await wander_catalog()}
             except Exception:
-                song_data = {**song_data, 'music_library': []}
+                song_data = {**song_data, "music_library": []}
             return song_data
         except Exception as e:
-            logger.error(f'LISTEN_MUSIC 选歌失败: {e}', exc_info=True)
-            self._selection_error('selection_exception', stage='picker')
+            logger.error(f"LISTEN_MUSIC 选歌失败: {e}", exc_info=True)
+            self._selection_error("selection_exception", stage="picker")
             return None
 
     async def start_runtime_playback(self, netease_song_id: Any, *, target: str='computer', song_data: Optional[dict]=None) -> bool:

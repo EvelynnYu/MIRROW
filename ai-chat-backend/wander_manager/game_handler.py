@@ -195,10 +195,11 @@ class GameNodeHandler:
             selection = {"game": game, "slot": slot, "new": False}
             saves = {}
         else:
+            from . import node_retry
             account = await self.client.my_saves()
             saves = {"saves": account.get("saves")} if isinstance(account, dict) else {}
-            selection = await self._decide(
-                context, activity, history_text,
+            choices = {"games": {invited_game: GAMES[invited_game]} if invited_game else GAMES, "saves": saves}
+            instruction = (
                 (f"人类伙伴通过界面邀请你玩{GAMES[invited_game]}。本次游戏是 {invited_game}；"
                  if invited_game else "你正要自主玩游戏。可选游戏见当前真实材料中的 games。")
                 +
@@ -206,11 +207,28 @@ class GameNodeHandler:
                 "只输出 JSON：{\"game\":\"当前 games 中的游戏 ID\",\"slot\":1到5,"
                 "\"new\":true|false,\"name\":\"新底特律周目名\","
                 "\"difficulty\":\"casual|experienced|hardcore\",\"reason\":\"为什么此刻想玩\"}。"
-                "已有档不覆盖；新周目只选空槽。mbti 使用16题快速版，sins_virtues 使用35题快速版；"
-                "这两项可续接本地未完成题库或查看已完成结果，钓鱼沿用图鉴和装备。",
-                {"games": {invited_game: GAMES[invited_game]} if invited_game else GAMES,
-                 "saves": saves},
+                "叙事和卡牌游戏新周目只选空槽；钓鱼沿用图鉴和装备。"
+                "mbti 使用16题快速版，sins_virtues 使用35题快速版；"
+                "这两项的未完成测试可继续，已完成测试可以在原槽重新作答，历次结果保留在本地游玩记录。"
+                "本次游玩要实际开测或作答；旧结果可在机生活历史里回看。"
             )
+            async def pick(prompt):
+                return await self._decide(context, activity, history_text, prompt, choices)
+            def problem(value):
+                try:
+                    slot = int(value.get("slot"))
+                except (TypeError, ValueError):
+                    return "没读出游戏槽位，请填 1 到 5。"
+                if str(value.get("game")) not in choices["games"] or slot not in range(1, 6):
+                    return "游戏或槽位没对上，请从当前游戏目录和槽位中重选。"
+                if value.get("new") is True and value.get("game") == 'moonlit' and not _verified_empty_slot(saves, 'moonlit', slot):
+                    return "新周目需要一个已确认的空槽，也可以继续旧存档。"
+                if value.get("new") is True and value.get("game") == 'detroit':
+                    name = str(value.get('name') or '').strip()
+                    if not name or len(name) > 60 or (value.get('difficulty') or 'casual') not in ('casual','experienced','hardcore'):
+                        return "新底特律存档的名字或难度无效，请按当前存档格式选择。"
+                return ""
+            selection = await node_retry.choose(pick, instruction, lambda value: value, problem, '选择游戏存档') or {}
             game = str(selection.get("game") or "")
             try:
                 slot = int(selection.get("slot"))
@@ -245,6 +263,8 @@ class GameNodeHandler:
                                  reason=str(selection.get("reason") or "").strip()[:500])
 
         before = await self._read(game, params)
+        if _completion(game, before):
+            return self._receipt(game, slot, 'read_completed_result', params, before, before)
         detroit_actions = self._detroit_available_actions(before) if game == "detroit" else ()
         if game == "detroit" and not detroit_actions:
             raise CedarToyError("detroit_no_available_action")
@@ -258,11 +278,11 @@ class GameNodeHandler:
             "预览可先做一节点，出牌前应先核对预览，不读取隐藏存档。"
         )
         decision_contract = (
-            "你是 AI，基于当前游戏可见状态决定选择及缘由。只输出 JSON："
+            "基于当前游戏可见状态决定选择及缘由。只输出 JSON："
             "{\"label\":\"画面选项的原样 label\",\"reason\":\"第一人称、具体选择缘由\","
             "\"reflection\":\"章末时填写自己的回顾\"}。"
             if game == "detroit" else
-            "你是 AI，基于当前游戏可见状态自主推进一步。只输出 JSON："
+            "基于当前游戏可见状态自主推进一步。只输出 JSON："
             "{\"action\":\"cmd\",\"command\":\"...\",\"reason\":\"第一人称、具体选择缘由\"}。"
         )
         def validate_move(result):

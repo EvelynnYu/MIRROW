@@ -264,6 +264,8 @@ def parse_ui_dump(raw_xml: str) -> UiSnapshot:
     except (ET.ParseError, ValueError):
         return UiSnapshot(root=None, text="", raw_xml="")
 
+    from xhs_interactions.unread import observe_labels
+    observe_labels(n.get('content-desc', '') for n in root.iter('node') if n.get('package') == XIAOHONGSHU_PACKAGE)
     values: list[str] = []
     packages: set[str] = set()
     for element in root.iter():
@@ -424,6 +426,9 @@ class AdbXiaohongshuSource:
         if task['operation'] == 'profile':
             from .xhs_profile_navigation import fetch_profile
             return await fetch_profile(self, task, cursor or {})
+        if task['operation'] == 'favorites':
+            from xhs_actions.favorites import fetch_saved_post
+            return await fetch_saved_post(self, task['query'], set(exclude_ids or ()))
         return await self.fetch_one(query=task['query'] if task['operation'] == 'search' else '',
                                     exclude_ids=exclude_ids)
 
@@ -511,6 +516,20 @@ class AdbXiaohongshuSource:
                 error=guard,
             ).to_dict()
 
+        vision_attempted = False
+        if not cleaned_query:
+            from .xhs_feed_navigation import enter_recommend
+            try:
+                feed_snapshot = await enter_recommend(self, serial, feed_snapshot)
+            except ValueError as exc:
+                vision_attempted = True
+                recovered = await self._vision_recover_read_navigation(serial, await self._dump_ui(serial))
+                if recovered is None:
+                    return AdbSourceResult(status=str(exc), error=str(exc), battery=battery.to_dict()).to_dict()
+                try:
+                    feed_snapshot = await enter_recommend(self,serial,recovered)
+                except ValueError:
+                    return AdbSourceResult(status=str(exc),error=str(exc)).to_dict()
         cards = visible_cards(feed_snapshot)
         # A dedicated phone can retain the last opened post when the process
         # is resumed. Treat that detail screen as a navigation state, not as
@@ -535,6 +554,14 @@ class AdbXiaohongshuSource:
                         details={"feed_recovery": "detail_back"},
                     ).to_dict()
                 cards = visible_cards(feed_snapshot)
+        if not cards and not vision_attempted and not cleaned_query:
+            recovered = await self._vision_recover_read_navigation(serial, feed_snapshot)
+            if recovered is not None:
+                try:
+                    feed_snapshot = await enter_recommend(self,serial,recovered)
+                    cards = visible_cards(feed_snapshot)
+                except ValueError:
+                    cards = []
         if not cards:
             return AdbSourceResult(
                 status="no_feed_cards", query=cleaned_query, source_url=launch_uri,
@@ -546,27 +573,13 @@ class AdbXiaohongshuSource:
                 ),
             ).to_dict()
 
-        excluded = set(exclude_ids or set())
-        available_cards = [card for card in cards if card.fingerprint not in excluded]
-        if not available_cards:
-            return AdbSourceResult(
-                status="no_new_feed_cards", query=cleaned_query, source_url=launch_uri,
-                battery=battery.to_dict(), ui_text=feed_snapshot.text,
-                error="all_visible_cards_already_seen",
-            ).to_dict()
-        card = self._random.choice(available_cards)
-        x, y = card.center
-        tapped = await self._run_device(
-            serial, "shell", "input", "tap", str(x), str(y)
-        )
-        if tapped is None or tapped.returncode != 0:
-            return AdbSourceResult(
-                status="post_open_failed", query=cleaned_query, source_url=launch_uri,
-                title=card.text[:200], battery=battery.to_dict(), error="post_open_failed"
-            ).to_dict()
-
-        await self._sleeper(self.post_wait_seconds)
-        detail_snapshot = await self._dump_ui(serial)
+        from .xhs_readable_post import open_readable_post, readable_note
+        card, detail_snapshot, skipped_videos, opening_error = await open_readable_post(
+            self, serial, feed_snapshot, set(exclude_ids or set()))
+        if opening_error:
+            return AdbSourceResult(status=opening_error, error=opening_error,
+                query=cleaned_query, source_url=launch_uri, battery=battery.to_dict(),
+                details={'skipped_video_count': skipped_videos}).to_dict()
         guard = self._guard_snapshot(detail_snapshot)
         if guard:
             await self._return_to_feed(serial, detail_snapshot, force=True)
@@ -576,21 +589,127 @@ class AdbXiaohongshuSource:
                 ui_text=detail_snapshot.text, error=guard,
             ).to_dict()
 
-        screenshot = await self._screenshot(serial)
+        note = readable_note(detail_snapshot)
+        if not note:
+            return AdbSourceResult(
+                status='post_open_unconfirmed', query=cleaned_query,
+                battery=battery.to_dict(), error='post_detail_not_verified',
+                details={'failure_stage': 'post_verification',
+                         'ui_available': detail_snapshot.available,
+                         'ui_changed_after_tap': detail_snapshot.raw_xml != feed_snapshot.raw_xml,
+                         'visible_card_count': len(visible_cards(detail_snapshot)),
+                         'detail_structure_observed': _looks_like_detail(detail_snapshot)},
+            ).to_dict()
+
+        from .xhs_gallery import collect, position
+        gallery_initial = position(detail_snapshot.root)
+        frames: list[dict[str, Any]] = []
+        gallery_stop = ''
+        seen_screens: set[str] = set()
+
+        def gallery_matches(current: UiSnapshot) -> bool:
+            """Reject overlays and visible evidence for a different note."""
+            nonlocal gallery_stop
+            guard = self._guard_snapshot(current)
+            if guard:
+                gallery_stop = guard
+                return False
+            observed = readable_note(current)
+            if observed is not None:
+                if any(observed.get(key) != note.get(key) for key in
+                       ('note_title', 'note_body', 'note_author')):
+                    gallery_stop = 'gallery_note_changed'
+                    return False
+                return True
+            # Tall images can hide the title/body.  The already-confirmed post
+            # still has to retain the native header author and consecutive
+            # page/total evidence before we take another screenshot.
+            author = note['note_author']
+            names = [node.get('text', '') for node in current.root.iter('node')
+                     if node.get('text') == author and (bounds := _parse_bounds(node.get('bounds', '')))
+                     and 100 <= bounds[1] < 250 and 200 <= bounds[0] < 650]
+            if len(names) != 1:
+                gallery_stop = 'gallery_post_unconfirmed'
+                return False
+            return True
+
+        async def capture_gallery(current: UiSnapshot, label: str):
+            nonlocal gallery_stop
+            if not gallery_matches(current):
+                return False
+            image = await self._screenshot(serial)
+            if image is None:
+                gallery_stop = 'gallery_screenshot_failed'
+                return False
+            raw = _decode_base64_bytes(image)
+            digest = hashlib.sha256(raw).hexdigest() if raw else ''
+            if not raw or digest in seen_screens:
+                gallery_stop = 'gallery_duplicate_or_empty_screen'
+                return False
+            current_position = position(current.root)
+            if not current_position:
+                gallery_stop = 'gallery_position_unavailable'
+                return False
+            seen_screens.add(digest)
+            frames.append({'label': label, 'page': current_position[0], 'total': current_position[1],
+                           'screenshot_base64': image, 'screenshot_sha256': digest,
+                           'screenshot_bytes': len(raw), 'ui_text': current.text[:20000]})
+            return True
+
+        async def refresh_gallery():
+            return await self._dump_ui(serial)
+
+        async def advance_gallery():
+            result = await self._run_device(serial, 'shell', 'input', 'swipe',
+                                            '900', '900', '180', '900', '280')
+            if result is None or result.returncode:
+                raise ValueError('gallery_swipe_failed')
+            await self._sleeper(self.post_wait_seconds)
+
+        async def retreat_gallery():
+            result = await self._run_device(serial, 'shell', 'input', 'swipe',
+                                            '180', '900', '900', '900', '280')
+            if result is None or result.returncode:
+                raise ValueError('gallery_rewind_failed')
+            await self._sleeper(self.post_wait_seconds)
+
+        gallery_complete = False
+        initial_detail = detail_snapshot
+        on_verified_detail = True
+        if gallery_initial:
+            try:
+                detail_snapshot, gallery_complete = await collect(
+                    detail_snapshot, get_position=lambda current: position(current.root) if current.available and gallery_matches(current) else None,
+                    capture=capture_gallery, advance=advance_gallery, refresh=refresh_gallery,
+                    retreat=retreat_gallery, require_first=True, limit=gallery_initial[1])
+            except ValueError as exc:
+                gallery_stop = str(exc)
+            if not frames:
+                current = position(detail_snapshot.root) if not gallery_stop and gallery_matches(detail_snapshot) else None
+                if (not current or current[1] != gallery_initial[1] or
+                        not await capture_gallery(detail_snapshot, f'image_{current[0]}_of_{current[1]}')):
+                    return {'status': 'gallery_capture_failed', 'error': gallery_stop or 'first_page_unconfirmed'}
+            if gallery_stop or not gallery_matches(detail_snapshot):
+                # Keep only previously captured evidence. The current screen
+                # may be a different app; do not scroll, tap the author or Back.
+                on_verified_detail = False
+                detail_snapshot = initial_detail
+        # A no-gallery post still retains the established single-screen
+        # material.  For a gallery, page one is the compatibility screenshot.
+        screenshot = frames[0]['screenshot_base64'] if frames else await self._screenshot(serial)
         if screenshot is None:
             await self._return_to_feed(serial, detail_snapshot, force=True)
             return AdbSourceResult(
                 status="screenshot_failed", query=cleaned_query, source_url=launch_uri,
-                source_id=card.fingerprint, title=card.text[:200],
-                battery=battery.to_dict(), ui_text=detail_snapshot.text,
-                error="screenshot_failed",
+                source_id=card.fingerprint, title=card.text[:200], battery=battery.to_dict(),
+                ui_text=detail_snapshot.text, error="screenshot_failed",
             ).to_dict()
         swipe_count = 0
 
         # A single bounded read-more gesture is allowed only when the detail
         # hierarchy is sparse.  We do not swipe indefinitely or retry a failed
         # gesture.  Every swipe is a fixed, non-semantic ADB input action.
-        if self.max_swipes and len(detail_snapshot.text) < self.min_detail_text:
+        if on_verified_detail and self.max_swipes and len(detail_snapshot.text) < self.min_detail_text:
             swipe = await self._run_device(
                 serial, "shell", "input", "swipe", "540", "1900", "540", "700", "280"
             )
@@ -608,21 +727,27 @@ class AdbXiaohongshuSource:
                         swipe_count=swipe_count, error=guard,
                     ).to_dict()
                 detail_snapshot = after_swipe
-                refreshed = await self._screenshot(serial)
-                if refreshed is not None:
-                    screenshot = refreshed
+                # Do not replace a proven gallery page with a text-reading
+                # screen.  That scroll is intentionally separate from media.
+                if not frames:
+                    refreshed = await self._screenshot(serial)
+                    if refreshed is not None:
+                        screenshot = refreshed
 
         screenshot_bytes = _decode_base64_bytes(screenshot)
         screenshot_sha = hashlib.sha256(screenshot_bytes).hexdigest() if screenshot_bytes else ""
         # The card title is evidence from the feed hierarchy; prefer a detail
         # line when present but never derive a title from model output.
-        title = self._pick_title(detail_snapshot.text, fallback=card.text)
+        note = readable_note(detail_snapshot) or note
+        title = note['note_title'] or '未显示独立标题的图文'
         source_id = card.fingerprint
+        from xhs_interactions.post_navigation import capture_locator
+        comment_locator = await capture_locator(self, serial, detail_snapshot) if on_verified_detail and note['note_title'] else None
         # Leave the dedicated phone on the list/search page so the next
         # independent node can choose another visible card. This is one fixed
         # navigation action, never a semantic or social interaction.
-        feed_return = await self._return_to_feed(serial, detail_snapshot, force=True)
-        return AdbSourceResult(
+        feed_return = await self._return_to_feed(serial, detail_snapshot, force=True) if on_verified_detail else 'navigation_stopped'
+        result = AdbSourceResult(
             status="success",
             source_id=source_id,
             source_url=launch_uri or f"{XHS_DEEP_LINK_SCHEME}://homefeed",
@@ -635,12 +760,31 @@ class AdbXiaohongshuSource:
             swipe_count=swipe_count,
             battery=battery.to_dict(),
             details={
+                "skipped_video_count": skipped_videos,
                 "selected_bounds": card.bounds,
                 "selected_card_text": card.text[:500],
                 "screen_size": [detail_snapshot.width, detail_snapshot.height],
                 "feed_return": feed_return,
             },
         ).to_dict(include_screenshot=True)
+        result.update(note_author=note['note_author'], article_text=note['note_body'],
+                      post_verified=True)
+        if frames:
+            result['frames'] = frames
+        declared_total = gallery_initial[1] if gallery_initial else 0
+        result['gallery_capture'] = {
+            'status': ('complete' if gallery_complete else (gallery_stop or ('not_gallery' if not declared_total else 'partial'))),
+            'declared_total': declared_total,
+            'captured_pages': [frame['page'] for frame in frames],
+            'page_limit': declared_total,
+            'capture_complete': gallery_complete,
+        }
+        result['coverage'] = {'text': 'partial',
+            'images': 'all_captured' if gallery_complete else ('visible_screen' if not declared_total else 'partial_or_unknown'),
+            'video': 'not_played'}
+        if comment_locator:
+            result['comment_locator'] = comment_locator
+        return result
 
     async def _invoke(self, argv: Sequence[str]) -> AdbCommandResult | None:
         if not self._allowed_argv(argv):
@@ -852,6 +996,48 @@ class AdbXiaohongshuSource:
             return None
         return base64.b64encode(raw).decode("ascii")
 
+    async def _vision_recover_read_navigation(self, serial: str, snapshot: UiSnapshot) -> UiSnapshot | None:
+        """One optional recovery tap among observed read-navigation controls.
+
+        This is intentionally unavailable on verification, editor, consent and
+        non-XHS screens.  ``navigation_vision`` cannot generate an action or
+        coordinates: it selects one UIAutomator candidate and this method
+        immediately re-reads the resulting native hierarchy.
+        """
+        if self._guard_snapshot(snapshot) or not snapshot.available:
+            return None
+        from xhs_actions.navigation_vision import select_read_navigation
+        rows = []
+        for node in snapshot.root.iter('node'):
+            bounds = _parse_bounds(node.get('bounds', ''))
+            if bounds:
+                rows.append({**node.attrib, 'box': bounds})
+        image = await self._screenshot(serial)
+        if not image:
+            return None
+        try:
+            pixels = base64.b64decode(image, validate=True)
+        except (ValueError, TypeError):
+            return None
+        candidate = await select_read_navigation(
+            rows, pixels,
+            allowed={'首页', '发现', '推荐', '搜索', '用户', '返回', '关闭', '取消', '以后再说', '知道了', '我知道了'},
+        )
+        if candidate is None:
+            return None
+        current = await self._dump_ui(serial)
+        if self._guard_snapshot(current) or not current.available or ET.tostring(current.root)!=ET.tostring(snapshot.root):
+            return None
+        left, top, right, bottom = candidate['bounds']
+        result = await self._run_device(
+            serial, 'shell', 'input', 'tap', str((left + right) // 2), str((top + bottom) // 2),
+        )
+        if result is None or result.returncode != 0:
+            return None
+        await self._sleeper(self.post_wait_seconds)
+        refreshed = await self._dump_ui(serial)
+        return None if self._guard_snapshot(refreshed) else refreshed
+
     async def _return_to_feed(
         self, serial: str, snapshot: UiSnapshot, *, force: bool = False
     ) -> str:
@@ -901,6 +1087,15 @@ class AdbXiaohongshuSource:
                 return ""
             return "login_required"
         return ""
+
+
+def _verified_note(snapshot: UiSnapshot):
+    """Require the same native title/body/author evidence as the reply path."""
+    if not snapshot.available:
+        return None
+    from xhs_interactions.native import as_row
+    from xhs_interactions.post_navigation import note_material
+    return note_material(snapshot.root, [as_row(n) for n in snapshot.root.iter('node')])
 
 
 def _has_detail_evidence(text: str) -> bool:

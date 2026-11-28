@@ -87,14 +87,17 @@ async def attend(runtime_store, activity, context, *, interaction_ids=None, node
     with store.connect() as db:
         old = db.execute('SELECT record FROM attention WHERE batch_id=? AND session_id=?',
                          (batch_id, sid)).fetchone()
+    from .decision_gallery import collect
+    gallery = None
     if old:
         data = json.loads(old[0])
     else:
         sources = []
-        for identity in interaction_ids:
-            value = await submit(session_id=sid, action='read', interaction_id=identity,
-                                 store=store, adapter=adapter)
-            sources.append(value['interaction'])
+        with collect() as gallery:
+            for identity in interaction_ids:
+                value = await submit(session_id=sid, action='read', interaction_id=identity,
+                                     store=store, adapter=adapter)
+                sources.append(value['interaction'])
         data, _ = store.begin_attention(batch_id, sid, interaction_ids,
                                          materials=sources, account=account)
     if data.get('account') != account:
@@ -126,12 +129,32 @@ async def attend(runtime_store, activity, context, *, interaction_ids=None, node
                     raise
                 return {'status': 'already_running', 'batch_id': batch_id,
                         'xhs_interactions': [], 'reflection': ''}
+            gallery_args = {}
+            if gallery and gallery.groups:
+                pages = [page for _, _, group in gallery.groups for page in group]
+                manifest = [(gallery.records[key][1]['interaction_id'], title, [p[0] for p in group])
+                            for key, title, group in gallery.groups]
+                messages.append(backend_turn('原帖图片按以下来件与页码顺序附上。请在本轮 JSON 的 image_observations 中依序每张记一条可读文字和画面。'
+                    + json.dumps(manifest, ensure_ascii=False)))
+                gallery_args['gallery_images'] = [image for _, image in pages]
+                gallery.claim()
             response = await llm(messages=messages, temperature=0, max_tokens=16384,
                                  route_label='wander_xhs_interactions',
+                                 **gallery_args,
                                  result_validator=lambda result: '' if validate_decision(result.parsed, interaction_ids)
                                  else 'invalid_interaction_decision')
             # Save returned decisions before validating or making a platform write.
             data['last_model_result'] = response.parsed
+            if gallery_args:
+                try:
+                    if response.status != 'ok':
+                        raise ValueError('gallery_model_unavailable')
+                    gallery.accept(response.parsed, data['materials'])
+                except ValueError:
+                    data.update(state='invalid_model_result')
+                    store.save_attention(data)
+                    return {'status':'invalid_model_result','batch_id':batch_id,
+                            'xhs_interactions': [], 'reflection': ''}
             data['state'] = 'model_returned'
             store.save_attention(data)
         answer = data['last_model_result']

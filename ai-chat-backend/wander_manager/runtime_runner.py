@@ -744,6 +744,7 @@ class WanderRuntimeRunner:
             review = await self.reviewer.review(
                 node.node_id, bundle.decision,
                 allowed_event_types=self.planner.effective_allowed_event_types(),
+                **({'gallery_pages': execution.gallery_pages} if getattr(execution, 'gallery_pages', None) else {}),
             )
         if review is None:
             # The external/real action itself succeeded.  A missing or

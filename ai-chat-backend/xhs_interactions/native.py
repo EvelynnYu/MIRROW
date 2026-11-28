@@ -87,7 +87,7 @@ def inbox_rows(root,observed):
         supported=bool(author and stamp and body and not body.endswith(('…','...')))
         ref=digest(['xhs-ui-notification-v1',author,text(action),body,day])
         result.append({'source_ref':ref,'kind':kind,'actor_name':author,'notification_text':body,
-                       'native_action':text(action),'source_day':day,'native_time_label':text(time_nodes[0]) if time_nodes else '',
+                       'native_action':text(action),'source_day':day,'source_time':stamp[1].isoformat() if stamp else '','native_time_label':text(time_nodes[0]) if time_nodes else '',
                        'observed_at':observed.isoformat(),'identity_basis':'visible_notification_fields_and_day',
                        '_node':row,'_body':next((n for n in body_nodes if text(n).strip()==body),None),
                        '_lower':stamp[1] if stamp else None,'_upper':stamp[2] if stamp else None,
@@ -112,10 +112,36 @@ def comment_rows(root):
         found[key]={'actor_name':text(author).strip(),'text':text(body),'node':body,'row':row}
     return list(found.values())
 
+def matches_notification_comment(body, incoming, account_name):
+    actual = body.strip()
+    expected = incoming['notification_text'].strip()
+    if actual == expected:
+        return True
+    # The notification renders a single space after the tagged account. Its
+    # expanded comment TextView also inserts a space at the end of the tag span.
+    # Preserve the rest of the authored text and the exact tagged identity.
+    tag = '@' + account_name + ' '
+    return bool(incoming['kind'] == 'mention' and account_name and expected.startswith(tag)
+                and actual == tag + ' ' + expected[len(tag):])
+
+
 def reply_text_matches(actual, expected):
-    # Observed native comment TextViews append one presentation separator.
-    # Preserve every authored character; never strip arbitrary whitespace.
-    return actual == expected or actual == expected + ' '
+    # Observed native comment TextViews append one presentation separator and
+    # may insert extra whitespace between rendered spans (for example an
+    # entity/topic-looking phrase).  Compare the authored characters with
+    # whitespace ignored entirely; non-whitespace characters must still match
+    # in order and in full.
+    if actual == expected or actual == expected + ' ':
+        return True
+    if actual.endswith(' '):
+        actual = actual[:-1]
+    if not actual or not expected or actual[-1].isspace() != expected[-1].isspace():
+        return False
+    # Preserve authored line breaks. Native styled spans may add horizontal
+    # spacing inside a line, but two presentation suffixes are ambiguous.
+    return [line.replace(' ', '') for line in actual.split('\n')] == [
+        line.replace(' ', '') for line in expected.split('\n')]
+
 
 def in_reply_thread(root, parent, child):
     if child['row'] in list(parent['row'].iter()):
@@ -146,11 +172,17 @@ class NativeInbox(NativePublisher):
         self.root=None
         self.since_override=since
         self.last_target=None
+        self.window = None
+        self.badge_report = None
+        self.visible_dm_unread = 0
+        self.dm_candidates_observed = False
     async def observe(self):
         raw=await self.device.ui_dump()
         try:self.root=ET.fromstring(raw)
         except (ET.ParseError,TypeError):raise InteractionBlocked('ui_unavailable') from None
         self.rows=nodes(raw)
+        from .unread import observe_labels
+        observe_labels(row.get('content-desc', '') for row in self.rows)
         if not self.rows or not any(n.get('package')=='com.xingin.xhs' for n in self.root.iter('node')):
             raise InteractionBlocked('xhs_window_unavailable')
         if any(x in labels(self.rows) for x in ('拖动滑块完成拼图','请完成安全验证','请输入验证码','手机号登录')):
@@ -163,30 +195,160 @@ class NativeInbox(NativePublisher):
             raise InteractionBlocked('battery_unavailable_or_low')
         await self.device.wake()
         await self.device.launch('com.xingin.xhs',component='.index.v2.IndexActivityV2')
+        # The app restores its last screen.  Leave a settle window, then return
+        # to the main tabs; a back press without waiting dumps the old screen
+        # and makes every retry observe the same non-home page.
+        await asyncio.sleep(1.0)
         await self.observe()
-        for _ in range(5):
-            if (any(a.get('class')=='android.widget.EditText' for a in self.rows) or any(x in labels(self.rows) for x in ('预览','下一步','发笔记','存草稿'))):raise InteractionBlocked('existing_editor_requires_attention')
-            if any(a.get('content-desc')=='我' for a in self.rows):break
-            await self.device.back();await self.observe()
-        await self.click('我',desc=True)
+        for _ in range(8):
+            edits=[a for a in self.rows if a.get('class')=='android.widget.EditText']
+            if (len(edits)==1 and edits[0].get('text') in ('发消息…','发消息...') and
+                    edits[0]['box'][1]>600 and
+                    any(a.get('class')=='androidx.recyclerview.widget.RecyclerView' and a['box'][1]<500 for a in self.rows)):
+                await self.device.back()
+                await asyncio.sleep(.45)
+                await self.observe()
+                continue
+            if edits:
+                raise InteractionBlocked('existing_editor_requires_attention')
+            if any(a.get('content-desc')=='我' and a['box'][1] > max(r['box'][3] for r in self.rows)*.8 for a in self.rows):
+                break
+            if any(x in labels(self.rows) for x in ('预览','下一步','发笔记','存草稿')):
+                raise InteractionBlocked('existing_editor_requires_attention')
+            await self.device.back()
+            await asyncio.sleep(.7)
+            await self.observe()
+        else:
+            raise InteractionBlocked('home_navigation_failed')
+        try:
+            await self.click('我',desc=True)
+        except PublicationBlocked as exc:
+            raise InteractionBlocked('home_navigation_failed') from exc
+        if (not any('小红书号' in label for label in labels(self.rows)) and
+                any(row['content-desc']=='我' and row.get('selected')=='true' for row in self.rows)):
+            await self.device.swipe(520,590,520,1850,500)
+            await asyncio.sleep(.4)
+            await self.observe()
         if account['account_name'] not in labels(self.rows) or not any(
             re.sub(r'\s','',x)=='小红书号：'+account['account_id'] for x in labels(self.rows)):
             raise InteractionBlocked('interaction_account_mismatch')
-    async def inbox(self,account):
+    def bind_inbox(self, store, session, account):
+        from .unread import InboxWindow
+        self.window = InboxWindow(store, session, account)
+
+    async def inbox(self,account,*,history=False):
         await self.home(account)
         bottom=max(a['box'][3] for a in self.rows)
-        buttons=[a for a in self.rows if re.fullmatch(r'消息(?:，未读|，\d+条未读)?',a.get('content-desc',''))
+        buttons=[a for a in self.rows if re.fullmatch(r'消息(?:[，,](?:\d+\+?条)?未读)?',a.get('content-desc',''))
                  and a['box'][1]>bottom*.8]
         if len(buttons)!=1:raise InteractionBlocked('message_entry_ambiguous')
-        await self.tap(buttons[0]);await self.click('评论和@')
+        await self.tap(buttons[0])
+        if self.window is not None:
+            from .unread import comment_badge
+            badge = comment_badge(self.root)
+            from xhs_actions.direct_messages import DirectMessageStore, record_visible_unread
+            dm_store = DirectMessageStore()
+            self.dm_candidates_observed = bool(record_visible_unread(self.root, self.window.session, account, store=dm_store))
+            self.visible_dm_unread = len(dm_store.interactive_pending(self.window.session))
+            window = self.window.before_entry(badge)
+            if not history and not window:
+                self.badge_report = ('badge_clear' if badge is not None else 'badge_unavailable', [])
+                return
+            if badge is None and not window:
+                raise InteractionBlocked('comment_badge_unavailable')
+        await self.click('评论和@')
         if '收到的评论和@' not in labels(self.rows):raise InteractionBlocked('interaction_inbox_unrecognized')
-        if '查看历史消息' in labels(self.rows):await self.click('查看历史消息')
-    async def scan(self,account):
+        if self.window is not None and window:
+            self.window.entered(window)
+            self.badge_report = await self.collect_window(window)
+            if history:
+                # A collection pass may have scrolled. Re-enter at the top before locating.
+                await self.device.back()
+                await asyncio.sleep(.4)
+                await self.observe()
+                next_window = self.window.before_entry(comment_badge(self.root))
+                await self.click('评论和@')
+                if next_window:
+                    self.window.entered(next_window)
+                if '收到的评论和@' not in labels(self.rows):
+                    raise InteractionBlocked('interaction_inbox_unrecognized')
+        if history and '查看历史消息' in labels(self.rows):await self.click('查看历史消息')
+
+    async def collect_window(self, window):
+        stored = self.window.store.known_sources(self.window.session, self.window.account['account_id'])
+        frontier = stored - set(window['refs'])
+        collected = []
+        previous = None
+        # Once the app clears a badge, some builds place the captured rows behind
+        # “查看历史消息”. Only extend a resumed window through a saved overlap.
+        resume_refs = set(window['refs'])
+        history_opened = False
+        need_anchor = False
+        cutoff = datetime.fromisoformat(self.since_override or config()['since'])
+        # On the next visit, cross already recorded pages to reach new material.
+        for page in range(1, window['pages'] + 7):
+            parsed, ambiguous = inbox_rows(self.root, datetime.now(ZONE))
+            page_key = tuple(item['source_ref'] for item in parsed)
+            history_edge = '查看历史消息' in labels(self.rows)
+            if not parsed and history_edge and resume_refs and not history_opened:
+                await self.click('查看历史消息')
+                history_opened = need_anchor = True
+                continue
+            if not parsed or page_key == previous:
+                break
+            previous = page_key
+            saved = set(window['refs'])
+            found = []
+            boundary = False
+            uncertain = False
+            for item in parsed:
+                ref = item['source_ref']
+                if need_anchor:
+                    if ref not in resume_refs:
+                        continue
+                    need_anchor = False
+                if not item['_supported'] or ref in ambiguous:
+                    uncertain = True
+                    break
+                if ref in frontier or item['_lower'] < cutoff:
+                    boundary = True
+                    break
+                if ref in saved:
+                    continue
+                if len(saved) >= window['expected'] and not window['lower_bound']:
+                    break
+                found.append({k:v for k,v in item.items() if not k.startswith('_')})
+                saved.add(ref)
+            self.window.record_page(window, found, page)
+            collected.extend(found)
+            at_end = any(label in labels(self.rows) for label in
+                         ('查看历史消息', '没有更多了', '没有更多消息了', '- 到底了 -'))
+            if (not uncertain and len(saved) >= window['expected'] and
+                    (not window['lower_bound'] or boundary or at_end)):
+                self.window.finish()
+                return 'new_notifications', collected
+            if not uncertain and not boundary and history_edge and resume_refs and not history_opened:
+                await self.click('查看历史消息')
+                history_opened = need_anchor = True
+                previous = None
+                continue
+            if uncertain or boundary or at_end:
+                break
+            await self.device.swipe(540,1800,540,650)
+            await self.observe()
+        return 'unread_gap', collected
+    async def scan(self,account,*,known_sources=(),scope='new'):
         value=self.since_override or config().get('since')
         if not value:raise InteractionBlocked('inbox_device_validation_required')
         cutoff=datetime.fromisoformat(value)
         if cutoff.tzinfo is None:raise InteractionBlocked('interaction_cutoff_unavailable')
-        await self.inbox(account)
+        if scope not in {'new','history'}:raise InteractionBlocked('invalid_inbox_scope')
+        await self.inbox(account,history=scope=='history')
+        if scope == 'new' and self.badge_report is not None:
+            coverage, items = self.badge_report
+            return {'account':account, 'account_verified':True, 'observed_at':now(),
+                    'coverage':coverage, 'visible_dm_unread': self.visible_dm_unread, 'items':items}
+        known=set(known_sources)
         items={};unresolved=set();coverage='bounded_recent_window'
         for page in range(5):
             parsed,ambiguous=inbox_rows(self.root,datetime.now(ZONE));unresolved.update(ambiguous)
@@ -197,8 +359,14 @@ class NativeInbox(NativePublisher):
                     unresolved.add(item['source_ref']);continue
                 if item['_lower']<cutoff<=item['_upper'] and item['_lower'].date()==cutoff.date():
                     unresolved.add(item['source_ref']);continue
-                if item['source_ref'] not in ambiguous:
+                if item['source_ref'] not in ambiguous and (scope=='history' or item['source_ref'] not in known):
                     items[item['source_ref']]={k:v for k,v in item.items() if not k.startswith('_')}
+            # Stop at the app's explicit old-message boundary, or a complete
+            # already-observed page. A mixed/new or ambiguous page is not a frontier.
+            if scope=='new' and ('查看历史消息' in labels(self.rows) or
+                    (parsed and all(x['_supported'] and x['source_ref'] in known for x in parsed))):
+                coverage='new_notifications' if not unresolved else 'partial_identity'
+                break
             if older or any(x in labels(self.rows) for x in ('没有更多了','没有更多消息了','- 到底了 -')):
                 coverage='since_cutoff' if not unresolved else 'partial_identity';break
             if not parsed:
@@ -208,38 +376,44 @@ class NativeInbox(NativePublisher):
             await self.device.swipe(540,1800,540,650);await self.observe()
         return {'account':account,'account_verified':True,'observed_at':now(),'coverage':coverage,
                 'unresolved_count':len(unresolved),'items':[x for key,x in items.items() if key not in unresolved]}
+    async def admitted_dm_count(self, session, account):
+        """Resolve fresh badges privately, after releasing the comment inbox lease."""
+        if self.dm_candidates_observed:
+            from xhs_actions.direct_messages import DirectMessagesPhone, DirectMessageStore, resolve_pending_identities
+            store = DirectMessageStore()
+            phone = DirectMessagesPhone(self.device)
+            with await self.device.lease_async('xhs_dm_identity'):
+                await resolve_pending_identities(session, phone=phone, account=account, store=store)
+            self.visible_dm_unread = len(store.interactive_pending(session))
+        return self.visible_dm_unread
+
     async def locate(self,item):
-        await self.inbox(item['account'])
-        for _ in range(5):
+        await self.inbox(item['account'],history=True)
+        visited = set()
+        while True:
             parsed,ambiguous=inbox_rows(self.root,datetime.now(ZONE))
             found=[x for x in parsed if x['source_ref']==item['source_ref']]
             if item['source_ref'] in ambiguous:raise InteractionBlocked('notification_identity_ambiguous')
             if len(found)==1:
                 await self.tap(as_row(found[0]['_body']))
                 return
+            current = tuple(row['source_ref'] for row in parsed)
+            if not current or current in visited or any(label in labels(self.rows) for label in ('- 到底了 -','没有更多了','没有更多消息了')):
+                break
+            visited.add(current)
             await self.device.swipe(540,1800,540,650);await self.observe()
         raise InteractionBlocked('notification_source_not_visible')
     def note_material(self):
-        candidates=[]
-        for n in self.root.iter('node'):
-            if n.get('class')!='android.widget.LinearLayout' or len(n)!=2:continue
-            a,b=list(n)
-            ba,bb=box(a),box(b)
-            if (a.get('class')==b.get('class')=='android.widget.TextView' and text(a).strip() and text(b).strip()
-                and ba[0]==bb[0] and ba[2]==bb[2] and ba[0]<100 and ba[2]>900 and ba[1]>250):
-                candidates.append((text(a),text(b)))
-        if len(candidates)!=1:return None
-        names=[a.get('text') for a in self.rows if a.get('class')=='android.widget.TextView'
-               and 100<=a['box'][1]<250 and 200<=a['box'][0]<650 and a.get('text')]
-        if len(names)!=1:return None
-        images=next((int(m[1]) for a in self.rows if (m:=re.search(r'^图片,第\d+张,共(\d+)张',a.get('content-desc','')))),0)
-        return {'note_title':candidates[0][0],'note_body':candidates[0][1],'note_author':names[0],
-                'note_body_scope':'native_accessibility_text_only;image_contents_not_read','image_count':images}
+        from .post_navigation import note_material
+        return note_material(self.root,self.rows)
     async def open(self,item):
+        if item['incoming'].get('kind')=='post':
+            from .post_navigation import open_post
+            return await open_post(self,item)
         await self.locate(item)
         snapshot_comments=comment_rows(self.root)
         found=[x for x in snapshot_comments if x['actor_name']==item['incoming']['actor_name']
-               and x['text'].strip()==item['incoming']['notification_text'].strip()]
+               and matches_notification_comment(x['text'], item['incoming'], item['account']['account_name'])]
         if len(found)!=1:raise InteractionBlocked('original_comment_not_unique')
         comment=found[0]['text'];thread=[{'actor_name':r['actor_name'],'text':r['text']} for r in snapshot_comments]
         author_nodes=[n for n in found[0]['row'].iter('node') if n.get('class')=='android.widget.TextView'
@@ -252,16 +426,13 @@ class NativeInbox(NativePublisher):
             raise InteractionBlocked('comment_author_account_unverified')
         actor_account_id=ids[0]
         await self.device.back();await self.observe()
-        note=self.note_material()
-        for _ in range(3):
-            if note:break
-            await self.device.swipe(540,700,540,1800);await self.observe();note=self.note_material()
-        if not note:raise InteractionBlocked('original_note_material_unavailable')
+        from .post_navigation import seek_note_material
+        note=await seek_note_material(self)
         target={**note,'source_ref':item['source_ref'],'source_verified':True,
                 'identity_basis':'visible_note_and_exact_comment','actor_name':item['incoming']['actor_name'],
                 'comment_text':comment,'thread':thread,'comment_scope':'native_visible_comments_only',
                 'actor_account_id':actor_account_id,'actor_identity_basis':'native_profile_account_id',
-                'actor_relationship':'human_verified' if config().get('human_account_id')==actor_account_id else 'external_account'}
+                'actor_relationship':'human_verified' if config().get('owner_account_id')==actor_account_id else 'external_account'}
         target['identity']=digest(['xhs-native-comment-v1',item['account']['account_id'],item['source_ref'],
                                    note['note_author'],note['note_title'],actor_account_id,target['actor_name'],comment])
         self.last_target=target
@@ -351,6 +522,9 @@ class NativeInbox(NativePublisher):
             else:await self.device.swipe(540,1800,540,650);await self.observe()
         raise InteractionBlocked('original_comment_not_visible')
     async def prepare_reply(self,item):
+        if item['target'].get('target_kind')=='post':
+            from .post_navigation import prepare_post
+            return await prepare_post(self,item)
         target,comment=await self.target_comment(item)
         if any(r['actor_name']==item['account']['account_name'] and reply_text_matches(r['text'],item['text'])
                for r in comment_rows(self.root)):
@@ -377,6 +551,9 @@ class NativeInbox(NativePublisher):
         if len(edits)!=1 or edits[0].get('text')!=item['text']:raise InteractionBlocked('reply_submit_text_changed')
         await self.click('发送')
     async def verify_reply(self,item):
+        if item['target'].get('target_kind')=='post':
+            from .post_navigation import verify_post
+            return await verify_post(self,item)
         await self.observe()
         if any(a.get('class')=='android.widget.EditText' for a in self.rows):return None
         _,parent=await self.target_comment(item)
